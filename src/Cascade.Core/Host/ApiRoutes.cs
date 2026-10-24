@@ -145,26 +145,11 @@ namespace Cascade.Core.Host
             var body = Json.Body(r);
             var p = Settings.Provider;
             var changed = new List<string>();
-            var providerText = Json.Read<string>(body, "provider");
-            if (providerText != null)
+            foreach (var locked in new[] { "provider", "baseUrl", "sourceRepository", "sandboxRepository", "writeMode", "allowProduction" })
             {
-                var kind = providerText.Equals("gitlab", StringComparison.OrdinalIgnoreCase) ? ProviderKind.GitLab : providerText.Equals("github", StringComparison.OrdinalIgnoreCase) ? ProviderKind.GitHub : (ProviderKind?)null;
-                if (kind == null) throw new BadRequestException("provider must be github or gitlab.");
-                if (kind != p.Kind)
-                {
-                    p.Kind = kind.Value;
-                    // Tokens are provider-specific; pick up whichever the launcher resolved for the new kind.
-                    p.Token = kind == ProviderKind.GitLab ? Environment.GetEnvironmentVariable("GITLAB_TOKEN") : (Environment.GetEnvironmentVariable("GITHUB_TOKEN") ?? Environment.GetEnvironmentVariable("GH_TOKEN"));
-                    p.BaseUrl = string.Empty;
-                    changed.Add("provider");
-                }
+                if (body[locked] != null)
+                    throw new BadRequestException(locked + " can only be set in config/cascade.env (then relaunch). The browser cannot change where Cascade reads, writes or sends tokens.");
             }
-            var baseUrl = Json.Read<string>(body, "baseUrl");
-            if (baseUrl != null) { p.BaseUrl = baseUrl.Trim(); changed.Add("baseUrl"); }
-            var source = Json.Read<string>(body, "sourceRepository");
-            if (source != null) { p.SourceRepository = source.Trim(); changed.Add("sourceRepository"); }
-            var sandbox = Json.Read<string>(body, "sandboxRepository");
-            if (sandbox != null) { p.SandboxRepository = sandbox.Trim(); changed.Add("sandboxRepository"); }
             if (body["labelFilter"] != null) { var lf = Json.Read<string>(body, "labelFilter"); Settings.LabelFilter = string.IsNullOrWhiteSpace(lf) ? null : lf!.Trim(); changed.Add("labelFilter"); }
             var llmProfile = Json.Read<string>(body, "llmProfile");
             if (llmProfile != null)
@@ -181,8 +166,6 @@ namespace Cascade.Core.Host
             }
             var delay = Json.Read<int?>(body, "writeDelayMs");
             if (delay != null) { p.WriteDelayMs = delay.Value; changed.Add("writeDelayMs"); }
-            if (body["writeMode"] != null || body["allowProduction"] != null)
-                throw new BadRequestException("writeMode and allowProduction can only be set in the environment (cascade.env), never from the browser.");
             if (changed.Count > 0)
             {
                 ResetProvider();

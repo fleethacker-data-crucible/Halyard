@@ -97,7 +97,7 @@ namespace Cascade.Core.Synthetic
             if (catalog == null) throw new ArgumentNullException("catalog");
             options = options ?? new SeedOptions();
             var intent = new WriteIntent("seed-synthetic", "Seed synthetic hierarchy run " + options.RunId, options.RunId);
-            var writer = gateway.Open(provider, target, intent);
+            var writer = await gateway.OpenVerifiedAsync(provider, target, intent, cancellation).ConfigureAwait(false);
             var manifest = new SeedManifest { RunId = options.RunId, Target = target.Key, StartedAt = DateTimeOffset.UtcNow, Requested = catalog.Count };
             var ordered = TopologicalOrder(catalog);
             var total = ordered.Count;

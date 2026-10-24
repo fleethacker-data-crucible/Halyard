@@ -142,6 +142,11 @@ Describe 'Repository rules' {
             Select-String -Pattern '\.OpenWriter\('
         $hits | Should -BeNullOrEmpty
     }
+    It 'providers never implement the writer interface themselves (no cast around the gateway)' {
+        $hits = Get-ChildItem (Join-Path $script:Root 'src\Cascade.Core\Providers') -Filter '*Provider.cs' |
+            Select-String -Pattern 'class\s+\w+Provider\s*:[^{]*IWorkItemWriter'
+        $hits | Should -BeNullOrEmpty
+    }
     It 'scripts parse under the current PowerShell' {
         $files = Get-ChildItem (Join-Path $script:Root 'module'), (Join-Path $script:Root 'scripts'), (Join-Path $script:Root 'build') -Recurse -Include *.ps1, *.psm1, *.psd1
         foreach ($f in $files) {

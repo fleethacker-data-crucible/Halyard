@@ -93,7 +93,7 @@ function Initialize-CascadeEnvironment {
     $applied = [Cascade.Core.Facade]::LoadEnvFile($EnvFile)
     if ($applied -gt 0) { Write-Verbose ("Applied $applied settings from $EnvFile") }
 
-    $provider = if ($env:CASCADE_PROVIDER) { $env:CASCADE_PROVIDER.Trim().ToLowerInvariant() } elseif ($env:GITLAB_PROJECT_ID) { 'gitlab' } else { 'github' }
+    $provider = if ($env:CASCADE_PROVIDER) { $env:CASCADE_PROVIDER.Trim().ToLowerInvariant() } else { 'github' }
     $arc = $null
     $wantArc = ($UseArc -eq 'Always') -or ($UseArc -eq 'Auto' -and ($provider -eq 'gitlab' -or $env:CASCADE_USE_ARC -eq '1'))
     if ($wantArc) { $arc = Connect-CascadeArc -CascadeRoot $Root }
