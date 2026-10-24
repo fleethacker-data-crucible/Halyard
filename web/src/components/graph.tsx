@@ -23,8 +23,9 @@ export function HierarchyGraph({ roots, orphans, selectedKey, onSelect, height =
     const depth = Math.max(1, root.height);
     const width = Math.max(900, depth * 260);
     const h = Math.max(height, leaves * rowHeight);
-    tree<GNode>().size([h - 20, width - 320])(root);
-    return { root, width, height: h };
+    // tree() returns the same nodes with x/y assigned, typed as HierarchyPointNode.
+    const laidOut: HierarchyPointNode<GNode> = tree<GNode>().size([h - 20, width - 320])(root);
+    return { root: laidOut, width, height: h };
   }, [roots, orphans, height]);
 
   useEffect(() => {
@@ -40,8 +41,8 @@ export function HierarchyGraph({ roots, orphans, selectedKey, onSelect, height =
     return () => { sel.on('.zoom', null); };
   }, [layout, height]);
 
-  const nodes = layout.root.descendants().filter((d) => !(d.data as GNode).synthetic) as HierarchyPointNode<GNode>[];
-  const links = layout.root.links().filter((l) => !(l.source.data as GNode).synthetic);
+  const nodes = layout.root.descendants().filter((d) => !d.data.synthetic);
+  const links = layout.root.links().filter((l) => !l.source.data.synthetic);
 
   return (
     <div className="relative">
