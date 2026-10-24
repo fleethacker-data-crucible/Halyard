@@ -62,6 +62,21 @@ export async function api<T = unknown>(path: string, init: RequestInit & { json?
 }
 
 export const get = <T,>(path: string) => api<T>(path);
+
+/** Fetches a non-JSON resource (the HTML report) with the session header. */
+export async function getText(path: string): Promise<string> {
+  const headers = new Headers();
+  const token = sessionToken();
+  if (token) headers.set('X-Cascade-Session', token);
+  const response = await fetch(path, { headers, cache: 'no-store' });
+  const text = await response.text();
+  if (!response.ok) {
+    let message = `Request failed with HTTP ${response.status}`;
+    try { message = (JSON.parse(text) as { error?: string }).error ?? message; } catch { /* not json */ }
+    throw new ApiError(response.status, `HTTP_${response.status}`, message);
+  }
+  return text;
+}
 export const post = <T,>(path: string, json?: unknown, headers?: Record<string, string>) => api<T>(path, { method: 'POST', json: json ?? {}, headers });
 
 export function describeError(e: unknown): string {

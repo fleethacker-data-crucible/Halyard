@@ -36,6 +36,9 @@ namespace Cascade.Core.Host
             Router.Get("/api/hierarchy", r => Task.FromResult(Json.Ok(HierarchyPayload(Query(r, "label")))));
             Router.Get("/api/items/{number}", GetItem);
             Router.Get("/api/item", GetItem);
+            Router.Get("/api/leadership", r => Task.FromResult(Json.Ok(LeadershipPayload(Query(r, "label")))));
+            Router.Get("/api/leadership/report.html", r => Task.FromResult(HttpResponse.Text(200, DeliveryHtml.Render(BuildDelivery(Query(r, "label"))), "text/html; charset=utf-8")));
+            Router.Get("/api/team", r => Task.FromResult(Json.Ok(TeamPayload())));
 
             Router.Get("/api/sandbox/preview", PreviewCatalog);
             Router.Post("/api/sandbox/seed", StartSeed);
@@ -350,6 +353,46 @@ namespace Cascade.Core.Host
             var first = key.IndexOf(':');
             var last = key.LastIndexOf(':');
             return first < 0 || last <= first ? key : key.Substring(first + 1, last - first - 1);
+        }
+
+        private DeliveryReport BuildDelivery(string? label)
+        {
+            List<WorkItem> all;
+            var visible = VisibleItems(label ?? Settings.LabelFilter, out all);
+            var snap = Snapshots.Current;
+            return Delivery.Build(visible, Team, DateTimeOffset.UtcNow, snap == null ? null : snap.Repository);
+        }
+
+        private object LeadershipPayload(string? label)
+        {
+            var snap = Snapshots.Current;
+            if (snap == null) throw new BadRequestException("Synchronize a repository first; the leadership view reads the snapshot.");
+            var r = BuildDelivery(label);
+            return new
+            {
+                snapshot = new { snap.Id, snap.TakenAt, snap.Repository, ageSeconds = (int)snap.Age.TotalSeconds },
+                r.GeneratedAt, r.CurrentSprint, r.CurrentSprintNumber, r.SprintStart, r.SprintEnd,
+                r.FeaturesOnTrack, r.FeaturesActive, r.AverageVelocity,
+                features = r.Features.Select(f => new { f.Key, f.Number, f.Title, f.CanonicalId, f.Epic, f.Theme, f.Owner, f.Target, f.Stories, f.StoriesDone, f.Points, f.PointsDone, f.Blocked, f.Percent, status = f.Status.ToString(), f.Reason, f.Url }),
+                themes = r.Themes.Select(t => new { t.Key, t.Title, t.Points, t.PointsDone, t.Features, t.FeaturesDone, t.Percent }),
+                velocity = r.Velocity,
+                blockers = r.Blockers,
+                ready = new { r.Ready.Stories, r.Ready.Points, r.Ready.NotReady, r.Ready.AverageVelocity, r.Ready.Healthy },
+                capacity = new { r.Capacity.TeamCapacity, r.Capacity.PlannedPoints, r.Capacity.DonePoints, r.Capacity.UsedPercent, r.Capacity.Committed, r.Capacity.Allocated, r.Capacity.Experiment, r.Capacity.Teams, r.Capacity.People, r.Capacity.Configured },
+                escalationBusinessDays = Delivery.EscalationBusinessDays,
+                r.Notes,
+            };
+        }
+
+        private object TeamPayload()
+        {
+            var team = Team;
+            var skills = Skills;
+            var dict = team.ToPublicDictionary();
+            dict["skillsPath"] = Settings.SkillsPath;
+            dict["skillCount"] = skills.Skills.Count;
+            dict["synapseDirectory"] = Settings.SynapseDirectory;
+            return dict;
         }
 
         private Task<HttpResponse> GetItem(HttpRequest r)

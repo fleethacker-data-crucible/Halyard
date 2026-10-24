@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { LuActivity, LuBoxes, LuClipboardCheck, LuGitBranch, LuLayoutDashboard, LuPlug, LuPower, LuSettings2, LuSparkles, LuTestTubeDiagonal } from 'react-icons/lu';
+import { LuActivity, LuBoxes, LuClipboardCheck, LuGitBranch, LuLayoutDashboard, LuPlug, LuPower, LuPresentation, LuSettings2, LuSparkles, LuTestTubeDiagonal } from 'react-icons/lu';
 import { post, sessionToken } from './lib/api';
 import { ageLabel } from './lib/format';
 import { Status } from './lib/schemas';
@@ -8,16 +8,18 @@ import { Button, ConfirmDialog, Notice, Pill, ToastProvider, cn, useToast } from
 import { ConnectionPage } from './pages/connection';
 import { DiagnosticsPage } from './pages/diagnostics';
 import { HierarchyPage } from './pages/hierarchy';
+import { LeadershipPage } from './pages/leadership';
 import { OverviewPage } from './pages/overview';
 import { ProposalsPage } from './pages/proposals';
 import { ReviewPage } from './pages/review';
 import { SandboxPage } from './pages/sandbox';
 import { SettingsPage } from './pages/settings';
 
-export type Route = 'overview' | 'hierarchy' | 'review' | 'proposals' | 'sandbox' | 'connection' | 'diagnostics' | 'settings';
+export type Route = 'overview' | 'leadership' | 'hierarchy' | 'review' | 'proposals' | 'sandbox' | 'connection' | 'diagnostics' | 'settings';
 
 const NAV: Array<{ route: Route; label: string; icon: ReactNode; group: 'work' | 'operate' }> = [
   { route: 'overview', label: 'Overview', icon: <LuLayoutDashboard size={16} />, group: 'work' },
+  { route: 'leadership', label: 'Leadership', icon: <LuPresentation size={16} />, group: 'work' },
   { route: 'hierarchy', label: 'Hierarchy', icon: <LuGitBranch size={16} />, group: 'work' },
   { route: 'review', label: 'Review', icon: <LuClipboardCheck size={16} />, group: 'work' },
   { route: 'proposals', label: 'Proposals', icon: <LuSparkles size={16} />, group: 'work' },
@@ -96,6 +98,7 @@ function Shell() {
   const s = status.data;
   const page = (() => {
     switch (route) {
+      case 'leadership': return <LeadershipPage status={s} />;
       case 'hierarchy': return <HierarchyPage params={params} status={s} />;
       case 'review': return <ReviewPage params={params} status={s} />;
       case 'proposals': return <ProposalsPage params={params} status={s} />;
