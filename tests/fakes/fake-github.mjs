@@ -71,9 +71,33 @@ function refine(user) {
   return { narrative: current + add, note: 'Added the missing sections; kept the existing text.' };
 }
 
+function vision(user) {
+  // A grounded vision: keep every epic under its current theme, rank epics by order of appearance.
+  const themes = [...user.matchAll(/^- (THEME-[a-z0-9-]+): ([^\n—]+)/gm)].map((m) => ({ id: m[1], title: m[2].trim() }));
+  const epics = [...user.matchAll(/^- (EPIC-[a-z0-9-]+): ([^\[\n]+)\[([^\]]+)\]/gm)].map((m) => ({ id: m[1], title: m[2].trim(), theme: m[3].trim() }));
+  return {
+    vision: 'A data platform teams can rely on: trusted ingestion, secure foundations and observable services, delivered in small verified steps.',
+    themes: themes.map((t) => ({ id: t.id, title: t.title, purpose: `Why ${t.title} exists: shared capability every product epic depends on.`, epics: epics.filter((e) => e.theme === t.id).map((e) => e.id) })),
+    priorities: epics.slice(0, 5).map((e, i) => ({ rank: i + 1, epic: e.id, why: `${e.title} unblocks the most downstream features.` })),
+    risks: ['Escalated blockers on identity work', 'No one on the team holds streaming-data skills'],
+    nextQuarter: ['Ingestion contracts live for every source feed', 'Identity and access baseline complete', 'On-call alerting trusted enough to page'],
+    narrative: '## Vision\nA data platform teams can rely on.\n\n## Strategic themes\n' + themes.map((t) => `### ${t.title}\nShared capability.`).join('\n\n') + '\n\n## Priorities\n' + epics.slice(0, 5).map((e, i) => `${i + 1}. **${e.title}**`).join('\n') + '\n\n## Risks\n- Escalated blockers\n\n## Next quarter\n- Ingestion contracts live',
+  };
+}
+
 function chat(data, res) {
   const messages = data.messages ?? [];
   const prompt = messages.map((m) => m.content ?? '').join('\n');
+  if (prompt.includes('portfolio vision')) {
+    const user = messages.filter((m) => m.role === 'user').map((m) => m.content ?? '').join('\n');
+    return send(res, 200, { choices: [{ message: { content: '```json\n' + JSON.stringify(vision(user)) + '\n```' } }], usage: { prompt_tokens: 1000, completion_tokens: 400 } });
+  }
+  if (prompt.includes('tagging backlog items with the skills')) {
+    const ids = [...prompt.matchAll(/### id: (\S+)/g)].map((m) => m[1]);
+    const pool = ['sql-pipelines', 'data-quality', 'identity-access', 'ci-cd-pipelines', 'monitoring-alerting', 'technical-writing'];
+    const out = ids.map((id, i) => ({ id, skills: [pool[i % pool.length], pool[(i + 1) % pool.length]], confidence: 'medium', reason: 'fake model' }));
+    return send(res, 200, { choices: [{ message: { content: JSON.stringify(out) } }], usage: { prompt_tokens: 500, completion_tokens: 100 } });
+  }
   if (prompt.includes('refinement assistant')) {
     const user = messages.filter((m) => m.role === 'user').map((m) => m.content ?? '').join('\n');
     return send(res, 200, { choices: [{ message: { content: JSON.stringify(refine(user)) } }], usage: { prompt_tokens: Math.floor(prompt.length / 4), completion_tokens: 200 } });

@@ -430,5 +430,15 @@ export const PlanResult = z.object({
 });
 export type PlanResult = z.infer<typeof PlanResult>;
 
+export const VisionSummary = z.object({ id: z.string(), createdAt: z.string(), source: z.string(), repository: z.string(), vision: z.string(), themes: z.number(), priorities: z.number(), risks: z.number(), proposalBatchId: Nullable(z.string()), warnings: z.number() });
+export type VisionSummary = z.infer<typeof VisionSummary>;
+export const VisionDraft = z.object({
+  id: z.string(), createdAt: z.string(), source: z.string(), repository: z.string(), vision: z.string(), markdown: z.string(),
+  themes: z.array(z.object({ id: z.string(), title: z.string(), purpose: z.string(), epics: z.array(z.string()), isNew: z.boolean() })),
+  priorities: z.array(z.object({ rank: z.number(), epic: z.string(), title: z.string(), why: z.string() })),
+  risks: z.array(z.string()), nextQuarter: z.array(z.string()), proposalBatchId: Nullable(z.string()), warnings: z.array(z.string()),
+});
+export type VisionDraft = z.infer<typeof VisionDraft>;
+
 export const Repositories = z.array(z.object({ identifier: z.string(), displayName: z.string(), url: Nullable(z.string()), key: z.string() }));
 export const Labels = z.object({ repository: z.string(), labels: z.array(z.string()) });

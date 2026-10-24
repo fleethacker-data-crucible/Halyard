@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Cascade.Core.Analysis;
 using Cascade.Core.Intelligence;
+using Cascade.Core.Llm;
 using Cascade.Core.Model;
 using Cascade.Core.Planning;
 using Cascade.Core.Providers;
@@ -51,6 +52,9 @@ namespace Cascade.Core.Host
             Router.Post("/api/intelligence/refine", StartRefine);
             Router.Post("/api/intelligence/metadata", MetadataProposals);
             Router.Post("/api/intelligence/skills", StartSkills);
+            Router.Get("/api/vision", r => Task.FromResult(Json.Ok(Visions.LoadAll().Select(VisionSummary))));
+            Router.Get("/api/vision/{id}", r => { var v = Visions.Load(r.RouteValues["id"]); if (v == null) throw new NotFoundException("No such vision draft."); return Task.FromResult(Json.Ok(v)); });
+            Router.Post("/api/vision/draft", StartVision);
             Router.Post("/api/plan/preview", r => PlanRoute(r, false));
             Router.Post("/api/plan/propose", r => PlanRoute(r, true));
             Router.Get("/api/proposals", r => Task.FromResult(Json.Ok(Proposals.LoadAll().Select(BatchSummary))));
@@ -634,6 +638,45 @@ namespace Cascade.Core.Host
             var batch = Refiner.MetadataProposals(items, report, Taxonomy, target, ReadNumbers(body));
             Proposals.Save(batch);
             return Task.FromResult(Json.Ok(batch));
+        }
+
+        private static object VisionSummary(VisionDraft v)
+        {
+            return new { v.Id, v.CreatedAt, v.Source, v.Repository, v.Vision, themes = v.Themes.Count, priorities = v.Priorities.Count, risks = v.Risks.Count, v.ProposalBatchId, warnings = v.Warnings.Count };
+        }
+
+        /// <summary>Drafts the portfolio vision (model when configured and asked, deterministic otherwise) and theme-membership proposals.</summary>
+        private Task<HttpResponse> StartVision(HttpRequest r)
+        {
+            var body = Json.Body(r);
+            var useModel = Json.Read<bool?>(body, "useModel") ?? true;
+            var label = Json.Read<string>(body, "label") ?? Settings.LabelFilter;
+            var snap = Snapshots.Current;
+            if (snap == null) throw new BadRequestException("Synchronize a repository first.");
+            List<WorkItem> all;
+            var visible = VisibleItems(label, out all);
+            var report = Review.Run(visible, Taxonomy, label, all);
+            var team = Team;
+            var delivery = Delivery.Build(visible, team, DateTimeOffset.UtcNow, snap.Repository);
+            var plan = SprintPlanner.Plan(visible, report, team, DateTimeOffset.UtcNow, new PlanOptions());
+            var sandbox = Settings.Provider.Sandbox;
+            var sandboxKeys = sandbox == null ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : new HashSet<string>(visible.Where(i => i.Repository.Equals(sandbox)).Select(i => i.Key), StringComparer.OrdinalIgnoreCase);
+            var repository = snap.Repository;
+            ILlmClient? llm = useModel ? CreateLlm(Json.Read<string>(body, "profile")) : null;
+            var job = Jobs.Start("vision", async ctx =>
+            {
+                ctx.Report(0, 0, llm == null ? "Summarizing the backlog" : "Asking " + llm.Model + " for a portfolio vision");
+                var draft = llm == null ? Visionary.Summarize(visible, delivery, plan.SkillGaps, repository) : await Visionary.DraftAsync(visible, delivery, plan.SkillGaps, llm, repository, ctx.Cancellation).ConfigureAwait(false);
+                if (sandbox != null && sandboxKeys.Count > 0)
+                {
+                    var batch = Visionary.ThemeProposals(draft, visible, sandbox, sandboxKeys);
+                    if (batch.Proposals.Count > 0 || batch.Warnings.Count > 0) { Proposals.Save(batch); draft.ProposalBatchId = batch.Id; }
+                }
+                Visions.Save(draft);
+                ctx.Report(1, 1, "Vision " + draft.Id + " saved" + (draft.ProposalBatchId != null ? " with theme proposals in batch " + draft.ProposalBatchId : string.Empty));
+                return (object?)VisionSummary(draft);
+            });
+            return Task.FromResult(Json.Accepted(new { job, source = llm == null ? "deterministic" : llm.Model }));
         }
 
         private Task<HttpResponse> PlanRoute(HttpRequest r, bool save)
