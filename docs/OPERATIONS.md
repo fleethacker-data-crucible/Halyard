@@ -60,6 +60,8 @@ From the **Sandbox** page, or from PowerShell:
 .\scripts\Invoke-SandboxTeardown.ps1 -Everything -ConfirmText 'DELETE sun-of-anton/cascade-sandbox'
 ```
 
+GitHub's issue listing can lag a few seconds behind creation, so synchronize again if a fresh run looks short. Deleting issues on GitHub uses its GraphQL API and needs admin rights on the repository.
+
 Seeding creates parents before children, writes `parent:` ids into meta, adds native sub-issue links on
 GitHub, and saves a manifest to `output\seeds\`. On GitHub it paces creates (~0.9 s each) to stay under
 secondary rate limits, so 100 items take about two minutes. Deletion is permanent on both hosts.
