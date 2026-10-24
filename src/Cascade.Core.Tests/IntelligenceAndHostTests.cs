@@ -280,6 +280,7 @@ namespace Cascade.Core.Tests
             var anon = new HttpClient();
             Assert.Equal(200, (int)(await anon.GetAsync(_info.Url + "api/health")).StatusCode);
             Assert.Equal(401, (int)(await anon.GetAsync(_info.Url + "api/status")).StatusCode);
+            Assert.Equal(401, (int)(await anon.GetAsync(_info.Url + "api/status?session=" + _info.SessionToken)).StatusCode);
             Assert.Equal(200, (int)(await _client.GetAsync(_info.Url + "api/status")).StatusCode);
         }
 
@@ -302,8 +303,12 @@ namespace Cascade.Core.Tests
         [Fact]
         public async Task WriteModeCannotBeChangedFromTheBrowser()
         {
-            var r = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"writeMode\":\"production\"}"));
-            Assert.Equal(400, (int)r.StatusCode);
+            foreach (var locked in new[] { "{\"writeMode\":\"production\"}", "{\"sandboxRepository\":\"acme/real\"}", "{\"sourceRepository\":\"acme/real\"}", "{\"baseUrl\":\"https://evil.example\"}", "{\"provider\":\"gitlab\"}" })
+            {
+                var r = await _client.PostAsync(_info.Url + "api/config", new StringContent(locked));
+                Assert.Equal(400, (int)r.StatusCode);
+            }
+            Assert.Equal("sun-of-anton/cascade-sandbox", _host.Settings.Provider.SandboxRepository);
             var ok = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"labelFilter\":\"team::x\"}"));
             Assert.Equal(200, (int)ok.StatusCode);
             Assert.Equal("team::x", (string)JObject.Parse(await ok.Content.ReadAsStringAsync())["config"]!["labelFilter"]!);

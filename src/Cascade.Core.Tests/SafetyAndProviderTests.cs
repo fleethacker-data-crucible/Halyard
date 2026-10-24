@@ -121,24 +121,64 @@ namespace Cascade.Core.Tests
         }
 
         [Fact]
-        public async Task DeleteRequiresSyntheticLabelUnlessWipe()
+        public async Task DeleteRequiresSyntheticLabelOnTheLiveItemUnlessWipe()
         {
-            var (provider, http) = Provider();
+            var gh = new FakeGitHubRepo("sun-of-anton/cascade-sandbox");
+            gh.Add(5, "someone's real issue", "cascade");
+            gh.Add(6, "synthetic", Labels.Synthetic);
+            var provider = new GitHubProvider(gh.Http, "https://api.github.com", "tok", Sandbox, 0);
             var gateway = Gateway();
             var writer = gateway.Open(provider, Sandbox, new WriteIntent("teardown", "r"));
-            var real = new WorkItem(Sandbox, 5) { ProviderId = "I_5", Title = "someone's real issue" };
-            real.Labels.Add("cascade");
-            await Assert.ThrowsAsync<WriteBlockedException>(() => writer.DeleteAsync(real, CancellationToken.None));
-            Assert.Empty(http.Writes());
 
-            var synthetic = new WorkItem(Sandbox, 6) { ProviderId = "I_6", Title = "synthetic" };
-            synthetic.Labels.Add(Labels.Synthetic);
-            await writer.DeleteAsync(synthetic, CancellationToken.None);
-            Assert.Single(http.Writes());
+            // The caller's copy claims "synthetic", but the live issue is not: the live labels decide.
+            var forged = new WorkItem(Sandbox, 5) { Title = "forged" };
+            forged.Labels.Add(Labels.Synthetic);
+            await Assert.ThrowsAsync<WriteBlockedException>(() => writer.DeleteAsync(forged, CancellationToken.None));
+            Assert.True(gh.Exists(5));
+
+            Assert.True(await writer.DeleteAsync(new WorkItem(Sandbox, 6), CancellationToken.None));
+            Assert.False(gh.Exists(6));
+            Assert.False(await writer.DeleteAsync(new WorkItem(Sandbox, 6), CancellationToken.None)); // already gone
 
             var wipe = gateway.Open(provider, Sandbox, new WriteIntent("wipe", "r") { AllowDeleteOfAnyItem = true });
-            await wipe.DeleteAsync(real, CancellationToken.None);
-            Assert.Equal(2, http.Writes().Count());
+            Assert.True(await wipe.DeleteAsync(new WorkItem(Sandbox, 5), CancellationToken.None));
+            Assert.False(gh.Exists(5));
+        }
+
+        [Fact]
+        public async Task GitHubDeleteRefusesANodeFromAnotherRepository()
+        {
+            var gh = new FakeGitHubRepo("sun-of-anton/cascade-sandbox");
+            gh.Add(7, "transferred away", Labels.Synthetic);
+            gh.NodeRepositoryOverride = "sun-of-anton/cascade"; // GraphQL says the node now lives elsewhere
+            var provider = new GitHubProvider(gh.Http, "https://api.github.com", "tok", Sandbox, 0);
+            var writer = Gateway().Open(provider, Sandbox, new WriteIntent("teardown", "r"));
+            var ex = await Assert.ThrowsAsync<ProviderHttpException>(() => writer.DeleteAsync(new WorkItem(Sandbox, 7), CancellationToken.None));
+            Assert.Contains("Refusing to delete", ex.Message);
+            Assert.True(gh.Exists(7));
+            Assert.DoesNotContain(gh.Http.Calls, c => c.JsonBody != null && c.JsonBody.Contains("deleteIssue"));
+        }
+
+        [Fact]
+        public async Task LinkParentRefusesItemsOutsideTheTarget()
+        {
+            var (provider, _) = Provider();
+            var writer = Gateway().Open(provider, Sandbox, new WriteIntent("seed", "r"));
+            await Assert.ThrowsAsync<WriteBlockedException>(() => writer.LinkParentAsync(new WorkItem(Sandbox, 1), new WorkItem(Other, 2), CancellationToken.None));
+        }
+
+        [Fact]
+        public async Task VerifiedOpenBlocksTheSameRepositoryUnderAnotherName()
+        {
+            var http = new FakeTransport();
+            http.On("GET", "/repos/sun-of-anton/cascade-sandbox", 200, "{\"id\": 111}");
+            http.On("GET", "/repos/sun-of-anton/Old-Name", 200, "{\"id\": 111}"); // renamed repo, same id
+            var renamedSandbox = new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/Old-Name");
+            var policy = new WritePolicy();
+            policy.SandboxTargets.Add(renamedSandbox);
+            policy.ProtectedTargets.Add(Sandbox);
+            var provider = new GitHubProvider(http, "https://api.github.com", "tok", Sandbox, 0);
+            await Assert.ThrowsAsync<WriteBlockedException>(() => new WriteGateway(policy).OpenVerifiedAsync(provider, renamedSandbox, new WriteIntent("seed", "r"), CancellationToken.None));
         }
 
         [Fact]
@@ -198,6 +238,20 @@ namespace Cascade.Core.Tests
             Assert.Contains("Bad credentials", ex.Message);
         }
 
+        [Theory]
+        [InlineData("sun-of-anton/cascade-sandbox", true)]
+        [InlineData("owner/repo.name_1", true)]
+        [InlineData("acme/x/../../repos/acme/cbr", false)]
+        [InlineData("acme/..", false)]
+        [InlineData("acme/.", false)]
+        [InlineData("acme/repo?x=1", false)]
+        [InlineData("acme%2Fother/repo", false)]
+        [InlineData("just-a-name", false)]
+        public void ValidatesRepositoryIdentifiers(string identifier, bool valid)
+        {
+            Assert.Equal(valid, GitHubProvider.IsValidIdentifier(identifier));
+        }
+
         [Fact]
         public void RequiresOwnerSlashRepo()
         {
@@ -225,12 +279,23 @@ namespace Cascade.Core.Tests
             Assert.All(http.Calls, c => Assert.StartsWith("https://web.git.mil/api/v4/projects/52999/issues", c.Url));
         }
 
+        [Theory]
+        [InlineData("52999", true)]
+        [InlineData("group/sub/project", true)]
+        [InlineData("group/../other", false)]
+        [InlineData("project-only", false)]
+        [InlineData("group//project", false)]
+        public void ValidatesProjectIdentifiers(string identifier, bool valid)
+        {
+            Assert.Equal(valid, GitLabProvider.IsValidIdentifier(identifier));
+        }
+
         [Fact]
         public async Task CreateSendsCommaSeparatedLabelsAndDescription()
         {
             var http = new FakeTransport().On("POST", "/issues", 201, "{\"iid\":5,\"id\":1,\"title\":\"t\",\"description\":\"b\",\"state\":\"opened\",\"labels\":[]}");
             var provider = new GitLabProvider(http, "https://web.git.mil/api/v4/", "glpat", Project, 0);
-            var writer = (IWorkItemWriter)provider;
+            var writer = provider.OpenWriter(Project);
             var created = await writer.CreateAsync(new WorkItemDraft { Title = "t", Body = "b", Labels = new List<string> { "a", "b" } }, CancellationToken.None);
             Assert.Equal(5, created.Number);
             var sent = JObject.Parse(http.Writes().Single().JsonBody!);
@@ -286,19 +351,21 @@ namespace Cascade.Core.Tests
         [Fact]
         public async Task TeardownDeletesOnlyTheRequestedRun()
         {
-            var listing = new JArray(
-                new JObject { ["number"] = 1, ["id"] = 1, ["node_id"] = "a", ["title"] = "run1", ["body"] = "", ["state"] = "open", ["labels"] = new JArray(new JObject { ["name"] = "cascade-synthetic" }, new JObject { ["name"] = "cascade-run::r1" }) },
-                new JObject { ["number"] = 2, ["id"] = 2, ["node_id"] = "b", ["title"] = "run2 (server returned it anyway)", ["body"] = "", ["state"] = "open", ["labels"] = new JArray(new JObject { ["name"] = "cascade-synthetic" }, new JObject { ["name"] = "cascade-run::r2" }) },
-                new JObject { ["number"] = 3, ["id"] = 3, ["node_id"] = "c", ["title"] = "real", ["body"] = "", ["state"] = "open", ["labels"] = new JArray(new JObject { ["name"] = "cascade-run::r1" }) });
-            var http = new FakeTransport().On("GET", "/issues?", 200, listing.ToString()).On("POST", "/graphql", 200, "{\"data\":{}}");
-            var provider = new GitHubProvider(http, "https://api.github.com", "tok", Sandbox, 0);
+            var gh = new FakeGitHubRepo("sun-of-anton/cascade-sandbox");
+            gh.Add(1, "run1", "cascade-synthetic", "cascade-run::r1");
+            gh.Add(2, "run2", "cascade-synthetic", "cascade-run::r2");
+            gh.Add(3, "real, but labelled with the run", "cascade-run::r1");
+            gh.IgnoreLabelFilter = true; // even if the server returned everything, only r1 synthetic items go
+            var provider = new GitHubProvider(gh.Http, "https://api.github.com", "tok", Sandbox, 0);
             var policy = new WritePolicy();
             policy.SandboxTargets.Add(Sandbox);
             var result = await SandboxTeardown.RunAsync(provider, new WriteGateway(policy), Sandbox, new TeardownOptions { Scope = TeardownScope.Run, RunId = "r1" }, null, CancellationToken.None);
             Assert.Equal(1, result.Matched);
             Assert.Equal(1, result.Deleted);
             Assert.Equal(new[] { "github:sun-of-anton/cascade-sandbox:1" }, result.DeletedKeys.ToArray());
-            Assert.Single(http.Writes());
+            Assert.False(gh.Exists(1));
+            Assert.True(gh.Exists(2));
+            Assert.True(gh.Exists(3));
         }
 
         [Fact]

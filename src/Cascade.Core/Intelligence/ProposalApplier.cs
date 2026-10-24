@@ -37,7 +37,7 @@ namespace Cascade.Core.Intelligence
                 result.Messages.Add("No approved proposals in batch " + batch.Id + ".");
                 return result;
             }
-            var writer = gateway.Open(provider, target, new WriteIntent("apply-proposals", "Apply " + approved.Count + " approved " + batch.Kind + " proposals", batch.Id));
+            var writer = await gateway.OpenVerifiedAsync(provider, target, new WriteIntent("apply-proposals", "Apply " + approved.Count + " approved " + batch.Kind + " proposals", batch.Id), cancellation).ConfigureAwait(false);
             var reader = provider.ForRepository(target);
             var done = 0;
             foreach (var proposal in approved)
@@ -52,6 +52,13 @@ namespace Cascade.Core.Intelligence
                     {
                         proposal.Decision = ProposalDecision.Failed;
                         proposal.Error = "Item #" + proposal.ItemNumber + " not found in " + target.Key;
+                        result.Failed++;
+                        continue;
+                    }
+                    if (!string.Equals(item.CanonicalId, proposal.ItemCanonicalId, StringComparison.OrdinalIgnoreCase))
+                    {
+                        proposal.Decision = ProposalDecision.Failed;
+                        proposal.Error = "#" + proposal.ItemNumber + " is now " + item.CanonicalId + ", not " + proposal.ItemCanonicalId + "; re-run the analysis.";
                         result.Failed++;
                         continue;
                     }

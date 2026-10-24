@@ -13,7 +13,7 @@ namespace Cascade.Core.Providers
     /// URL-encodable <c>group/project</c> path. Pagination follows the <c>X-Next-Page</c> header.
     /// Native parent links are not used: cascade-meta is the hierarchy source of truth.
     /// </summary>
-    public sealed class GitLabProvider : RestProviderBase, IWorkItemProvider, IWorkItemWriter
+    public sealed class GitLabProvider : RestProviderBase, IWorkItemProvider
     {
         private const int PageSize = 100;
 
@@ -21,8 +21,17 @@ namespace Cascade.Core.Providers
             : base(http, NormalizeBase(baseUrl), token, writeDelayMs)
         {
             if (repository.Provider != ProviderKind.GitLab) throw new ArgumentException("Repository is not a GitLab project.", "repository");
+            if (!IsValidIdentifier(repository.Identifier)) throw new ArgumentException("GitLab projects are a numeric id or a group/project path without '.' or '..' segments; got '" + repository.Identifier + "'.", "repository");
             Repository = repository;
             Capabilities = new ProviderCapabilities { DeleteIssues = true, NativeParentLinks = false, RecommendedWriteDelayMs = DefaultWriteDelayMs };
+        }
+
+        public static bool IsValidIdentifier(string identifier)
+        {
+            if (string.IsNullOrWhiteSpace(identifier)) return false;
+            if (System.Text.RegularExpressions.Regex.IsMatch(identifier, @"^\d+$")) return true;
+            var segments = identifier.Split('/');
+            return segments.Length >= 2 && segments.All(seg => seg.Length > 0 && seg != "." && seg != ".." && System.Text.RegularExpressions.Regex.IsMatch(seg, @"^[A-Za-z0-9._-]+$"));
         }
 
         private static string NormalizeBase(string baseUrl)
@@ -45,7 +54,22 @@ namespace Cascade.Core.Providers
 
         public IWorkItemWriter OpenWriter(RepositoryRef target)
         {
-            return target.Equals(Repository) ? this : new GitLabProvider(Http, BaseUrl, Token, target, WriteDelayMs);
+            // The writer is a separate object so a provider can never be cast to a writer; only the
+            // write gateway calls this, after the policy check.
+            return new Writer(target.Equals(Repository) ? this : new GitLabProvider(Http, BaseUrl, Token, target, WriteDelayMs));
+        }
+
+        private sealed class Writer : IWorkItemWriter
+        {
+            private readonly GitLabProvider _p;
+            public Writer(GitLabProvider p) { _p = p; }
+            public RepositoryRef Repository { get { return _p.Repository; } }
+            public Task EnsureLabelAsync(LabelDefinition label, CancellationToken c) { return _p.WriteEnsureLabelAsync(label, c); }
+            public Task<WorkItem> CreateAsync(WorkItemDraft draft, CancellationToken c) { return _p.WriteCreateAsync(draft, c); }
+            public Task<WorkItem> UpdateAsync(long number, WorkItemPatch patch, CancellationToken c) { return _p.WriteUpdateAsync(number, patch, c); }
+            public Task<bool> DeleteAsync(WorkItem item, CancellationToken c) { return _p.WriteDeleteAsync(item, c); }
+            public Task<WorkItem?> GetAsync(long number, CancellationToken c) { return _p.GetWorkItemAsync(number, c); }
+            public Task<bool> LinkParentAsync(WorkItem child, WorkItem parent, CancellationToken c) { return _p.WriteLinkParentAsync(child, parent, c); }
         }
 
         public IWorkItemReader ForRepository(RepositoryRef repository)
@@ -127,6 +151,14 @@ namespace Cascade.Core.Providers
             return items;
         }
 
+        public async Task<string> GetRepositoryIdAsync(CancellationToken cancellation)
+        {
+            var j = await GetJsonAsync(ProjectApi, cancellation).ConfigureAwait(false);
+            var id = (long?)j["id"];
+            if (id == null) throw new ProviderHttpException(0, "Repository " + Repository.Key + " returned no id.", null);
+            return id.Value.ToString();
+        }
+
         public async Task<WorkItem?> GetWorkItemAsync(long number, CancellationToken cancellation)
         {
             try
@@ -141,7 +173,7 @@ namespace Cascade.Core.Providers
 
         // ---- writer (reachable only through WriteGateway) ----
 
-        async Task IWorkItemWriter.EnsureLabelAsync(LabelDefinition label, CancellationToken cancellation)
+        internal async Task WriteEnsureLabelAsync(LabelDefinition label, CancellationToken cancellation)
         {
             var payload = new JObject { ["name"] = label.Name, ["color"] = "#" + label.Color };
             if (!string.IsNullOrEmpty(label.Description)) payload["description"] = label.Description;
@@ -155,7 +187,7 @@ namespace Cascade.Core.Providers
             }
         }
 
-        async Task<WorkItem> IWorkItemWriter.CreateAsync(WorkItemDraft draft, CancellationToken cancellation)
+        internal async Task<WorkItem> WriteCreateAsync(WorkItemDraft draft, CancellationToken cancellation)
         {
             await PaceWriteAsync(cancellation).ConfigureAwait(false);
             var payload = new JObject { ["title"] = draft.Title, ["description"] = draft.Body, ["labels"] = string.Join(",", draft.Labels) };
@@ -163,7 +195,7 @@ namespace Cascade.Core.Providers
             return ToWorkItem(ParseJson(reply.Body));
         }
 
-        async Task<WorkItem> IWorkItemWriter.UpdateAsync(long number, WorkItemPatch patch, CancellationToken cancellation)
+        internal async Task<WorkItem> WriteUpdateAsync(long number, WorkItemPatch patch, CancellationToken cancellation)
         {
             await PaceWriteAsync(cancellation).ConfigureAwait(false);
             var payload = new JObject();
@@ -175,20 +207,21 @@ namespace Cascade.Core.Providers
             return ToWorkItem(ParseJson(reply.Body));
         }
 
-        async Task IWorkItemWriter.DeleteAsync(WorkItem item, CancellationToken cancellation)
+        internal async Task<bool> WriteDeleteAsync(WorkItem item, CancellationToken cancellation)
         {
             await PaceWriteAsync(cancellation).ConfigureAwait(false);
             try
             {
                 await SendAsync(NewCall("DELETE", ProjectApi + "/issues/" + item.Number), cancellation).ConfigureAwait(false);
+                return true;
             }
             catch (ProviderHttpException ex) when (ex.Status == 404)
             {
-                // already gone
+                return false; // already gone
             }
         }
 
-        Task<bool> IWorkItemWriter.LinkParentAsync(WorkItem child, WorkItem parent, CancellationToken cancellation)
+        internal Task<bool> WriteLinkParentAsync(WorkItem child, WorkItem parent, CancellationToken cancellation)
         {
             return Task.FromResult(false);
         }

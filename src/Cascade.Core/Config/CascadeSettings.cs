@@ -60,19 +60,21 @@ namespace Cascade.Core.Config
                 return string.IsNullOrWhiteSpace(v) ? null : v!.Trim();
             };
 
-            var kindText = env("CASCADE_PROVIDER") ?? (env("GITLAB_PROJECT_ID") != null || env("GITLAB_TOKEN") != null ? "gitlab" : "github");
+            var kindText = env("CASCADE_PROVIDER") ?? "github";
             s.Provider.Kind = kindText.Equals("gitlab", StringComparison.OrdinalIgnoreCase) ? ProviderKind.GitLab : ProviderKind.GitHub;
             if (s.Provider.Kind == ProviderKind.GitLab)
             {
                 s.Provider.BaseUrl = env("GITLAB_URL") ?? string.Empty;
-                s.Provider.SourceRepository = env("CASCADE_SOURCE_REPO") ?? env("GITLAB_SOURCE_PROJECT_ID") ?? string.Empty;
-                s.Provider.SandboxRepository = env("CASCADE_SANDBOX_REPO") ?? env("GITLAB_PROJECT_ID") ?? string.Empty;
+                s.Provider.SourceRepository = env("CASCADE_SOURCE_REPO") ?? string.Empty;
+                // The write target comes only from CASCADE_SANDBOX_REPO; generic names such as GITLAB_PROJECT_ID
+                // are often set to a real project and must never become writable by accident.
+                s.Provider.SandboxRepository = env("CASCADE_SANDBOX_REPO") ?? string.Empty;
                 s.Provider.Token = env("GITLAB_TOKEN");
             }
             else
             {
                 s.Provider.BaseUrl = env("GITHUB_API_URL") ?? string.Empty;
-                s.Provider.SourceRepository = env("CASCADE_SOURCE_REPO") ?? env("CASCADE_SANDBOX_REPO") ?? string.Empty;
+                s.Provider.SourceRepository = env("CASCADE_SOURCE_REPO") ?? string.Empty;
                 s.Provider.SandboxRepository = env("CASCADE_SANDBOX_REPO") ?? string.Empty;
                 s.Provider.Token = env("GITHUB_TOKEN") ?? env("GH_TOKEN");
             }

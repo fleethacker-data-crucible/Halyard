@@ -65,26 +65,36 @@ The analysis, UI and tests do not change.
 
 ## Write safety
 
-1. `IWorkItemProvider.OpenWriter` is called only by `WriteGateway.Open` (a Pester rule enforces this).
+1. `IWorkItemProvider.OpenWriter` is called only by `WriteGateway`, and providers do not implement the writer
+   interface themselves, so a provider cannot be cast into a writer (Pester rules enforce both).
 2. `WriteGateway.Open` asks `WritePolicy.Assert` first. Sandbox mode allows only the configured sandbox
    repository. Production needs `CASCADE_WRITE_MODE=production`, `CASCADE_ALLOW_PRODUCTION=1` **and** a
    per-operation opt-in in code; the browser cannot set any of these.
 3. The configured source repository is added to a protected list whenever it differs from the sandbox.
-4. Everything created is stamped with the `cascade` label; synthetic items also get `cascade-synthetic`
+   Every real write run opens through `OpenVerifiedAsync`, which compares the host's numeric repository ids,
+   so one project spelled two ways (`group/cbr` vs `16629`, or a renamed GitHub repo) is still caught.
+   Repository identifiers are validated (no `.`/`..` segments) and escaped before they reach a URL.
+4. Provider, API URL, source and sandbox come only from `config/cascade.env`. The browser can change the
+   label filter and model profile, nothing that decides where Cascade reads, writes or sends tokens.
+   The sandbox is read only from `CASCADE_SANDBOX_REPO`, never from generic names like `GITLAB_PROJECT_ID`.
+5. Everything created is stamped with the `cascade` label; synthetic items also get `cascade-synthetic`
    and `cascade-run::<id>`.
-5. Deletes are refused unless the item carries `cascade-synthetic`. A full wipe needs the typed phrase
-   `DELETE <repository>`.
-6. Every attempt, successful or not, is recorded in the write audit (Diagnostics → Write audit).
-7. Applying proposals re-reads each item and rewrites meta, the visible `### Cascade` mirror and any
+6. Deletes re-read the item first and check `cascade-synthetic` on the live copy, not the caller's. On GitHub
+   the node id is confirmed through GraphQL to belong to the sandbox and the expected number before
+   `deleteIssue` runs. A full wipe needs the typed phrase `DELETE <repository>`.
+7. Every attempt, successful or not, is recorded in the write audit (Diagnostics → Write audit).
+8. Applying proposals re-reads each item, checks it is still the same canonical id, and rewrites meta, the visible `### Cascade` mirror and any
    `## Sizing` section together, so the body never disagrees with itself.
 
 ## Local host security
 
 - Binds to `127.0.0.1` only and rejects non-loopback peers and non-loopback `Host` headers.
-- Every `/api` call except `/api/health` needs the random per-session token the launcher passes once in
-  the URL; the UI keeps it in `sessionStorage`. Other local processes and other browser tabs cannot call
+- Every `/api` call except `/api/health` needs the random per-session token in the `X-Cascade-Session`
+  header. The launcher passes it once in the page URL; the UI moves it to `sessionStorage` and removes it
+  from the address bar. API URLs never accept it. Other local processes and other browser tabs cannot call
   the API. The token is not written to the runtime file in `logs/`.
-- Cross-origin requests are refused; there are no CORS headers.
+- Cross-origin requests are refused; there are no CORS headers. HTTP redirects are not followed, so a
+  token or a write can never be forwarded to a URL nobody configured.
 - Ending the session needs the token and an `X-Cascade-Intent: end-session` header.
 - Static files are served from one directory with path normalisation; no directory listing.
 - Tokens live only in process memory. Logs and LLM transcripts redact token-shaped strings.

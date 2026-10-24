@@ -91,7 +91,9 @@ namespace Cascade.Core.Providers
         public HttpClientTransport(HttpMessageHandler? handler)
         {
             try { ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12; } catch (NotSupportedException) { }
-            _client = handler == null ? new HttpClient() : new HttpClient(handler, true);
+            // No automatic redirects: a redirected PATCH/DELETE would carry the token and the method to a URL
+            // nobody configured. A 3xx surfaces as an error instead.
+            _client = handler == null ? new HttpClient(new HttpClientHandler { AllowAutoRedirect = false }, true) : new HttpClient(handler, true);
             _client.Timeout = TimeSpan.FromMinutes(5);
         }
 

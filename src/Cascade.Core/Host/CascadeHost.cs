@@ -241,7 +241,7 @@ namespace Cascade.Core.Host
         private async Task<HttpResponse> HandleAsync(HttpRequest request)
         {
             var host = request.Header("Host") ?? string.Empty;
-            var hostName = host.Split(':')[0];
+            var hostName = host.StartsWith("[") ? host.Substring(0, host.IndexOf(']') + 1) : host.Split(':')[0];
             if (hostName != "127.0.0.1" && hostName != "localhost" && hostName != "[::1]")
                 return Json.Error(403, "BAD_HOST", "Loopback host names only.", request.RequestId);
 
@@ -285,13 +285,9 @@ namespace Cascade.Core.Host
 
         private bool TokenMatches(HttpRequest request)
         {
+            // Header only: the launch link's ?session= is read by the page and removed from the address bar,
+            // and API URLs never carry the token, so it does not end up in history or logs.
             var token = request.Header("X-Cascade-Session");
-            if (string.IsNullOrEmpty(token))
-            {
-                string? q;
-                request.QueryValues.TryGetValue("session", out q);
-                token = q;
-            }
             return !string.IsNullOrEmpty(token) && FixedTimeEquals(token!, SessionToken);
         }
 

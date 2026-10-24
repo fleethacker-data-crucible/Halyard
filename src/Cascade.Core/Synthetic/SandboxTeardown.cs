@@ -85,7 +85,7 @@ namespace Cascade.Core.Synthetic
             }
 
             // Policy check happens here, before any listing, so a wrong target fails fast.
-            var writer = gateway.Open(provider, target, intent);
+            var writer = await gateway.OpenVerifiedAsync(provider, target, intent, cancellation).ConfigureAwait(false);
             var reader = provider.ForRepository(target);
             Report(progress, 0, 0, "Listing candidates in " + target.Key);
             var candidates = await reader.ListWorkItemsAsync(query, null, cancellation).ConfigureAwait(false);
@@ -105,9 +105,16 @@ namespace Cascade.Core.Synthetic
                 }
                 try
                 {
-                    await writer.DeleteAsync(item, cancellation).ConfigureAwait(false);
-                    result.Deleted++;
-                    result.DeletedKeys.Add(item.Key);
+                    if (await writer.DeleteAsync(item, cancellation).ConfigureAwait(false))
+                    {
+                        result.Deleted++;
+                        result.DeletedKeys.Add(item.Key);
+                    }
+                    else
+                    {
+                        result.Skipped++;
+                        result.SkippedKeys.Add(item.Key + " (already gone)");
+                    }
                 }
                 catch (WriteBlockedException ex)
                 {
