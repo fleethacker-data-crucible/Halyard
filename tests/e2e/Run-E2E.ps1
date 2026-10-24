@@ -2,7 +2,7 @@
 <#
 .SYNOPSIS
   Offline end-to-end check: starts the fake GitHub, starts the Cascade engine against it in this process,
-  runs tests/e2e/sandbox-loop.mjs, and shuts both down. Needs python and node on PATH and a built core.
+  runs tests/e2e/sandbox-loop.mjs, and shuts both down. Needs node on PATH and a built core.
 .EXAMPLE
   pwsh tests/e2e/Run-E2E.ps1 -Total 30
 #>
@@ -10,12 +10,12 @@
 param([int]$Total = 30, [int]$FakePort = 8790, [int]$Port = 8799)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
-$python = @('python', 'python3', 'py') | ForEach-Object { Get-Command $_ -ErrorAction SilentlyContinue } | Select-Object -First 1
-if (-not $python) { throw 'python is required for the fake GitHub server.' }
+$node = Get-Command node -ErrorAction SilentlyContinue | Select-Object -First 1
+if (-not $node) { throw 'node is required for the fake GitHub server and the loop script.' }
 
 $work = Join-Path ([IO.Path]::GetTempPath()) ('cascade-e2e-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $work | Out-Null
-$fake = Start-Process -FilePath $python.Source -ArgumentList @((Join-Path $root 'tests\fakes\fake_github.py'), $FakePort) -PassThru -NoNewWindow
+$fake = Start-Process -FilePath $node.Source -ArgumentList @(('"' + (Join-Path $root 'tests\fakes\fake-github.mjs') + '"'), $FakePort) -PassThru -NoNewWindow
 $hostObj = $null
 try {
     $deadline = (Get-Date).AddSeconds(15)
@@ -38,7 +38,7 @@ try {
     $settings = [Cascade.Core.Facade]::SettingsFromEnvironment($work)
     $hostObj = [Cascade.Core.Facade]::CreateHost($settings, $null, $Port, $null)
     $info = $hostObj.Start()
-    & node (Join-Path $root 'tests\e2e\sandbox-loop.mjs') ('http://127.0.0.1:' + $info.Port) $info.SessionToken $Total
+    & $node.Source (Join-Path $root 'tests\e2e\sandbox-loop.mjs') ('http://127.0.0.1:' + $info.Port) $info.SessionToken $Total
     if ($LASTEXITCODE -ne 0) { throw "end-to-end loop failed ($LASTEXITCODE)" }
 } finally {
     if ($hostObj) { $hostObj.Dispose() }

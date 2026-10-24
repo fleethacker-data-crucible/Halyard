@@ -3,7 +3,7 @@
 //
 //   node tests/e2e/sandbox-loop.mjs http://127.0.0.1:8773 <session-token> [total]
 //
-// Point the host at tests/fakes/fake_github.py for an offline run, or at a real sandbox repo.
+// Point the host at tests/fakes/fake-github.mjs for an offline run, or at a real sandbox repo.
 const [base, token, totalArg, ...flags] = process.argv.slice(2);
 const keep = flags.includes('--keep'); // leave the seeded items in place (skips teardown)
 const existing = flags.includes('--existing'); // reuse an already-seeded run (E2E_RUN_ID) instead of seeding
