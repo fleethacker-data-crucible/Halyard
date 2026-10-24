@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { LuArrowRight, LuCheck, LuChevronDown, LuChevronRight, LuPlay, LuSparkles, LuWrench, LuX } from 'react-icons/lu';
+import { LuArrowRight, LuCheck, LuChevronDown, LuChevronRight, LuPlay, LuSparkles, LuTrash2, LuWrench, LuX } from 'react-icons/lu';
 import { navigate } from '../app';
 import { DiffView } from '../components/diff';
-import { Button, Checkbox, Empty, Field, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, cn, useToast } from '../components/ui';
+import { Button, Checkbox, ConfirmDialog, Empty, Field, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, cn, useToast } from '../components/ui';
 import { describeError, post } from '../lib/api';
 import { humanizeCode, relativeTime } from '../lib/format';
 import { isLevel } from '../lib/levels';
@@ -48,7 +48,7 @@ export function ProposalsPage({ params, status }: { params: URLSearchParams; sta
       <div className="grid gap-5 xl:grid-cols-[minmax(300px,1fr)_minmax(0,2.6fr)]">
         <div className="flex flex-col gap-5">
           <NewAnalysis status={status} onBatch={(id) => { invalidate('/api/proposals'); setSelectedId(id); }} />
-          <Section title="Batches">
+          <Section title="Batches" aside={<ApplyAll batches={batches.data} status={status} onDone={() => { invalidate('/api/proposals'); invalidate('/api/snapshot'); invalidate('/api/review'); invalidate('/api/hierarchy'); }} />}>
             {!batches.data ? <Skeleton rows={4} /> : batches.data.length === 0 ? <Empty title="No proposals yet">Run an analysis above. Each run becomes a batch you can review, approve and apply.</Empty> : (
               <ul className="scroll-y max-h-[50vh]">
                 {batches.data.map((b) => (
@@ -70,10 +70,30 @@ export function ProposalsPage({ params, status }: { params: URLSearchParams; sta
             )}
           </Section>
         </div>
-        {selectedId ? <BatchView batchId={selectedId} status={status} onChanged={() => invalidate('/api/proposals')} /> : <Section><Empty title="Select a batch" /></Section>}
+        {selectedId ? <BatchView batchId={selectedId} status={status} onChanged={() => invalidate('/api/proposals')} onDeleted={() => { invalidate('/api/proposals'); setSelectedId(null); }} /> : <Section><Empty title="Select a batch" /></Section>}
       </div>
       {batches.error ? <Notice tone="err">{batches.error}</Notice> : null}
     </Page>
+  );
+}
+
+function ApplyAll({ batches, status, onDone }: { batches: BatchSummary[] | undefined; status: Status | undefined; onDone: () => void }) {
+  const toast = useToast();
+  const sandboxKey = status ? `${status.config.provider}:${status.config.sandboxRepository}`.toLowerCase() : '';
+  const approved = (batches ?? []).filter((b) => b.target.toLowerCase() === sandboxKey).reduce((n, b) => n + b.approved, 0);
+  const job = useJob((j) => {
+    if (j.state === 'succeeded') {
+      const r = j.result as { applied?: number; failed?: number; skipped?: number; batches?: number } | null;
+      toast.push(r?.failed ? 'err' : 'ok', `Applied ${r?.applied ?? 0}, skipped ${r?.skipped ?? 0}, failed ${r?.failed ?? 0} across ${r?.batches ?? 0} batches.`);
+    } else if (j.state === 'failed') toast.push('err', j.error ?? 'Apply failed');
+    onDone();
+  });
+  if (approved === 0 && !job.running) return null;
+  return (
+    <span className="flex items-center gap-2">
+      {job.job && job.running ? <span className="text-[11.5px] text-ink-3">{job.job.message}</span> : null}
+      <Button size="sm" variant="primary" busy={job.running} onClick={() => void job.start('/api/proposals/apply-all')} title="Apply every approved proposal in every batch, oldest first"><LuPlay size={13} />Apply all {approved} approved</Button>
+    </span>
   );
 }
 
@@ -163,9 +183,24 @@ function NewAnalysis({ status, onBatch }: { status: Status | undefined; onBatch:
   );
 }
 
-function BatchView({ batchId, status, onChanged }: { batchId: string; status: Status | undefined; onChanged: () => void }) {
+function BatchView({ batchId, status, onChanged, onDeleted }: { batchId: string; status: Status | undefined; onChanged: () => void; onDeleted: () => void }) {
   const batch = useResource(`/api/proposals/${encodeURIComponent(batchId)}`, Batch);
   const toast = useToast();
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const remove = async () => {
+    setDeleting(true);
+    try {
+      await post(`/api/proposals/${encodeURIComponent(batchId)}/delete`);
+      toast.push('ok', 'Batch deleted. Anything already applied stays in the sandbox.');
+      onDeleted();
+    } catch (e) {
+      toast.push('err', describeError(e));
+    } finally {
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
   const [filter, setFilter] = useState<'all' | Proposal['decision']>('all');
   const [confidence, setConfidence] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -205,8 +240,11 @@ function BatchView({ batchId, status, onChanged }: { batchId: string; status: St
   return (
     <Section
       title={b ? `${KIND_LABEL[b.kind]} · ${b.proposals.length} proposals` : 'Batch'}
-      aside={b ? <span className="mono text-[11.5px]">{b.id}</span> : null}
+      aside={b ? <><span className="mono text-[11.5px]">{b.id}</span><Button size="sm" variant="quiet" className="text-err" onClick={() => setConfirmDelete(true)} busy={deleting} aria-label="Delete batch" title="Delete this batch"><LuTrash2 size={13} /></Button></> : null}
     >
+      <ConfirmDialog open={confirmDelete} title="Delete this batch?" confirmLabel="Delete batch" danger onCancel={() => setConfirmDelete(false)} onConfirm={() => void remove()}>
+        Removes the batch file and its decisions from this machine. Proposals already applied stay in the sandbox; pending and approved ones are simply forgotten.
+      </ConfirmDialog>
       {!b ? <Skeleton rows={8} /> : (
         <>
           <div className="flex flex-col gap-1 px-4 py-2.5 text-[12.5px] text-ink-2">
