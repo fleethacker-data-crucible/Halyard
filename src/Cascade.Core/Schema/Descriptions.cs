@@ -87,8 +87,9 @@ namespace Cascade.Core.Schema
             var section = Regex.Match(narrative, @"^[ \t]*##[ \t]*Sizing[ \t]*\r?\n(?<body>(?:(?!^#).*\r?\n?)*)", RegexOptions.Multiline);
             if (!section.Success) return narrative;
             if (sizing.Count == 0) return narrative;
-            var replacement = "## Sizing\n" + string.Join("\n", sizing) + "\n";
-            return narrative.Substring(0, section.Index) + replacement + narrative.Substring(section.Index + section.Length);
+            var replacement = "## Sizing\n" + string.Join("\n", sizing) + "\n\n";
+            var result = narrative.Substring(0, section.Index) + replacement + narrative.Substring(section.Index + section.Length);
+            return Regex.Replace(result, @"\n{3,}", "\n\n").TrimEnd();
         }
 
         /// <summary>Title convention: <c>{TYPE} :: {Short name}</c>.</summary>

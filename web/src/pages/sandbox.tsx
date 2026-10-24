@@ -29,15 +29,16 @@ export function SandboxPage({ status, refreshStatus }: { status: Status | undefi
 function Seeder({ status, onDone }: { status: Status | undefined; onDone: () => void }) {
   const [total, setTotal] = useState(100);
   const [seed, setSeed] = useState(20261024);
-  const [defects, setDefects] = useState(false);
+  const [defects, setDefects] = useState(true);
+  const [rate, setRate] = useState(20);
   const [nativeLinks, setNativeLinks] = useState(true);
   const [runId, setRunId] = useState('');
   const toast = useToast();
-  const preview = useResource(`/api/sandbox/preview?total=${total}&seed=${seed}&defects=${defects}`, CatalogPreview);
+  const preview = useResource(`/api/sandbox/preview?total=${total}&seed=${seed}&defects=${defects}&rate=${rate}`, CatalogPreview);
   const job = useJob((j) => {
     if (j.state === 'succeeded') {
       const m = j.result as { items?: unknown[]; errors?: string[] } | null;
-      toast.push(m?.errors?.length ? 'err' : 'ok', `Seeded ${m?.items?.length ?? 0} items${m?.errors?.length ? ` with ${m.errors.length} errors` : ''}.`);
+      toast.push(m?.errors?.length ? 'err' : 'ok', `Seeded ${m?.items?.length ?? 0} items${m?.errors?.length ? ` with ${m.errors.length} errors` : ''}. Synchronize the sandbox to review them.`);
     } else if (j.state === 'failed') toast.push('err', j.error ?? 'Seeding failed');
     onDone();
   });
@@ -50,16 +51,27 @@ function Seeder({ status, onDone }: { status: Status | undefined; onDone: () => 
         <Field label="Seed" hint="Same seed, same catalogue, every time."><Input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value) || 0)} /></Field>
         <Field label="Run id" hint="Optional. Defaults to a timestamp; it becomes the cascade-run:: label."><Input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="e.g. demo-1" /></Field>
         <div className="flex flex-col justify-end gap-1.5 pb-5">
-          <Checkbox label="Include a few definition gaps for the audit to find" checked={defects} onChange={(e) => setDefects(e.target.checked)} />
+          <Checkbox label="Seed a share of items with deliberate gaps (the human review workload)" checked={defects} onChange={(e) => setDefects(e.target.checked)} />
           <Checkbox label={`Native parent links${status?.provider.capabilities && !status.provider.capabilities.nativeParentLinks ? ' (not supported here)' : ''}`} checked={nativeLinks} onChange={(e) => setNativeLinks(e.target.checked)} />
         </div>
+        {defects ? (
+          <Field label={`Share needing review: ${rate}%`} hint="Twenty-one kinds of gap, spread over stories, features, tasks and a container or two. The rest are complete." className="col-span-2">
+            <input type="range" min={5} max={50} step={5} value={rate} onChange={(e) => setRate(Number(e.target.value))} className="w-full accent-[var(--accent)]" aria-label="Share of items needing review" />
+          </Field>
+        ) : null}
       </div>
       <div className="hairline">
         {preview.data ? <CascadeBars counts={Object.fromEntries(Object.entries(preview.data.counts).map(([k, v]) => [k.toUpperCase(), v]))} /> : <Skeleton rows={5} />}
-        {preview.data && preview.data.defects.length > 0 ? <p className="px-4 pb-2 text-[12.5px] text-ink-2">Deliberate gaps: {preview.data.defects.map((d) => d.id).join(', ')}</p> : null}
+        {preview.data ? (
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pb-3 text-[12.5px] text-ink-2">
+            <span><span className="num font-semibold text-ok">{preview.data.complete}</span> complete</span>
+            <span><span className="num font-semibold text-warn">{preview.data.needsReview}</span> need a human</span>
+            {preview.data.defects.length > 0 ? <DefectMix defects={preview.data.defects} /> : null}
+          </div>
+        ) : null}
       </div>
       <div className="hairline flex items-center gap-3 px-4 py-3">
-        <Button variant="primary" busy={job.running} disabled={!canWrite} onClick={() => void job.start('/api/sandbox/seed', { total, seed, includeDefects: defects, nativeLinks, runId: runId.trim() || undefined })}><LuSprout size={14} />Seed {total} items into the sandbox</Button>
+        <Button variant="primary" busy={job.running} disabled={!canWrite} onClick={() => void job.start('/api/sandbox/seed', { total, seed, includeDefects: defects, defectRate: rate / 100, nativeLinks, runId: runId.trim() || undefined })}><LuSprout size={14} />Seed {total} items into the sandbox</Button>
         {!canWrite ? <span className="text-[12px] text-ink-3">{!status?.config.sandboxRepository ? 'Configure a sandbox repository first.' : 'No provider token is loaded.'}</span> : <span className="text-[12px] text-ink-3">About {Math.ceil((total * (status?.provider.capabilities?.recommendedWriteDelayMs ?? 900)) / 1000 / 60)} min on {status?.config.provider === 'github' ? 'GitHub' : 'GitLab'}, paced to stay under rate limits.</span>}
       </div>
       {job.job ? (
@@ -75,13 +87,26 @@ function Seeder({ status, onDone }: { status: Status | undefined; onDone: () => 
   );
 }
 
+function DefectMix({ defects }: { defects: Array<{ defects: string[] }> }) {
+  const counts = new Map<string, number>();
+  for (const d of defects) for (const k of d.defects) counts.set(k, (counts.get(k) ?? 0) + 1);
+  const rows = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  return (
+    <details className="w-full">
+      <summary className="cursor-pointer text-ink-3">{rows.length} kinds of gap</summary>
+      <ul className="mt-1 flex flex-wrap gap-1">{rows.map(([k, n]) => <li key={k}><Pill tone="neutral">{k.replace(/_/g, ' ')} × {n}</Pill></li>)}</ul>
+    </details>
+  );
+}
+
 function SeedResult({ result }: { result: unknown }) {
   const parsed = SeedManifest.safeParse(result);
   if (!parsed.success) return null;
   const m = parsed.data;
+  const review = m.items.filter((i) => i.defects.length > 0).length;
   return (
     <div className="mt-2 text-[12.5px] text-ink-2">
-      Run <Mono>{m.runId}</Mono>: {m.items.length} of {m.requested} created{m.items.some((i) => i.nativeLinked) ? `, ${m.items.filter((i) => i.nativeLinked).length} natively linked` : ''}.
+      Run <Mono>{m.runId}</Mono>: {m.items.length} of {m.requested} created{review ? `, ${review} seeded with gaps for review` : ''}{m.items.some((i) => i.nativeLinked) ? `, ${m.items.filter((i) => i.nativeLinked).length} natively linked` : ''}.
       {m.errors.length > 0 ? <ul className="mt-1 text-err">{m.errors.slice(0, 5).map((e, i) => <li key={i}>{e}</li>)}</ul> : null}
     </div>
   );
@@ -125,7 +150,7 @@ function Runs({ runs, error, status, onChanged }: { runs: SeedManifest[] | undef
           <tbody>
             {runs.map((m) => (
               <tr key={m.runId}>
-                <td><Mono>{m.runId}</Mono><div className="text-[12px] text-ink-3">{m.items.length} of {m.requested} items{m.items[0]?.url ? <> · <a href={m.items[0].url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5">first item <LuExternalLink size={11} /></a></> : null}</div></td>
+                <td><Mono>{m.runId}</Mono><div className="text-[12px] text-ink-3">{m.items.length} of {m.requested} items{m.items.some((i) => i.defects.length > 0) ? ` · ${m.items.filter((i) => i.defects.length > 0).length} need review` : ''}{m.items[0]?.url ? <> · <a href={m.items[0].url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-0.5">first item <LuExternalLink size={11} /></a></> : null}</div></td>
                 <td className="text-ink-2" title={shortDate(m.startedAt)}>{relativeTime(m.startedAt)}</td>
                 <td><Mono className="text-[11.5px]">{m.target}</Mono></td>
                 <td>{m.completed ? <Pill tone="ok">complete</Pill> : m.errors.length > 0 ? <Pill tone="err">{m.errors.length} errors</Pill> : <Pill tone="warn">partial</Pill>}</td>

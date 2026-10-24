@@ -3,12 +3,15 @@ import { navigate } from '../app';
 import { CascadeBars, Coverage, Donut, HBars } from '../components/charts';
 import { Button, Empty, LevelChip, Page, Section, SeverityIcon, Stat, cn } from '../components/ui';
 import { humanizeCode, relativeTime } from '../lib/format';
-import { Review, type Status } from '../lib/schemas';
+import { Hierarchy, Review, type Status } from '../lib/schemas';
 import { useResource } from '../lib/useResource';
+import { remedies } from './review';
 
 export function OverviewPage({ status }: { status: Status | undefined }) {
   const review = useResource(status?.snapshot ? '/api/review' : null, Review);
+  const hierarchy = useResource(status?.snapshot ? '/api/hierarchy' : null, Hierarchy);
   const r = review.data;
+  const h = hierarchy.data;
 
   if (status && !status.snapshot) {
     return (
@@ -27,6 +30,22 @@ export function OverviewPage({ status }: { status: Status | undefined }) {
   const needsReview = r?.items.filter((i) => i.needsReview).sort((a, b) => b.findings.length + b.deficiencies.length - (a.findings.length + a.deficiencies.length)).slice(0, 8) ?? [];
   const deficiencyRows = Object.entries(summary?.deficiencyCounts ?? {}).map(([key, value]) => ({ key, label: humanizeCode(key), value })).sort((a, b) => b.value - a.value).slice(0, 8);
   const findingRows = Object.entries(summary?.findingCounts ?? {}).map(([key, value]) => ({ key, label: humanizeCode(key), value })).sort((a, b) => b.value - a.value).slice(0, 8);
+  // Rollups: points under each theme (from the resolved tree) and points per sprint (from story meta).
+  const themeRows = (h?.roots ?? []).filter((n) => n.type === 'THEME').map((n) => ({ key: n.key, label: n.title, value: n.rolledUpPoints, count: n.descendantCount })).sort((a, b) => b.value - a.value);
+  const sprintRows = (() => {
+    const map = new Map<string, number>();
+    for (const i of r?.items ?? []) {
+      if (i.type !== 'STORY') continue;
+      const p = Number(i.points);
+      if (!Number.isFinite(p) || p <= 0) continue;
+      const k = i.sprint && i.sprint !== 'TBD' ? i.sprint : '(no sprint)';
+      map.set(k, (map.get(k) ?? 0) + p);
+    }
+    return [...map.entries()].map(([key, value]) => ({ key, label: key, value })).sort((a, b) => (a.key === '(no sprint)' ? 1 : b.key === '(no sprint)' ? -1 : a.key.localeCompare(b.key)));
+  })();
+  // What kind of help the review queue needs, so the next action is obvious.
+  const remedyCounts = { refine: 0, metadata: 0, parents: 0, sizes: 0 };
+  for (const i of r?.items ?? []) for (const f of remedies(i)) remedyCounts[f]++;
 
   return (
     <Page
@@ -79,6 +98,40 @@ export function OverviewPage({ status }: { status: Status | undefined }) {
         </Section>
       </div>
 
+      <div className="grid gap-5 lg:grid-cols-3">
+        <Section title="Points by theme" aside={<a href="#/hierarchy" className="text-[12px]">Hierarchy</a>}>
+          {!h ? <Skeleton rows={3} /> : themeRows.length === 0 ? <p className="px-4 py-3 text-ink-3">No themes in the snapshot.</p> : (
+            <ul className="flex flex-col gap-1 px-4 py-3">
+              {themeRows.map((t) => {
+                const max = Math.max(1, ...themeRows.map((x) => x.value));
+                return (
+                  <li key={t.key} className="grid grid-cols-[minmax(0,1fr)_120px_48px] items-center gap-3">
+                    <span className="truncate text-ink-2" title={t.label}>{t.label} <span className="text-ink-3">· {t.count} items</span></span>
+                    <span className="h-2 w-full overflow-hidden rounded-full bg-surface-2"><span className="block h-full rounded-full" style={{ width: `${(t.value / max) * 100}%`, background: 'var(--lv-theme)' }} /></span>
+                    <span className="num text-right font-medium">{t.value}</span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Section>
+        <Section title="Points by sprint">
+          {!r ? <Skeleton rows={3} /> : <HBars rows={sprintRows} color="var(--lv-story)" />}
+          {r && sprintRows.length === 0 ? <p className="px-4 pb-3 text-ink-3">No sized stories yet.</p> : null}
+        </Section>
+        <Section title="Next actions" aside={<a href="#/proposals" className="text-[12px]">Proposals</a>}>
+          {!r ? <Skeleton rows={4} /> : (
+            <ul className="flex flex-col divide-y divide-line-2 text-[12.5px]">
+              <NextAction count={remedyCounts.metadata} label="items need their cascade-meta repaired" hint="deterministic, no model" onClick={() => navigate('proposals')} />
+              <NextAction count={remedyCounts.parents} label="items have no resolved parent" hint="evidence-ranked candidates" onClick={() => navigate('review', { tab: 'parents' })} />
+              <NextAction count={remedyCounts.refine} label="items are missing playbook sections" hint="drafted by the model, you approve" onClick={() => navigate('review')} />
+              <NextAction count={remedyCounts.sizes} label="items are unsized" hint="model proposes, policy clamps" onClick={() => navigate('proposals')} />
+              {Object.values(remedyCounts).every((v) => v === 0) ? <li className="px-4 py-3 text-ok">Nothing to fix. The backlog meets its definition of ready.</li> : null}
+            </ul>
+          )}
+        </Section>
+      </div>
+
       <Section title="Most in need of review" aside={<a href="#/review" className="text-[12px]">Open review</a>}>
         {r && needsReview.length === 0 ? <Empty title="Nothing needs review">Every item in the snapshot has complete metadata, a resolved parent and the sections its level requires.</Empty> : null}
         {needsReview.length > 0 ? (
@@ -103,6 +156,19 @@ export function OverviewPage({ status }: { status: Status | undefined }) {
         ) : null}
       </Section>
     </Page>
+  );
+}
+
+function NextAction({ count, label, hint, onClick }: { count: number; label: string; hint: string; onClick: () => void }) {
+  if (count === 0) return null;
+  return (
+    <li>
+      <button type="button" onClick={onClick} className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-surface-2">
+        <span className="num w-8 text-right text-[16px] font-semibold">{count}</span>
+        <span className="flex-1"><span className="text-ink">{label}</span><span className="block text-[11.5px] text-ink-3">{hint}</span></span>
+        <LuArrowRight size={14} className="text-ink-3" />
+      </button>
+    </li>
   );
 }
 

@@ -362,15 +362,29 @@ namespace Cascade.Core.Host
             if (!int.TryParse(Query(r, "seed"), out seed)) seed = 20261024;
             var options = SyntheticOptions.ForTotal(total, seed);
             options.IncludeDefects = Query(r, "defects") == "true";
+            options.DefectRate = ReadRate(Query(r, "rate")) ?? options.DefectRate;
             var items = SyntheticCatalog.Generate(options);
             return Task.FromResult(Json.Ok(new
             {
                 options,
                 total = items.Count,
                 counts = items.GroupBy(i => WorkItemTypes.ToToken(i.Type)).ToDictionary(g => g.Key, g => g.Count()),
+                complete = items.Count(i => !i.NeedsHumanReview),
+                needsReview = items.Count(i => i.NeedsHumanReview),
                 sample = items.Take(12).Select(i => new { i.Id, type = WorkItemTypes.ToToken(i.Type), i.Title, i.ParentId, labels = i.Labels, points = i.Meta.Points, effort = i.Meta.Effort }),
-                defects = items.Where(i => i.Defects.Count > 0).Select(i => new { i.Id, i.Defects }),
+                defects = items.Where(i => i.Defects.Count > 0).Select(i => new { i.Id, type = WorkItemTypes.ToToken(i.Type), i.Defects, expectedCodes = i.ExpectedCodes }),
+                defectKinds = SyntheticCatalog.DefectKinds,
             }));
+        }
+
+        /// <summary>A defect share between 0 and 0.5, given as a fraction (0.2) or a percentage (20).</summary>
+        private static double? ReadRate(string? text)
+        {
+            double v;
+            if (!double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v)) return null;
+            if (v > 1) v = v / 100.0;
+            if (v < 0 || v > 0.5) throw new BadRequestException("defectRate must be between 0 and 0.5 (0-50%).");
+            return v;
         }
 
         private Task<HttpResponse> StartSeed(HttpRequest r)
@@ -381,6 +395,8 @@ namespace Cascade.Core.Host
             var seed = Json.Read<int?>(body, "seed") ?? 20261024;
             var options = SyntheticOptions.ForTotal(total, seed);
             options.IncludeDefects = Json.Read<bool?>(body, "includeDefects") ?? false;
+            var rate = Json.Read<double?>(body, "defectRate");
+            if (rate != null) options.DefectRate = ReadRate(rate.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)) ?? options.DefectRate;
             var seedOptions = new SeedOptions
             {
                 RunId = Json.Read<string>(body, "runId") ?? SeedOptions.NewRunId(),

@@ -1,12 +1,13 @@
-import { useEffect, useMemo, useState } from 'react';
-import { LuArrowRight, LuCheck, LuPlay, LuSparkles, LuX } from 'react-icons/lu';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { LuArrowRight, LuCheck, LuChevronDown, LuChevronRight, LuPlay, LuSparkles, LuWrench, LuX } from 'react-icons/lu';
 import { navigate } from '../app';
-import { Button, Checkbox, Empty, Field, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, useToast } from '../components/ui';
+import { DiffView } from '../components/diff';
+import { Button, Checkbox, Empty, Field, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, cn, useToast } from '../components/ui';
 import { describeError, post } from '../lib/api';
 import { humanizeCode, relativeTime } from '../lib/format';
 import { isLevel } from '../lib/levels';
 import { useJob } from '../lib/jobs';
-import { Batch, BatchSummary, type Proposal, type Status } from '../lib/schemas';
+import { Batch, BatchSummary, ProposalPreview, type Job, type Proposal, type ProposalKind, type Status } from '../lib/schemas';
 import { invalidate, useResource } from '../lib/useResource';
 import { z } from 'zod';
 import { Skeleton } from './overview';
@@ -14,16 +15,27 @@ import { Skeleton } from './overview';
 function levelOf(p: Proposal): string {
   if (p.kind === 'featureEffort') return 'FEATURE';
   if (p.kind === 'storyPoints') return 'STORY';
-  const prefix = p.itemCanonicalId.split('-')[0]?.toUpperCase() ?? '';
+  const prefix = p.itemCanonicalId.split('-')[0]?.toUpperCase() ?? p.itemTitle.split('::')[0]?.trim().toUpperCase() ?? '';
   return isLevel(prefix) ? prefix : 'UNCLASSIFIED';
 }
 
-const KIND_LABEL: Record<Proposal['kind'], string> = { storyPoints: 'Story points', featureEffort: 'Feature effort', parentLink: 'Parent links' };
+export const KIND_LABEL: Record<ProposalKind, string> = { storyPoints: 'Story points', featureEffort: 'Feature effort', parentLink: 'Parent links', refinement: 'Drafted sections', metadata: 'Metadata repair' };
+const KIND_LEDE: Record<ProposalKind, string> = {
+  storyPoints: 'Sizes suggested by the model for stories; values above 8 are clamped to policy.',
+  featureEffort: 'Effort bands suggested by the model for features.',
+  parentLink: 'Parents inferred from title words, theme, area, labels and body references.',
+  refinement: 'Missing playbook sections drafted by the model; existing text is kept. Read the diff before approving.',
+  metadata: 'cascade-meta blocks built or completed from labels, titles and TBD placeholders. No model involved.',
+};
 
 export function ProposalsPage({ params, status }: { params: URLSearchParams; status: Status | undefined }) {
   const batches = useResource('/api/proposals', z.array(BatchSummary), { pollMs: 8000 });
   const [selectedId, setSelectedId] = useState<string | null>(params.get('batch'));
 
+  useEffect(() => {
+    const fromUrl = params.get('batch');
+    if (fromUrl && fromUrl !== selectedId) setSelectedId(fromUrl);
+  }, [params, selectedId]);
   useEffect(() => {
     if (!selectedId && batches.data && batches.data.length > 0) setSelectedId(batches.data[0]!.id);
   }, [batches.data, selectedId]);
@@ -31,20 +43,26 @@ export function ProposalsPage({ params, status }: { params: URLSearchParams; sta
   return (
     <Page
       title="Proposals"
-      lede="Suggested sizes and parent links, waiting for a human decision. Nothing is written until you approve and apply, and applying only ever targets the sandbox."
+      lede="Suggested changes waiting for a human decision. Nothing is written until you approve and apply, and applying only ever targets the sandbox."
     >
-      <div className="grid gap-5 xl:grid-cols-[minmax(300px,1fr)_minmax(0,2.4fr)]">
+      <div className="grid gap-5 xl:grid-cols-[minmax(300px,1fr)_minmax(0,2.6fr)]">
         <div className="flex flex-col gap-5">
           <NewAnalysis status={status} onBatch={(id) => { invalidate('/api/proposals'); setSelectedId(id); }} />
           <Section title="Batches">
             {!batches.data ? <Skeleton rows={4} /> : batches.data.length === 0 ? <Empty title="No proposals yet">Run an analysis above. Each run becomes a batch you can review, approve and apply.</Empty> : (
-              <ul>
+              <ul className="scroll-y max-h-[50vh]">
                 {batches.data.map((b) => (
                   <li key={b.id}>
-                    <button type="button" onClick={() => setSelectedId(b.id)} className={`flex w-full flex-col gap-0.5 px-4 py-2.5 text-left hover:bg-surface-2 ${b.id === selectedId ? 'bg-surface-2' : ''}`}>
+                    <button type="button" onClick={() => setSelectedId(b.id)} className={cn('flex w-full flex-col gap-0.5 px-4 py-2.5 text-left hover:bg-surface-2', b.id === selectedId && 'bg-surface-2')}>
                       <span className="flex items-center justify-between gap-2"><span className="font-medium">{KIND_LABEL[b.kind]}</span><span className="text-[12px] text-ink-3">{relativeTime(b.createdAt)}</span></span>
-                      <span className="text-[12px] text-ink-2">{b.total} proposals · {b.pending} pending · {b.approved} approved · {b.applied} applied{b.failed ? ` · ${b.failed} failed` : ''}</span>
-                      <span className="mono text-[11px] text-ink-3">{b.target} · {b.source}</span>
+                      <span className="flex flex-wrap gap-1 text-[12px] text-ink-2">
+                        <span>{b.total} proposals</span>
+                        {b.pending ? <Pill tone="info">{b.pending} pending</Pill> : null}
+                        {b.approved ? <Pill tone="ok">{b.approved} approved</Pill> : null}
+                        {b.applied ? <Pill tone="neutral">{b.applied} applied</Pill> : null}
+                        {b.failed ? <Pill tone="err">{b.failed} failed</Pill> : null}
+                      </span>
+                      <span className="mono text-[11px] text-ink-3">{b.source}</span>
                     </button>
                   </li>
                 ))}
@@ -64,61 +82,81 @@ function NewAnalysis({ status, onBatch }: { status: Status | undefined; onBatch:
   const [onlyUnsized, setOnlyUnsized] = useState(true);
   const [requireDefinition, setRequireDefinition] = useState(true);
   const [maxItems, setMaxItems] = useState(40);
+  const [refineMax, setRefineMax] = useState(10);
   const [profile, setProfile] = useState('auto');
   const toast = useToast();
-  const job = useJob((j) => {
+  const onModelJob = (what: string) => (j: Job) => {
     if (j.state === 'succeeded') {
-      const result = j.result as { id?: string } | null;
-      toast.push('ok', 'Proposals saved.');
+      const result = j.result as { id?: string; total?: number } | null;
+      toast.push('ok', `${result?.total ?? 0} ${what} saved.`);
       if (result?.id) onBatch(result.id);
     } else if (j.state === 'failed') toast.push('err', j.error ?? 'Analysis failed');
-  });
-  const [parentsBusy, setParentsBusy] = useState(false);
+  };
+  const sizeJob = useJob(onModelJob('size proposals'));
+  const refineJob = useJob(onModelJob('drafts'));
+  const [busy, setBusy] = useState<string | null>(null);
   const noSnapshot = status ? !status.snapshot : true;
+  const hasModel = !!status?.config.hasLlmToken;
 
-  const runParents = async () => {
-    setParentsBusy(true);
+  const runDeterministic = async (path: string, what: string) => {
+    setBusy(path);
     try {
-      const batch = Batch.parse(await post('/api/intelligence/parents', {}));
-      toast.push('ok', `${batch.proposals.length} parent proposals from evidence.`);
+      const batch = Batch.parse(await post(path, {}));
+      toast.push('ok', `${batch.proposals.length} ${what}${batch.proposals.length === 0 && batch.skipReasons.length ? ` (${batch.skipReasons[0]})` : ''}.`);
       onBatch(batch.id);
     } catch (e) {
       toast.push('err', describeError(e));
     } finally {
-      setParentsBusy(false);
+      setBusy(null);
     }
   };
 
   return (
     <Section title="New analysis">
       {noSnapshot ? <Notice tone="warn" className="m-4">Synchronize a repository first; proposals are made from the snapshot.</Notice> : null}
-      <div className="flex flex-col gap-3 px-4 py-3">
-        <div>
-          <h3 className="mb-1">Parent links from evidence</h3>
-          <p className="mb-2 text-[12.5px] text-ink-2">Deterministic: shared title words, theme, area, labels and body references. No model involved.</p>
-          <Button onClick={runParents} busy={parentsBusy} disabled={noSnapshot}><LuArrowRight size={14} />Propose parents</Button>
+      <div className="flex flex-col divide-y divide-line-2">
+        <div className="px-4 py-3">
+          <h3 className="mb-1 flex items-center gap-1.5"><LuWrench size={14} className="text-ink-3" />Without a model</h3>
+          <p className="mb-2 text-[12.5px] text-ink-2">Deterministic repairs from what the items already say. Instant.</p>
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={() => void runDeterministic('/api/intelligence/metadata', 'metadata repairs')} busy={busy === '/api/intelligence/metadata'} disabled={noSnapshot}>Repair metadata</Button>
+            <Button onClick={() => void runDeterministic('/api/intelligence/parents', 'parent proposals from evidence')} busy={busy === '/api/intelligence/parents'} disabled={noSnapshot}><LuArrowRight size={14} />Propose parents</Button>
+          </div>
         </div>
-        <div className="hairline pt-3">
-          <h3 className="mb-1">Sizes from a model</h3>
-          <p className="mb-2 text-[12.5px] text-ink-2">Stories without acceptance criteria are left TBD rather than guessed. Values above 8 are clamped to policy.</p>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="What to size"><Select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}><option value="storyPoints">Story points</option><option value="featureEffort">Feature effort</option></Select></Field>
-            <Field label="Model profile"><Select value={profile} onChange={(e) => setProfile(e.target.value)}>
-              <option value="auto">Auto ({status?.config.llmResolvedProfile ?? '…'})</option>
-              {status?.config.llmProfiles.map((p) => <option key={p.profile} value={p.profile} disabled={!p.configured}>{p.profile} · {p.model}{p.configured ? '' : ' (no token)'}</option>)}
-            </Select></Field>
-            <Field label="At most"><Select value={String(maxItems)} onChange={(e) => setMaxItems(Number(e.target.value))}>{[10, 20, 40, 80, 150].map((n) => <option key={n} value={n}>{n} items</option>)}</Select></Field>
-            <div className="flex flex-col justify-end gap-1.5">
-              <Checkbox label="Only unsized items" checked={onlyUnsized} onChange={(e) => setOnlyUnsized(e.target.checked)} />
-              <Checkbox label="Skip undefined items" checked={requireDefinition} onChange={(e) => setRequireDefinition(e.target.checked)} />
+        <div className="px-4 py-3">
+          <h3 className="mb-1 flex items-center gap-1.5"><LuSparkles size={14} className="text-ink-3" />With the model</h3>
+          {!hasModel ? <Notice tone="warn" className="mb-2">No model key is loaded. <a href="#/settings" className="underline">Add an API key in Settings</a>.</Notice> : null}
+          <Field label="Model profile" className="mb-3"><Select value={profile} onChange={(e) => setProfile(e.target.value)}>
+            <option value="auto">Auto ({status?.config.llmResolvedProfile ?? '…'} · {status?.config.llmModel})</option>
+            {status?.config.llmProfiles.map((p) => <option key={p.profile} value={p.profile} disabled={!p.configured}>{p.profile} · {p.model || '(no model)'}{p.configured ? '' : ' (not configured)'}</option>)}
+          </Select></Field>
+          <div className="rounded-ctl border border-line-2 p-3">
+            <div className="mb-1 font-medium">Draft missing sections</div>
+            <p className="mb-2 text-[12.5px] text-ink-2">Acceptance criteria, user need, tasks, done-when, outcome, success picture, scope. Existing text is kept; every draft is re-checked against the definition of ready.</p>
+            <div className="flex items-end gap-3">
+              <Field label="At most" className="w-32"><Select value={String(refineMax)} onChange={(e) => setRefineMax(Number(e.target.value))}>{[5, 10, 20, 40].map((n) => <option key={n} value={n}>{n} items</option>)}</Select></Field>
+              <Button variant="primary" busy={refineJob.running} disabled={noSnapshot || !hasModel} onClick={() => void refineJob.start('/api/intelligence/refine', { maxItems: refineMax, profile })}><LuSparkles size={14} />Draft</Button>
             </div>
+            {refineJob.job ? <div className="mt-3"><Progress done={refineJob.job.progressDone} total={refineJob.job.progressTotal} label={refineJob.job.message ?? refineJob.job.state} />{refineJob.job.error ? <p className="mt-1 text-err">{refineJob.job.error}</p> : null}</div> : null}
+            {refineJob.error ? <p className="mt-2 text-err">{refineJob.error}</p> : null}
           </div>
-          <div className="mt-3 flex items-center gap-3">
-            <Button variant="primary" busy={job.running} disabled={noSnapshot || !status?.config.hasLlmToken} onClick={() => void job.start('/api/intelligence/estimate', { kind, onlyUnsized, requireDefinition, maxItems, profile })}><LuSparkles size={14} />Propose sizes</Button>
-            {!status?.config.hasLlmToken ? <span className="text-[12px] text-ink-3">No model token is loaded. See Settings.</span> : null}
+          <div className="mt-3 rounded-ctl border border-line-2 p-3">
+            <div className="mb-1 font-medium">Propose sizes</div>
+            <p className="mb-2 text-[12.5px] text-ink-2">Stories without acceptance criteria are left TBD rather than guessed. Values above 8 are clamped to policy.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="What to size"><Select value={kind} onChange={(e) => setKind(e.target.value as typeof kind)}><option value="storyPoints">Story points</option><option value="featureEffort">Feature effort</option></Select></Field>
+              <Field label="At most"><Select value={String(maxItems)} onChange={(e) => setMaxItems(Number(e.target.value))}>{[10, 20, 40, 80, 150].map((n) => <option key={n} value={n}>{n} items</option>)}</Select></Field>
+              <div className="col-span-2 flex flex-col gap-1.5">
+                <Checkbox label="Only unsized items (missing or TBD)" checked={onlyUnsized} onChange={(e) => setOnlyUnsized(e.target.checked)} />
+                <Checkbox label="Skip items without a definition" checked={requireDefinition} onChange={(e) => setRequireDefinition(e.target.checked)} />
+              </div>
+            </div>
+            <div className="mt-3 flex items-center gap-3">
+              <Button variant="primary" busy={sizeJob.running} disabled={noSnapshot || !hasModel} onClick={() => void sizeJob.start('/api/intelligence/estimate', { kind, onlyUnsized, requireDefinition, maxItems, profile })}><LuSparkles size={14} />Propose sizes</Button>
+            </div>
+            {sizeJob.job ? <div className="mt-3"><Progress done={sizeJob.job.progressDone} total={sizeJob.job.progressTotal} label={sizeJob.job.message ?? sizeJob.job.state} />{sizeJob.job.error ? <p className="mt-1 text-err">{sizeJob.job.error}</p> : null}</div> : null}
+            {sizeJob.error ? <p className="mt-2 text-err">{sizeJob.error}</p> : null}
           </div>
-          {job.job ? <div className="mt-3"><Progress done={job.job.progressDone} total={job.job.progressTotal} label={job.job.message ?? job.job.state} />{job.job.error ? <p className="mt-1 text-err">{job.job.error}</p> : null}</div> : null}
-          {job.error ? <p className="mt-2 text-err">{job.error}</p> : null}
         </div>
       </div>
     </Section>
@@ -129,16 +167,20 @@ function BatchView({ batchId, status, onChanged }: { batchId: string; status: St
   const batch = useResource(`/api/proposals/${encodeURIComponent(batchId)}`, Batch);
   const toast = useToast();
   const [filter, setFilter] = useState<'all' | Proposal['decision']>('all');
+  const [confidence, setConfidence] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
   const apply = useJob((j) => {
     if (j.state === 'succeeded') {
       const r = j.result as { applied?: number; failed?: number; skipped?: number } | null;
       toast.push(r?.failed ? 'err' : 'ok', `Applied ${r?.applied ?? 0}, skipped ${r?.skipped ?? 0}, failed ${r?.failed ?? 0}.`);
+      invalidate('/api/snapshot'); invalidate('/api/review'); invalidate('/api/hierarchy');
     } else if (j.state === 'failed') toast.push('err', j.error ?? 'Apply failed');
     void batch.refetch();
     onChanged();
   });
   const b = batch.data;
+  useEffect(() => setOpen({}), [batchId]);
 
   const decide = async (proposalId: string | null, decision: 'approved' | 'rejected' | 'pending', minimumConfidence?: string) => {
     setBusyId(proposalId ?? '__all');
@@ -153,10 +195,12 @@ function BatchView({ batchId, status, onChanged }: { batchId: string; status: St
     }
   };
 
-  const rows = useMemo(() => (b ? b.proposals.filter((p) => filter === 'all' || p.decision === filter) : []), [b, filter]);
+  const rows = useMemo(() => (b ? b.proposals.filter((p) => (filter === 'all' || p.decision === filter) && (confidence === 'all' || p.confidence === confidence)) : []), [b, filter, confidence]);
   const approved = b?.proposals.filter((p) => p.decision === 'approved').length ?? 0;
+  const pending = b?.proposals.filter((p) => p.decision === 'pending').length ?? 0;
   const sandboxKey = status ? `${status.config.provider}:${status.config.sandboxRepository}` : '';
   const targetIsSandbox = b ? b.target.toLowerCase() === sandboxKey.toLowerCase() : false;
+  const bodyKind = b ? b.kind === 'refinement' || b.kind === 'metadata' : false;
 
   return (
     <Section
@@ -165,18 +209,26 @@ function BatchView({ batchId, status, onChanged }: { batchId: string; status: St
     >
       {!b ? <Skeleton rows={8} /> : (
         <>
-          <div className="flex flex-wrap items-center gap-2 px-4 py-2.5 text-[12.5px] text-ink-2">
-            <span>From <Mono>{b.target}</Mono> via {b.source}; {b.considered} considered, {b.skipped} skipped.</span>
-            {b.warnings.map((w, i) => <Pill key={i} tone="warn">{w}</Pill>)}
+          <div className="flex flex-col gap-1 px-4 py-2.5 text-[12.5px] text-ink-2">
+            <span>{KIND_LEDE[b.kind]}</span>
+            <span>From <Mono>{b.target}</Mono> via {b.source}; {b.considered} considered, {b.skipped} skipped, {relativeTime(b.createdAt)}.</span>
+            {b.warnings.length > 0 ? <span className="flex flex-wrap gap-1">{b.warnings.map((w, i) => <Pill key={i} tone="warn">{w}</Pill>)}</span> : null}
           </div>
           {!targetIsSandbox ? <Notice tone="warn" className="mx-4 mb-2">This batch was analysed from <Mono>{b.target}</Mono>, which is not the configured sandbox. Approving is fine; applying will be refused.</Notice> : null}
           <div className="hairline flex flex-wrap items-center gap-2 px-4 py-2.5">
-            <Select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} className="w-40" aria-label="Decision filter">
+            <Select value={filter} onChange={(e) => setFilter(e.target.value as typeof filter)} className="w-36" aria-label="Decision filter">
               <option value="all">All decisions</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option><option value="applied">Applied</option><option value="failed">Failed</option>
             </Select>
-            <Button size="sm" onClick={() => void decide(null, 'approved', 'high')} busy={busyId === '__all'}>Approve all high-confidence</Button>
-            <Button size="sm" onClick={() => void decide(null, 'approved')} busy={busyId === '__all'}>Approve all pending</Button>
-            <Button size="sm" variant="quiet" onClick={() => void decide(null, 'rejected')} busy={busyId === '__all'}>Reject all pending</Button>
+            <Select value={confidence} onChange={(e) => setConfidence(e.target.value as typeof confidence)} className="w-36" aria-label="Confidence filter">
+              <option value="all">Any confidence</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
+            </Select>
+            {pending > 0 ? (
+              <>
+                <Button size="sm" onClick={() => void decide(null, 'approved', 'high')} busy={busyId === '__all'}>Approve all high-confidence</Button>
+                <Button size="sm" onClick={() => void decide(null, 'approved')} busy={busyId === '__all'}>Approve all pending</Button>
+                <Button size="sm" variant="quiet" onClick={() => void decide(null, 'rejected')} busy={busyId === '__all'}>Reject all pending</Button>
+              </>
+            ) : null}
             <span className="ml-auto flex items-center gap-2">
               <Button variant="primary" size="sm" disabled={approved === 0 || !targetIsSandbox || apply.running} busy={apply.running} onClick={() => void apply.start(`/api/proposals/${encodeURIComponent(batchId)}/apply`)}><LuPlay size={13} />Apply {approved} approved to sandbox</Button>
             </span>
@@ -186,28 +238,14 @@ function BatchView({ batchId, status, onChanged }: { batchId: string; status: St
           {rows.length === 0 ? <Empty title="No proposals in this view" /> : (
             <div className="scroll-y max-h-[calc(100vh-380px)]">
               <table className="table-dense w-full">
-                <thead><tr><th className="w-14">Level</th><th className="min-w-[220px]">Work item</th><th className="w-44">Change</th><th className="w-24">Confidence</th><th>Reason</th><th className="w-44">Decision</th></tr></thead>
+                <thead><tr><th className="w-6" /><th className="w-12">Level</th><th className="min-w-[200px]">Work item</th><th className={bodyKind ? 'w-56' : 'w-40'}>{bodyKind ? 'Closes' : 'Change'}</th><th className="w-20">Conf.</th><th>Reason</th><th className="w-28">Decision</th></tr></thead>
                 <tbody>
-                  {rows.map((p) => (
-                    <tr key={p.id}>
-                      <td><LevelChip type={levelOf(p)} compact /></td>
-                      <td><button type="button" className="text-left hover:text-accent" onClick={() => navigate('hierarchy', { item: String(p.itemNumber) })}><div className="font-medium">{p.itemTitle.replace(/^\s*(THEME|EPIC|FEATURE|STORY|TASK|BUG)\s*::\s*/i, '')}</div><div className="mono text-[11.5px] text-ink-3">#{p.itemNumber} · {p.itemCanonicalId}</div></button></td>
-                      <td className="num break-all"><span className="text-ink-3">{p.currentValue || 'none'}</span> <span className="text-ink-3">→</span> <span className="font-semibold">{p.proposedValue}</span></td>
-                      <td><Pill tone={p.confidence === 'high' ? 'ok' : p.confidence === 'low' ? 'warn' : 'neutral'}>{p.confidence}</Pill></td>
-                      <td className="text-ink-2">{p.reason}{p.error ? <div className="text-err">{p.error}</div> : null}</td>
-                      <td>
-                        {p.decision === 'applied' ? <Pill tone="ok"><LuCheck size={11} />applied</Pill>
-                          : p.decision === 'failed' ? <Pill tone="err">failed</Pill>
-                          : (
-                            <div className="flex items-center gap-1">
-                              <Button size="sm" variant={p.decision === 'approved' ? 'primary' : 'default'} busy={busyId === p.id} onClick={() => void decide(p.id, p.decision === 'approved' ? 'pending' : 'approved')} aria-label="Approve"><LuCheck size={13} /></Button>
-                              <Button size="sm" variant={p.decision === 'rejected' ? 'danger' : 'default'} busy={busyId === p.id} onClick={() => void decide(p.id, p.decision === 'rejected' ? 'pending' : 'rejected')} aria-label="Reject"><LuX size={13} /></Button>
-                              <span className="text-[12px] text-ink-3">{p.decision === 'pending' ? '' : humanizeCode(p.decision)}</span>
-                            </div>
-                          )}
-                      </td>
-                    </tr>
-                  ))}
+                  {rows.map((p) => {
+                    const isOpen = !!open[p.id];
+                    return (
+                      <ProposalRow key={p.id} p={p} batchId={batchId} open={isOpen} onToggle={() => setOpen((o) => ({ ...o, [p.id]: !o[p.id] }))} busy={busyId === p.id} onDecide={(d) => void decide(p.id, d)} />
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -222,5 +260,96 @@ function BatchView({ batchId, status, onChanged }: { batchId: string; status: St
       )}
       {batch.error ? <Notice tone="err" className="m-4">{batch.error}</Notice> : null}
     </Section>
+  );
+}
+
+function ProposalRow({ p, batchId, open, onToggle, busy, onDecide }: { p: Proposal; batchId: string; open: boolean; onToggle: () => void; busy: boolean; onDecide: (d: 'approved' | 'rejected' | 'pending') => void }) {
+  const bodyKind = p.kind === 'refinement' || p.kind === 'metadata';
+  const title = p.itemTitle.replace(/^\s*(THEME|EPIC|FEATURE|STORY|TASK|BUG)\s*::\s*/i, '');
+  return (
+    <>
+      <tr className={cn('cursor-pointer', open && 'bg-surface-2')} onClick={onToggle}>
+        <td className="text-ink-3">{open ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />}</td>
+        <td><LevelChip type={levelOf(p)} compact /></td>
+        <td>
+          <div className="font-medium">{title}</div>
+          <div className="mono text-[11.5px] text-ink-3">#{p.itemNumber}{p.itemCanonicalId.includes(':') ? '' : ` · ${p.itemCanonicalId}`}</div>
+        </td>
+        <td className={bodyKind ? '' : 'num break-all'}>
+          {bodyKind ? (
+            <div className="flex flex-wrap gap-1">
+              {p.addresses.map((a) => <Pill key={a} tone={p.remaining.includes(a) ? 'warn' : 'neutral'}>{humanizeCode(a.replace(/^missing_required_meta:/, 'meta '))}</Pill>)}
+            </div>
+          ) : (
+            <><span className="text-ink-3">{p.currentValue || 'none'}</span> <span className="text-ink-3">→</span> <span className="font-semibold">{p.proposedValue}</span></>
+          )}
+        </td>
+        <td><Pill tone={p.confidence === 'high' ? 'ok' : p.confidence === 'low' ? 'warn' : 'neutral'}>{p.confidence}</Pill></td>
+        <td className="text-ink-2">{p.reason}{p.error ? <div className="text-err">{p.error}</div> : null}</td>
+        <td onClick={(e) => e.stopPropagation()}>
+          <Decision p={p} busy={busy} onDecide={onDecide} />
+        </td>
+      </tr>
+      {open ? (
+        <tr className="bg-surface-2/60">
+          <td colSpan={7} className="px-4 pb-4 pt-1">
+            <ProposalDetail p={p} batchId={batchId} />
+          </td>
+        </tr>
+      ) : null}
+    </>
+  );
+}
+
+function Decision({ p, busy, onDecide }: { p: Proposal; busy: boolean; onDecide: (d: 'approved' | 'rejected' | 'pending') => void }) {
+  if (p.decision === 'applied') return <Pill tone="ok"><LuCheck size={11} />applied</Pill>;
+  if (p.decision === 'failed') return <Pill tone="err">failed</Pill>;
+  return (
+    <div className="flex items-center gap-1">
+      <Button size="sm" variant={p.decision === 'approved' ? 'primary' : 'default'} busy={busy} onClick={() => onDecide(p.decision === 'approved' ? 'pending' : 'approved')} aria-label="Approve" title="Approve"><LuCheck size={13} /></Button>
+      <Button size="sm" variant={p.decision === 'rejected' ? 'danger' : 'default'} busy={busy} onClick={() => onDecide(p.decision === 'rejected' ? 'pending' : 'rejected')} aria-label="Reject" title="Reject"><LuX size={13} /></Button>
+    </div>
+  );
+}
+
+function ProposalDetail({ p, batchId }: { p: Proposal; batchId: string }) {
+  const preview = useResource(`/api/proposals/${encodeURIComponent(batchId)}/${encodeURIComponent(p.id)}/preview`, ProposalPreview);
+  const d = preview.data;
+  return (
+    <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_280px]">
+      <div className="min-w-0">
+        {preview.error ? <Notice tone="warn">{preview.error}</Notice> : !d ? <Skeleton rows={4} /> : (
+          <>
+            {d.snapshotStale ? <Notice tone="info" className="mb-2">The snapshot is over 30 minutes old; applying re-reads the live item first.</Notice> : null}
+            <DiffView before={d.current.body} after={d.proposed.body} />
+          </>
+        )}
+      </div>
+      <div className="flex flex-col gap-2 text-[12.5px]">
+        <Facts label="Source"><Mono>{p.source}</Mono></Facts>
+        {p.proposedMeta ? (
+          <Facts label="Meta changes">
+            <table className="w-full"><tbody>{Object.entries(p.proposedMeta).map(([k, v]) => <tr key={k}><td className="mono pr-2 text-ink-3">{k}</td><td className={v === null ? 'text-err line-through' : ''}>{v === null ? 'removed' : v || <span className="text-ink-3">(empty)</span>}</td></tr>)}</tbody></table>
+          </Facts>
+        ) : null}
+        {d ? (
+          <Facts label="Definition of ready after applying">
+            {d.proposed.deficiencies.length === 0 ? <span className="text-ok">Complete for its level.</span> : <ul className="flex flex-col gap-0.5">{d.proposed.deficiencies.map((c) => <li key={c} className={p.addresses.includes(c) ? 'text-warn' : 'text-ink-2'}>{humanizeCode(c)}</li>)}</ul>}
+            {d.current.deficiencies.length > d.proposed.deficiencies.length ? <div className="mt-1 text-ink-3">{d.current.deficiencies.length - d.proposed.deficiencies.length} gap{d.current.deficiencies.length - d.proposed.deficiencies.length === 1 ? '' : 's'} closed.</div> : null}
+          </Facts>
+        ) : null}
+        <Facts label="Open the item"><button type="button" className="underline hover:text-accent" onClick={() => navigate('hierarchy', { item: String(p.itemNumber) })}>#{p.itemNumber} in the hierarchy</button></Facts>
+        {p.decisionNote ? <Facts label="Note">{p.decisionNote}</Facts> : null}
+      </div>
+    </div>
+  );
+}
+
+function Facts({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="rounded-ctl border border-line-2 bg-surface px-3 py-2">
+      <div className="mb-0.5 text-[11.5px] text-ink-3">{label}</div>
+      <div>{children}</div>
+    </div>
   );
 }
