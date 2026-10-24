@@ -1,0 +1,213 @@
+@import "tailwindcss";
+
+/*
+  Cascade design tokens. One idea carries the interface: each hierarchy level has a fixed hue,
+  dark at the Theme end and light at the Task end, and that hue is the only decoration anywhere.
+  Everything else is quiet: cool grey paper, one hairline weight, one control radius.
+*/
+:root {
+  --paper: #eef1f4;
+  --surface: #ffffff;
+  --surface-2: #f5f7f9;
+  --ink: #16202a;
+  --ink-2: #4b5a69;
+  --ink-3: #7b8895;
+  --line: #d3dae1;
+  --line-2: #e5eaef;
+  --focus: #1d4ed8;
+
+  --lv-theme: #134e4a;
+  --lv-epic: #1e3a8a;
+  --lv-feature: #4338ca;
+  --lv-story: #0e7490;
+  --lv-task: #64748b;
+  --lv-bug: #9f1239;
+  --lv-none: #a3adb8;
+
+  --ok: #15803d;
+  --ok-bg: #e8f5ec;
+  --warn: #b45309;
+  --warn-bg: #fbf0e3;
+  --err: #b91c1c;
+  --err-bg: #fbe9e9;
+  --info: #1d4ed8;
+  --info-bg: #e8eefc;
+  --accent: #0f766e;
+  --accent-ink: #ffffff;
+  --sandbox: #6d28d9;
+  --production: #b91c1c;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0f1418;
+    --surface: #161c22;
+    --surface-2: #1c232b;
+    --ink: #e6ebf0;
+    --ink-2: #aab5c0;
+    --ink-3: #7e8a96;
+    --line: #2b353f;
+    --line-2: #222b34;
+    --focus: #7ea2ff;
+    --lv-theme: #5eead4;
+    --lv-epic: #93b4ff;
+    --lv-feature: #b4a7ff;
+    --lv-story: #67e8f9;
+    --lv-task: #a7b4c2;
+    --lv-bug: #fda4af;
+    --lv-none: #6b7681;
+    --ok: #4ade80;
+    --ok-bg: #122a1a;
+    --warn: #fbbf24;
+    --warn-bg: #2b2210;
+    --err: #f87171;
+    --err-bg: #2d1515;
+    --info: #93b4ff;
+    --info-bg: #15203a;
+    --accent: #2dd4bf;
+    --accent-ink: #062a26;
+    --sandbox: #c4b5fd;
+    --production: #f87171;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #0f1418;
+  --surface: #161c22;
+  --surface-2: #1c232b;
+  --ink: #e6ebf0;
+  --ink-2: #aab5c0;
+  --ink-3: #7e8a96;
+  --line: #2b353f;
+  --line-2: #222b34;
+  --focus: #7ea2ff;
+  --lv-theme: #5eead4;
+  --lv-epic: #93b4ff;
+  --lv-feature: #b4a7ff;
+  --lv-story: #67e8f9;
+  --lv-task: #a7b4c2;
+  --lv-bug: #fda4af;
+  --lv-none: #6b7681;
+  --ok: #4ade80;
+  --ok-bg: #122a1a;
+  --warn: #fbbf24;
+  --warn-bg: #2b2210;
+  --err: #f87171;
+  --err-bg: #2d1515;
+  --info: #93b4ff;
+  --info-bg: #15203a;
+  --accent: #2dd4bf;
+  --accent-ink: #062a26;
+  --sandbox: #c4b5fd;
+  --production: #f87171;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-line: var(--line);
+  --color-line-2: var(--line-2);
+  --color-focus: var(--focus);
+  --color-lv-theme: var(--lv-theme);
+  --color-lv-epic: var(--lv-epic);
+  --color-lv-feature: var(--lv-feature);
+  --color-lv-story: var(--lv-story);
+  --color-lv-task: var(--lv-task);
+  --color-lv-bug: var(--lv-bug);
+  --color-lv-none: var(--lv-none);
+  --color-ok: var(--ok);
+  --color-ok-bg: var(--ok-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-err: var(--err);
+  --color-err-bg: var(--err-bg);
+  --color-info: var(--info);
+  --color-info-bg: var(--info-bg);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-sandbox: var(--sandbox);
+  --color-production: var(--production);
+
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
+
+  --radius-ctl: 6px;
+  --radius-panel: 10px;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--ink);
+    background: var(--paper);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: var(--paper);
+    color: var(--ink);
+  }
+  * {
+    border-color: var(--line);
+  }
+  h1, h2, h3 {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  h1 { font-size: 22px; line-height: 1.2; }
+  h2 { font-size: 16px; line-height: 1.3; }
+  h3 { font-size: 13.5px; line-height: 1.3; }
+  code, kbd, .mono { font-family: var(--font-mono); font-size: 0.93em; }
+  a { color: var(--info); text-underline-offset: 2px; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+  ::selection { background: color-mix(in srgb, var(--accent) 25%, transparent); }
+  table { border-collapse: collapse; }
+  th { font-weight: 600; text-align: left; }
+  button { font: inherit; color: inherit; }
+  input, select, textarea { font: inherit; color: inherit; background: var(--surface); }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+@layer components {
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--line-2);
+    border-radius: var(--radius-panel);
+  }
+  .hairline { border-top: 1px solid var(--line-2); }
+  .level-rail {
+    border-left: 3px solid var(--level, var(--lv-none));
+  }
+  .table-dense th, .table-dense td {
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--line-2);
+    vertical-align: top;
+  }
+  .table-dense th {
+    color: var(--ink-2);
+    font-weight: 600;
+    position: sticky;
+    top: 0;
+    background: var(--surface);
+    z-index: 1;
+  }
+  .table-dense tbody tr:hover td { background: var(--surface-2); }
+  .scroll-y { overflow-y: auto; scrollbar-width: thin; }
+  .num { font-variant-numeric: tabular-nums; }
+  .cascade-reveal { animation: cascade-reveal 420ms cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes cascade-reveal {
+    from { transform: scaleX(0.6); opacity: 0; }
+    to { transform: scaleX(1); opacity: 1; }
+  }
+}
