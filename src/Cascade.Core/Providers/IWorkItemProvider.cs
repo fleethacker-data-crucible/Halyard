@@ -49,6 +49,8 @@ namespace Cascade.Core.Providers
         Task<IReadOnlyList<string>> ListLabelsAsync(CancellationToken cancellation);
         Task<IReadOnlyList<WorkItem>> ListWorkItemsAsync(WorkItemQuery query, IProgress<string>? progress, CancellationToken cancellation);
         Task<WorkItem?> GetWorkItemAsync(long number, CancellationToken cancellation);
+        /// <summary>The host's stable numeric id for the repository (survives renames and path/id spellings).</summary>
+        Task<string> GetRepositoryIdAsync(CancellationToken cancellation);
     }
 
     /// <summary>
@@ -61,7 +63,10 @@ namespace Cascade.Core.Providers
         Task EnsureLabelAsync(LabelDefinition label, CancellationToken cancellation);
         Task<WorkItem> CreateAsync(WorkItemDraft draft, CancellationToken cancellation);
         Task<WorkItem> UpdateAsync(long number, WorkItemPatch patch, CancellationToken cancellation);
-        Task DeleteAsync(WorkItem item, CancellationToken cancellation);
+        /// <summary>Permanently deletes the item. Returns false when it no longer exists.</summary>
+        Task<bool> DeleteAsync(WorkItem item, CancellationToken cancellation);
+        /// <summary>Fresh read from the bound repository, used to re-check an item immediately before writing.</summary>
+        Task<WorkItem?> GetAsync(long number, CancellationToken cancellation);
         /// <summary>Best-effort native parent link (GitHub sub-issues). No-op when unsupported.</summary>
         Task<bool> LinkParentAsync(WorkItem child, WorkItem parent, CancellationToken cancellation);
     }

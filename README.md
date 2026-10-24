@@ -37,7 +37,7 @@ console then hides. The CBR is read-only; only the sandbox project can be writte
 | Sandbox | Seed a deterministic synthetic hierarchy; delete it by run |
 | Connection | Test the token; take a snapshot of the source or sandbox |
 | Diagnostics | Engine log, every write attempt, background jobs |
-| Settings | Repositories, label filter, model profile for this session |
+| Settings | Shows the configured repositories; label filter and model profile for this session |
 
 PowerShell equivalents: `Invoke-SandboxSeed.ps1`, `Invoke-SandboxTeardown.ps1`, and the `Cascade`
 module (`Get-CascadeWorkItem`, `Test-CascadeConnection`, `New-CascadeSyntheticCatalog`).

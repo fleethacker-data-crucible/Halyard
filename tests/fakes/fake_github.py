@@ -78,7 +78,7 @@ class Handler(BaseHTTPRequestHandler):
         repo, rest = m.group(1), m.group(2) or ""
         with LOCK:
             if rest == "":
-                return self.send(200, {"full_name": repo})
+                return self.send(200, {"full_name": repo, "id": abs(hash(repo.lower())) % 10**9})
             if rest == "/labels":
                 return self.send(200, [{"name": n} for n in sorted(STATE["labels"])])
             if rest == "/issues":
@@ -138,6 +138,9 @@ class Handler(BaseHTTPRequestHandler):
             node = (data.get("variables") or {}).get("id", "")
             with LOCK:
                 n = int(node[2:]) if node.startswith("I_") and node[2:].isdigit() else -1
+                if data.get("query", "").lstrip().startswith("query"):
+                    found = {"number": n, "repository": {"nameWithOwner": "sun-of-anton/cascade-sandbox"}} if n in STATE["issues"] else None
+                    return self.send(200, {"data": {"node": found}})
                 if n not in STATE["issues"]:
                     return self.send(200, {"errors": [{"message": f"Could not resolve to a node with the global id of '{node}'"}]})
                 del STATE["issues"][n]

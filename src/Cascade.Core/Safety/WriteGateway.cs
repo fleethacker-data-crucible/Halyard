@@ -52,6 +52,28 @@ namespace Cascade.Core.Safety
             return new GuardedWriter(this, provider.OpenWriter(target), target, intent);
         }
 
+        /// <summary>
+        /// <see cref="Open"/> plus an identity check against the host: the target's numeric id must differ from
+        /// every protected repository's, so one project spelled two ways (group/name vs 16629, a renamed repo)
+        /// cannot slip past the allow-list. Use this for every real write run.
+        /// </summary>
+        public async Task<GuardedWriter> OpenVerifiedAsync(IWorkItemProvider provider, RepositoryRef target, WriteIntent intent, CancellationToken cancellation)
+        {
+            var writer = Open(provider, target, intent);
+            if (Policy.ProtectedTargets.Count == 0) return writer;
+            var targetId = await provider.ForRepository(target).GetRepositoryIdAsync(cancellation).ConfigureAwait(false);
+            foreach (var p in Policy.ProtectedTargets)
+            {
+                if (p.Provider != target.Provider) continue;
+                string? protectedId;
+                try { protectedId = await provider.ForRepository(p).GetRepositoryIdAsync(cancellation).ConfigureAwait(false); }
+                catch (ProviderHttpException) { continue; } // unreachable protected repo cannot be the target
+                if (!string.IsNullOrEmpty(targetId) && string.Equals(targetId, protectedId, StringComparison.Ordinal))
+                    throw new WriteBlockedException("WRITE BLOCKED: " + target.Key + " is the same repository as protected " + p.Key + " (id " + targetId + ").", target);
+            }
+            return writer;
+        }
+
         internal void Record(WriteAuditEntry entry)
         {
             lock (_lock)
@@ -110,19 +132,31 @@ namespace Cascade.Core.Safety
             return updated!;
         }
 
-        public Task DeleteAsync(WorkItem item, CancellationToken cancellation)
+        /// <summary>
+        /// Deletes an item after re-reading it from the target: the label check runs on the live copy, not on
+        /// whatever object the caller holds. Returns false when the item no longer exists.
+        /// </summary>
+        public async Task<bool> DeleteAsync(WorkItem item, CancellationToken cancellation)
         {
             if (item == null) throw new ArgumentNullException("item");
             if (!item.Repository.Equals(Target))
                 throw new WriteBlockedException("DELETE BLOCKED: item " + item.Key + " does not belong to the opened target " + Target.Key + ".", Target);
+            var live = await _writer.GetAsync(item.Number, cancellation).ConfigureAwait(false);
+            if (live == null) return false;
+            if (!live.Repository.Equals(Target))
+                throw new WriteBlockedException("DELETE BLOCKED: #" + item.Number + " resolved outside " + Target.Key + ".", Target);
             var required = _gateway.Policy.DeleteRequiresAnyLabel;
-            if (!_intent.AllowDeleteOfAnyItem && required.Count > 0 && !required.Any(item.HasLabel))
-                throw new WriteBlockedException("DELETE BLOCKED: " + item.Key + " is not labelled " + string.Join(" or ", required) + "; only synthetic items can be deleted without an explicit wipe.", Target);
-            return Guard("delete", item.Number, item.Title, () => _writer.DeleteAsync(item, cancellation));
+            if (!_intent.AllowDeleteOfAnyItem && required.Count > 0 && !required.Any(live.HasLabel))
+                throw new WriteBlockedException("DELETE BLOCKED: " + live.Key + " is not labelled " + string.Join(" or ", required) + "; only synthetic items can be deleted without an explicit wipe.", Target);
+            var deleted = false;
+            await Guard("delete", live.Number, live.Title, async () => { deleted = await _writer.DeleteAsync(live, cancellation).ConfigureAwait(false); }).ConfigureAwait(false);
+            return deleted;
         }
 
         public async Task<bool> LinkParentAsync(WorkItem child, WorkItem parent, CancellationToken cancellation)
         {
+            if (!child.Repository.Equals(Target) || !parent.Repository.Equals(Target))
+                throw new WriteBlockedException("LINK BLOCKED: both items must belong to " + Target.Key + ".", Target);
             var ok = false;
             await Guard("link-parent", child.Number, child.Title + " → #" + parent.Number, async () => { ok = await _writer.LinkParentAsync(child, parent, cancellation).ConfigureAwait(false); }).ConfigureAwait(false);
             return ok;
