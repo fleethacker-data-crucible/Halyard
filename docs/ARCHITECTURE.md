@@ -45,8 +45,9 @@ Launch-Cascade.bat
                  ├─ Safety      WritePolicy + WriteGateway (the only path to a writer)
                  ├─ Model       WorkItem, CascadeMeta, RepositoryRef
                  ├─ Schema      taxonomy, sizing policy, definition-of-ready checks, body composer
-                 ├─ Analysis    topology audit, hierarchy tree, parent candidates, review report
-                 ├─ Intelligence sizing (model), refinement drafts (model), metadata repair and parents (deterministic), manual edits, proposal store, projection + applier
+                 ├─ Analysis    topology audit, hierarchy tree, parent candidates, review report, delivery (feature progress, velocity, blockers) + HTML report
+                 ├─ Planning    team.json / skills.json / Synapse cards, sprint calendar, capacity-and-skills sprint planner
+                 ├─ Intelligence sizing, refinement drafts, skill tagging, vision drafting, intake classification (model); metadata repair, parents, planner, deterministic fallbacks; manual edits, proposal store, projection + applier
                  ├─ Llm         OpenAI-compatible and Databricks serving-endpoint client
                  ├─ Synthetic   deterministic catalogue, sandbox seeder, teardown
                  └─ Snapshots   point-in-time copies the analysis runs on
@@ -121,6 +122,25 @@ emits, re-runs the definition-of-ready rules on the result and measures how much
 survived; drafts that lose text or leave gaps open are marked low confidence. Metadata repair and parent
 proposals are deterministic. Hand edits are recorded as approved proposals. Nothing is written until a
 human approves and applies.
+
+## Upward and downward
+
+The same snapshot feeds two directions. Downward (`Intelligence`, `Planning`): intake turns raw source
+tickets into typed sandbox copies, repair / draft / size / tag skills bring them to the definition of
+ready, and the planner fills sprints from team capacity and Synapse skills. Upward (`Analysis/Delivery`,
+`Intelligence/Visionary`): feature progress, velocity, blockers and capacity roll into the leadership
+report and the weekly email, and the visionary drafts the portfolio vision. Every model output is
+validated against the backlog before it becomes a proposal, and every change still goes through the
+same proposal → approve → gateway path.
+
+A snapshot may hold several repositories (`Snapshot.Repositories`, `repository` per item). Sources are
+read-only; proposals are refused for anything outside the sandbox.
+
+## Synapse boundary
+
+Cascade reads exported Synapse peer cards from `config/synapse/` and shares its skill ids with Synapse.
+It never writes to Synapse, never stores anything about a person beyond what the card consented to, and
+treats the card as the only source of a person's skills and confidence.
 
 ## Risk to watch
 

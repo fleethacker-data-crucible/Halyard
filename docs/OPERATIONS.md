@@ -34,6 +34,27 @@ CASCADE_SANDBOX_REPO=sun-of-anton/cascade-sandbox
 Token: `gh auth login` once (the launcher reads `gh auth token`), or `GITHUB_TOKEN=` in `cascade.env`.
 The token needs `repo` scope; deleting issues needs admin rights on the repository.
 
+**Several source repositories** (the usual case at work: issues spread over many projects)
+
+```
+CASCADE_SOURCE_REPO=org/platform,org/web,org/ops      # or GitLab ids: 1234,5678,group/project
+CASCADE_SANDBOX_REPO=org/cascade-sandbox
+```
+
+Every source is read-only. Connection synchronizes one source, the sandbox, or all sources at once;
+items keep their repository, and the Hierarchy and Review pages show it. Proposals are only made for
+sandbox items; Intake is how source tickets become sandbox copies.
+
+**Team, skills and Synapse** (files, not variables)
+
+| File | Contents |
+|---|---|
+| `config\team.json` | Sprint calendar (`sprintStart`, length, numbering), teams with `pointsPerSprint` and the committed / allocated / experiment split, people with team, skills and an optional Synapse card name |
+| `config\skills.json` | Skill taxonomy; the ids are Synapse's so cards need no translation |
+| `config\synapse\*.json` | Exported Synapse peer cards. Only cards with consent are read; skills and confidence (0–4) and availability are merged into the matching person by name |
+
+Leadership, Plan and the skill tagger read these on every request, so editing the files needs no restart.
+
 **Model**
 
 ```
@@ -82,6 +103,51 @@ Seeding creates parents before children, writes `parent:` ids into meta, adds na
 GitHub, and saves a manifest to `output\seeds\`. On GitHub it paces creates (~0.9 s each) to stay under
 secondary rate limits, so 100 items take about two minutes. Deletion is permanent on both hosts.
 
+## Weekly leadership report
+
+**Leadership** in the browser shows feature % complete with a status (on track / at risk / parked /
+done and why), velocity over the last six sprints, the ready backlog against velocity, capacity used in
+the current sprint, open blockers with their business-day age (escalated past five days), and points by
+theme. *Download report* saves the same page as one self-contained HTML file, built from the latest
+sandbox snapshot. `GET /api/leadership/report.html` returns it too.
+
+To send it by email every week without a browser:
+
+```powershell
+scripts\Send-CascadeReport.ps1 -To lead@example.com -Via Outlook -Sync        # Outlook desktop (COM)
+scripts\Send-CascadeReport.ps1 -To lead@example.com -Via Smtp -SmtpServer mail.example.com -From cascade@example.com -Sync
+scripts\Send-CascadeReport.ps1 -Via File -OutFile output\reports\weekly.html   # just write the file
+scripts\Register-CascadeReportSchedule.ps1 -To lead@example.com -Via Outlook -Day MON -Time 07:30
+```
+
+With `-Sync` the script takes a fresh snapshot first (`-SyncRepository source|sandbox`, source by
+default), then renders and sends the report; the schedule script registers a weekly Windows scheduled
+task (`-Remove` deletes it). Both read `config\cascade.env` and unlock the vault the same way the
+launcher does.
+
+## Intake: source tickets into the hierarchy
+
+**Intake** lists raw issues from the source repositories that have no cascade-meta and are not yet
+copied (a copy records `source_project`, `source_iid` and `source_url`, and the page de-duplicates on
+them). *Preview* classifies each ticket as theme / epic / feature / story / task, deterministically or
+with the model, and shows the structured draft (title, body sections, labels `cascade`,
+`cascade-intake`, `type::…`, `refine::sandbox-review`). *Run* creates the chosen copies in the sandbox
+through the write gateway; the source is never touched. Manifests are kept in `output\intakes\`.
+
+## Vision and planning
+
+**Vision** drafts a portfolio vision from the backlog: themes with their epics, features and points,
+priorities, risks (blockers, parked features, unsized work), and a next-quarter outlook. The
+deterministic summary needs no model; *Draft with model* writes the narrative and is validated against
+the backlog (every item it names must exist). Drafts are saved under `output\vision\` and each one can
+produce *theme link* proposals for epics that do not yet name a theme.
+
+**Plan** fills the next sprints: ready stories (definition of ready met, sized, not blocked) are ordered
+by the target month of their feature and whether the feature has started, then placed first-fit into
+each team's committed share of `pointsPerSprint`. An owner is suggested where someone on the team has the
+story's skills with room left; stories nobody on the team can cover are listed as skill gaps. *Propose*
+turns the plan into sprint-plan proposals, reviewed and applied like any other.
+
 ## Review workflow
 
 1. **Connection** → Test connection → Synchronize (source or sandbox, optionally one label).
@@ -96,10 +162,12 @@ secondary rate limits, so 100 items take about two minutes. Deletion is permanen
      success picture, scope. Existing text is kept; every draft is re-checked against the definition of
      ready and flagged low-confidence if text was lost.
    - **Propose sizes** (model): points or effort, with the definability gate and policy clamps.
+   - **Tag skills** (deterministic, or model): `skills` meta from the taxonomy, inherited from the parent
+     and matched on names.
    Hand edits from the **Hierarchy** item panel (points, effort, parent) become pre-approved proposals.
 4. On **Proposals**, open a row to read the before/after diff and the definition-of-ready state after
-   applying. Approve or reject; *Apply approved to sandbox*. Refused for batches made from a
-   non-sandbox repository.
+   applying. Approve or reject; *Apply approved to sandbox*, or *Apply all approved* across batches.
+   A batch made by mistake can be deleted. Refused for batches made from a non-sandbox repository.
 5. Re-synchronize to see the result; the gaps close in **Review** and **Overview**.
 
 The synthetic sandbox seeds this workflow: with *gaps* on, about a fifth of the items carry one of 21
@@ -113,6 +181,9 @@ each marked with the review label, and the seed manifest records which codes the
 | `output\snapshots\` | Last 10 snapshots (JSON) |
 | `output\proposals\` | Proposal batches and their decisions |
 | `output\seeds\` | Seed run manifests |
+| `output\intakes\` | Intake run manifests (source → sandbox copy) |
+| `output\vision\` | Saved vision drafts |
+| `output\reports\` | Leadership reports written by `Send-CascadeReport.ps1 -Via File` |
 | `output\llm_transcripts\` | Redacted model requests and responses (`CASCADE_LLM_TRANSCRIPTS=0` turns off) |
 | `logs\cascade-*.jsonl` | Engine log, one file per run |
 
