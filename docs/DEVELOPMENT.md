@@ -17,7 +17,7 @@ src/Cascade.Core.Tests/      xUnit
 web/                         React + TypeScript UI (build.mjs → web/dist)
 tests/pester/                PowerShell tests and repository rules
 tests/e2e/sandbox-loop.mjs   full seed → apply → teardown walk against a running host
-tests/fakes/fake_github.py   in-memory GitHub + chat-completions fake for offline e2e
+tests/fakes/fake-github.mjs  in-memory GitHub + chat-completions fake for offline e2e (Node)
 fixtures/                    deterministic synthetic catalogues (100 items)
 config/                      cascade.env.example, taxonomy.json
 docs/                        this documentation
@@ -43,7 +43,7 @@ UI work: `cd web; npm run dev` rebuilds on save; reload the browser.
 ## Offline end-to-end loop
 
 ```bash
-python3 tests/fakes/fake_github.py 8790 &
+node tests/fakes/fake-github.mjs 8790 &
 # config/cascade.env (or environment):
 #   CASCADE_PROVIDER=github  GITHUB_API_URL=http://127.0.0.1:8790  GITHUB_TOKEN=fake
 #   CASCADE_SANDBOX_REPO=sun-of-anton/cascade-sandbox  CASCADE_SOURCE_REPO=sun-of-anton/cascade-sandbox
