@@ -89,13 +89,32 @@ namespace Cascade.Core.Tests
         }
 
         [Fact]
-        public async Task GrokProfileOmitsStreamFlag()
+        public async Task DatabricksProfileOmitsStreamFlag()
         {
             var http = new FakeTransport().On("POST", "invocations", 200, "{\"choices\":[{\"message\":{\"content\":\"OK\"}}]}");
-            var client = new LlmClient(new LlmSettings { Profile = LlmProfile.Grok, GrokToken = "dapi0123456789abcdef0123456789" }, http);
+            var settings = new LlmSettings { Profile = LlmProfile.Databricks, DatabricksToken = "dapi0123456789abcdef0123456789", DatabricksUrl = "https://ws.example.test/serving-endpoints/m/invocations", DatabricksModel = "m" };
+            var client = new LlmClient(settings, http);
             await client.TestAsync(CancellationToken.None);
             Assert.Null(JObject.Parse(http.Calls.Single().JsonBody!)["stream"]);
-            Assert.StartsWith(LlmSettings.DefaultGrokUrl, http.Calls.Single().Url);
+            Assert.StartsWith("https://ws.example.test/serving-endpoints/m/invocations", http.Calls.Single().Url);
+        }
+
+        [Fact]
+        public void DatabricksWithoutUrlIsNotConfigured()
+        {
+            var s = new LlmSettings { DatabricksToken = "dapi0123456789abcdef0123456789" };
+            Assert.False(s.IsConfigured(LlmProfile.Databricks));
+            Assert.Contains("DATABRICKS_URL", s.MissingFor(LlmProfile.Databricks));
+        }
+
+        [Theory]
+        [InlineData(null, "https://api.openai.com/v1/chat/completions")]
+        [InlineData("https://api.openai.com/v1", "https://api.openai.com/v1/chat/completions")]
+        [InlineData("https://gateway.example.test/v1/chat/completions/", "https://gateway.example.test/v1/chat/completions")]
+        [InlineData("https://gateway.example.test", "https://gateway.example.test/v1/chat/completions")]
+        public void OpenAiUrlAcceptsBaseOrFullUrl(string? input, string expected)
+        {
+            Assert.Equal(expected, LlmSettings.NormalizeOpenAiUrl(input));
         }
 
         [Fact]
@@ -112,8 +131,9 @@ namespace Cascade.Core.Tests
         [Fact]
         public void AutoProfileFollowsAvailableToken()
         {
-            Assert.Equal(LlmProfile.Grok, new LlmSettings { GrokToken = "x" }.Resolve());
-            Assert.Equal(LlmProfile.GenAi, new LlmSettings { GenAiToken = "x", GrokToken = "y" }.Resolve());
+            Assert.Equal(LlmProfile.Databricks, new LlmSettings { DatabricksToken = "x" }.Resolve());
+            Assert.Equal(LlmProfile.OpenAi, new LlmSettings().Resolve());
+            Assert.Equal(LlmProfile.OpenAi, new LlmSettings { OpenAiToken = "x", DatabricksToken = "y" }.Resolve());
             Assert.Equal(LlmProfile.OpenAi, new LlmSettings { OpenAiToken = "x" }.Resolve());
         }
     }
@@ -175,6 +195,134 @@ namespace Cascade.Core.Tests
         }
     }
 
+    public class RefinerTests
+    {
+        private sealed class ScriptedLlm : ILlmClient
+        {
+            private readonly Func<IReadOnlyList<LlmMessage>, string> _reply;
+            public ScriptedLlm(Func<IReadOnlyList<LlmMessage>, string> reply) { _reply = reply; }
+            public LlmProfile Profile { get { return LlmProfile.OpenAi; } }
+            public string Model { get { return "scripted"; } }
+            public Task<LlmResponse> ChatAsync(IReadOnlyList<LlmMessage> messages, CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = _reply(messages) }); }
+            public Task<LlmResponse> TestAsync(CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = "OK" }); }
+        }
+
+        private static (List<WorkItem> items, ReviewReport report) Defective()
+        {
+            var options = SyntheticOptions.ForTotal(100);
+            options.IncludeDefects = true;
+            var items = SyntheticCatalog.ToWorkItems(SyntheticCatalog.Generate(options), Items.Repo);
+            return (items, Review.Run(items, Taxonomy.Default()));
+        }
+
+        [Fact]
+        public void ParsesJsonMarkdownAndRejectsNoise()
+        {
+            var json = Refiner.ParseReply("```json\n{\"narrative\": \"## User need\\nAs a tester, I want x so that y.\", \"meta\": {\"points\": \"TBD\"}, \"note\": \"added need\"}\n```")!;
+            Assert.Equal("json", json.Source);
+            Assert.Equal("TBD", json.Meta["points"]);
+            Assert.Equal("added need", json.Note);
+            var md = Refiner.ParseReply("## Acceptance criteria\n- [ ] works")!;
+            Assert.Equal("markdown", md.Source);
+            Assert.Null(Refiner.ParseReply("Sorry, I cannot help with that."));
+        }
+
+        [Fact]
+        public async Task DraftsCloseContentGapsAndKeepTheOriginalText()
+        {
+            var (items, report) = Defective();
+            var candidates = Refiner.Candidates(report, new RefineOptions());
+            Assert.True(candidates.Count >= 4, "catalogue should contain content gaps");
+            var llm = new ScriptedLlm(messages =>
+            {
+                // Echo the current narrative and append whatever sections the gaps ask for.
+                var user = messages[1].Content;
+                var current = user.Substring(user.IndexOf("Current narrative", StringComparison.Ordinal));
+                current = current.Substring(current.IndexOf('\n') + 1).Replace("\n\nRespond with the JSON object only.", string.Empty);
+                var add = string.Empty;
+                if (user.Contains(Deficiencies.StoryMissingAcceptanceCriteria)) add += "\n\n## Acceptance criteria\n- [ ] One positive case passes\n- [ ] One negative case is rejected";
+                if (user.Contains(Deficiencies.StoryMissingUserNeed)) add += "\n\n## User need\nAs a reviewer, I want the gap closed so that the story is ready.";
+                if (user.Contains(Deficiencies.StoryMissingTasks)) add += "\n\n## Tasks\n- [ ] Do the work\n- [ ] Show the evidence";
+                if (user.Contains(Deficiencies.FeatureMissingDoneWhen)) add += "\n\n## Definition of done\n- [ ] All child stories accepted";
+                if (user.Contains(Deficiencies.EpicMissingSuccessPicture)) add += "\n\n## Success picture\n- Teams see the outcome\n- Nothing regresses";
+                if (user.Contains(Deficiencies.EpicMissingOutcome)) add += "\n\n## Outcome\nThe capability is live and measured.";
+                if (user.Contains(Deficiencies.ThemeMissingScope)) add += "\n\n## In scope\n- Platform work\n\n## Out of scope\n- Product reports";
+                return new JObject { ["narrative"] = current.Trim() + add, ["note"] = "Added the missing sections." }.ToString();
+            });
+            var batch = await Refiner.RunAsync(items, report, llm, new RefineOptions { MaxItems = 20 }, Items.Repo, null, CancellationToken.None);
+            Assert.Equal(ProposalKind.Refinement, batch.Kind);
+            Assert.Equal(candidates.Count, batch.Proposals.Count);
+            Assert.All(batch.Proposals, p => Assert.Empty(p.Remaining));
+            Assert.All(batch.Proposals, p => Assert.Equal("high", p.Confidence));
+            Assert.All(batch.Proposals, p => Assert.NotEmpty(p.Addresses));
+
+            // Projecting the proposal onto the item leaves no content deficiency behind and keeps the meta fence first.
+            var byKey = items.ToDictionary(i => i.Key);
+            foreach (var p in batch.Proposals)
+            {
+                var projected = ProposalApplier.Project(byKey[p.ItemKey], p);
+                var after = new WorkItem(Items.Repo, p.ItemNumber) { Title = p.ItemTitle, Body = projected.Body };
+                Assert.StartsWith(CascadeMeta.Fence, projected.Body);
+                Assert.DoesNotContain(Deficiencies.Evaluate(after), c => Refiner.IsContentGap(c));
+                Assert.Contains("refined_by", projected.Body);
+            }
+        }
+
+        [Fact]
+        public async Task DestructiveDraftsAreFlaggedLowConfidence()
+        {
+            var (items, report) = Defective();
+            var llm = new ScriptedLlm(_ => "{\"narrative\": \"## Acceptance criteria\\n- [ ] something\", \"note\": \"rewrote\"}");
+            var batch = await Refiner.RunAsync(items, report, llm, new RefineOptions { MaxItems = 3 }, Items.Repo, null, CancellationToken.None);
+            Assert.NotEmpty(batch.Proposals);
+            Assert.All(batch.Proposals, p => Assert.Equal("low", p.Confidence));
+            Assert.All(batch.Proposals, p => Assert.Contains("survive", p.Reason));
+        }
+
+        [Fact]
+        public void MetadataRepairBuildsABlockFromLabelsAndPlaceholders()
+        {
+            var (items, report) = Defective();
+            var batch = Refiner.MetadataProposals(items, report, Taxonomy.Default(), Items.Repo);
+            Assert.Equal(ProposalKind.Metadata, batch.Kind);
+            Assert.NotEmpty(batch.Proposals);
+            var noMeta = batch.Proposals.First(p => p.Addresses.Contains(Deficiencies.MissingMeta));
+            Assert.Equal("STORY", noMeta.ProposedMeta!["type"]);
+            Assert.StartsWith("STORY-", noMeta.ProposedMeta["id"]);
+            Assert.StartsWith("THEME-", noMeta.ProposedMeta["theme"]);
+            Assert.Equal("TBD", noMeta.ProposedMeta["points"]);
+            var item = items.First(i => i.Key == noMeta.ItemKey);
+            var projected = ProposalApplier.Project(item, noMeta);
+            var after = new WorkItem(Items.Repo, item.Number) { Title = item.Title, Body = projected.Body };
+            after.Labels.AddRange(item.Labels);
+            Assert.True(after.HasMeta);
+            Assert.DoesNotContain(Deficiencies.MissingMeta, Deficiencies.Evaluate(after));
+            Assert.DoesNotContain(Deficiencies.StoryMissingPoints, Deficiencies.Evaluate(after));
+            // Invalid points become TBD; a story with an effort band loses it.
+            Assert.Contains(batch.Proposals, p => p.Addresses.Contains(Deficiencies.StoryInvalidPoints) && p.ProposedMeta!["points"] == "TBD");
+            Assert.Contains(batch.Proposals, p => p.Addresses.Contains(Deficiencies.StoryHasEffort) && p.ProposedMeta!.ContainsKey("effort") && p.ProposedMeta["effort"] == null);
+        }
+
+        [Fact]
+        public void ManualEditsAreApprovedProposalsWithPolicyChecks()
+        {
+            var catalog = SyntheticCatalog.Generate(SyntheticOptions.ForTotal(40));
+            var items = SyntheticCatalog.ToWorkItems(catalog, Items.Repo);
+            var story = items.First(i => i.Type == WorkItemType.Story);
+            var feature = items.First(i => i.Type == WorkItemType.Feature);
+            var epic = items.First(i => i.Type == WorkItemType.Epic);
+            var points = Estimator.Manual(story, ProposalKind.StoryPoints, "13", null, Items.Repo, items);
+            Assert.Equal(ProposalDecision.Approved, points.Proposals[0].Decision);
+            Assert.Equal("8", points.Proposals[0].ProposedValue);
+            var parent = Estimator.Manual(story, ProposalKind.ParentLink, "#" + feature.Number, "moved", Items.Repo, items);
+            Assert.Equal(feature.CanonicalId, parent.Proposals[0].ProposedValue);
+            Assert.Throws<ArgumentException>(() => Estimator.Manual(story, ProposalKind.ParentLink, epic.CanonicalId, null, Items.Repo, items));
+            Assert.Throws<ArgumentException>(() => Estimator.Manual(feature, ProposalKind.StoryPoints, "3", null, Items.Repo, items));
+            var projected = ProposalApplier.Project(story, parent.Proposals[0]);
+            Assert.Equal(feature.CanonicalId, projected.Meta.Parent);
+        }
+    }
+
     public class ProposalStoreTests
     {
         [Fact]
@@ -232,7 +380,7 @@ namespace Cascade.Core.Tests
         {
             var s = new CascadeSettings();
             s.Provider.Token = "ghp_SECRETSECRETSECRETSECRETSECRET";
-            s.Llm.GenAiToken = "secret-token-value";
+            s.Llm.OpenAiToken = "secret-token-value";
             var json = Json.Serialize(s.ToPublicDictionary());
             Assert.DoesNotContain("SECRET", json);
             Assert.DoesNotContain("secret-token-value", json);
@@ -244,12 +392,12 @@ namespace Cascade.Core.Tests
         {
             var s = new CascadeSettings();
             s.Provider.Kind = ProviderKind.GitLab;
-            s.Provider.SourceRepository = "16629";
-            s.Provider.SandboxRepository = "52999";
+            s.Provider.SourceRepository = "1234";
+            s.Provider.SandboxRepository = "5678";
             var policy = s.BuildWritePolicy();
-            Assert.True(policy.IsSandbox(new RepositoryRef(ProviderKind.GitLab, "52999")));
-            Assert.True(policy.IsProtected(new RepositoryRef(ProviderKind.GitLab, "16629")));
-            Assert.Throws<Safety.WriteBlockedException>(() => policy.Assert(new RepositoryRef(ProviderKind.GitLab, "16629"), new Safety.WriteIntent("x", "y")));
+            Assert.True(policy.IsSandbox(new RepositoryRef(ProviderKind.GitLab, "5678")));
+            Assert.True(policy.IsProtected(new RepositoryRef(ProviderKind.GitLab, "1234")));
+            Assert.Throws<Safety.WriteBlockedException>(() => policy.Assert(new RepositoryRef(ProviderKind.GitLab, "1234"), new Safety.WriteIntent("x", "y")));
         }
     }
 
@@ -312,6 +460,52 @@ namespace Cascade.Core.Tests
             var ok = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"labelFilter\":\"team::x\"}"));
             Assert.Equal(200, (int)ok.StatusCode);
             Assert.Equal("team::x", (string)JObject.Parse(await ok.Content.ReadAsStringAsync())["config"]!["labelFilter"]!);
+        }
+
+        [Fact]
+        public async Task ApiKeyCanBeEnteredInTheBrowserAndRememberedLocally()
+        {
+            var r = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"llmToken\":\"sk-test-0123456789abcdef\",\"llmModel\":\"gpt-4o-mini\",\"remember\":true}"));
+            Assert.Equal(200, (int)r.StatusCode);
+            var body = JObject.Parse(await r.Content.ReadAsStringAsync());
+            Assert.True((bool)body["remembered"]!);
+            Assert.True((bool)body["config"]!["hasLlmToken"]!);
+            Assert.DoesNotContain("sk-test", body.ToString());
+            Assert.Equal("sk-test-0123456789abcdef", _host.Settings.Llm.OpenAiToken);
+            var env = File.ReadAllText(_host.Settings.EnvFilePath);
+            Assert.Contains("LLM_TOKEN=sk-test-0123456789abcdef", env);
+            Assert.Contains("LLM_MODEL=gpt-4o-mini", env);
+            // The URL is never settable from the browser.
+            var locked = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"llmUrl\":\"https://evil.example\"}"));
+            Assert.Equal(200, (int)locked.StatusCode); // unknown keys are ignored, not applied
+            Assert.Equal(LlmSettings.DefaultOpenAiUrl, _host.Settings.Llm.Url(LlmProfile.OpenAi));
+            // Clearing removes it from memory and from the file.
+            await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"llmToken\":null,\"remember\":true}"));
+            Assert.Null(_host.Settings.Llm.OpenAiToken);
+            Assert.DoesNotContain("LLM_TOKEN=", File.ReadAllText(_host.Settings.EnvFilePath));
+        }
+
+        [Fact]
+        public async Task ManualProposalAndPreviewRoundTrip()
+        {
+            var snap = JObject.Parse(await _client.GetStringAsync(_info.Url + "api/snapshot"));
+            var story = snap["items"]!.First(i => (string)i["type"]! == "STORY");
+            var number = (long)story["number"]!;
+            var r = await _client.PostAsync(_info.Url + "api/proposals/manual", new StringContent("{\"number\":" + number + ",\"kind\":\"points\",\"value\":\"5\",\"note\":\"test\"}"));
+            Assert.Equal(200, (int)r.StatusCode);
+            var batch = JObject.Parse(await r.Content.ReadAsStringAsync());
+            var batchId = (string)batch["id"]!;
+            var proposalId = (string)batch["proposals"]![0]!["id"]!;
+            Assert.Equal("approved", (string)batch["proposals"]![0]!["decision"]!);
+            var preview = JObject.Parse(await _client.GetStringAsync(_info.Url + "api/proposals/" + batchId + "/" + proposalId + "/preview"));
+            Assert.Equal(number, (long)preview["number"]!);
+            Assert.Contains("points: 5", (string)preview["proposed"]!["body"]!);
+            Assert.NotEqual((string)preview["current"]!["body"]!, (string)preview["proposed"]!["body"]!);
+            var bad = await _client.PostAsync(_info.Url + "api/proposals/manual", new StringContent("{\"number\":" + number + ",\"kind\":\"effort\",\"value\":\"Large\"}"));
+            Assert.Equal(400, (int)bad.StatusCode);
+            var meta = await _client.PostAsync(_info.Url + "api/intelligence/metadata", new StringContent("{}"));
+            Assert.Equal(200, (int)meta.StatusCode);
+            Assert.Equal("metadata", (string)JObject.Parse(await meta.Content.ReadAsStringAsync())["kind"]!);
         }
 
         [Fact]

@@ -54,7 +54,7 @@ namespace Cascade.Core.Safety
 
         /// <summary>
         /// <see cref="Open"/> plus an identity check against the host: the target's numeric id must differ from
-        /// every protected repository's, so one project spelled two ways (group/name vs 16629, a renamed repo)
+        /// every protected repository's, so one project spelled two ways (group/name vs numeric id, a renamed repo)
         /// cannot slip past the allow-list. Use this for every real write run.
         /// </summary>
         public async Task<GuardedWriter> OpenVerifiedAsync(IWorkItemProvider provider, RepositoryRef target, WriteIntent intent, CancellationToken cancellation)

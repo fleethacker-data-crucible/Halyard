@@ -14,14 +14,14 @@ namespace Cascade.Core.Tests
 {
     public class WritePolicyTests
     {
-        private static readonly RepositoryRef Sandbox = new RepositoryRef(ProviderKind.GitLab, "52999");
-        private static readonly RepositoryRef Cbr = new RepositoryRef(ProviderKind.GitLab, "16629");
+        private static readonly RepositoryRef Sandbox = new RepositoryRef(ProviderKind.GitLab, "5678");
+        private static readonly RepositoryRef Source = new RepositoryRef(ProviderKind.GitLab, "1234");
 
         private static WritePolicy SandboxPolicy()
         {
             var p = new WritePolicy { Mode = WriteMode.Sandbox };
             p.SandboxTargets.Add(Sandbox);
-            p.ProtectedTargets.Add(Cbr);
+            p.ProtectedTargets.Add(Source);
             return p;
         }
 
@@ -30,20 +30,20 @@ namespace Cascade.Core.Tests
         {
             var p = SandboxPolicy();
             p.Assert(Sandbox, new WriteIntent("t", "r"));
-            var ex = Assert.Throws<WriteBlockedException>(() => p.Assert(Cbr, new WriteIntent("t", "r")));
-            Assert.Contains("16629", ex.Message);
+            var ex = Assert.Throws<WriteBlockedException>(() => p.Assert(Source, new WriteIntent("t", "r")));
+            Assert.Contains("1234", ex.Message);
             Assert.Throws<WriteBlockedException>(() => p.Assert(new RepositoryRef(ProviderKind.GitLab, "777"), new WriteIntent("t", "r")));
         }
 
         [Fact]
         public void ProductionNeedsAllThreeSwitches()
         {
-            var p = new WritePolicy { Mode = WriteMode.Production, ProductionTarget = Cbr };
+            var p = new WritePolicy { Mode = WriteMode.Production, ProductionTarget = Source };
             p.SandboxTargets.Add(Sandbox);
-            Assert.Throws<WriteBlockedException>(() => p.Assert(Cbr, new WriteIntent("t", "r")));                       // env flag missing
+            Assert.Throws<WriteBlockedException>(() => p.Assert(Source, new WriteIntent("t", "r")));                       // env flag missing
             p.AllowProduction = true;
-            Assert.Throws<WriteBlockedException>(() => p.Assert(Cbr, new WriteIntent("t", "r")));                       // intent missing
-            p.Assert(Cbr, new WriteIntent("t", "r") { AllowProduction = true });                                           // all three present
+            Assert.Throws<WriteBlockedException>(() => p.Assert(Source, new WriteIntent("t", "r")));                       // intent missing
+            p.Assert(Source, new WriteIntent("t", "r") { AllowProduction = true });                                           // all three present
             Assert.Throws<WriteBlockedException>(() => p.Assert(new RepositoryRef(ProviderKind.GitLab, "1"), new WriteIntent("t", "r") { AllowProduction = true }));
             p.Assert(Sandbox, new WriteIntent("t", "r"));                                                                  // sandbox always fine
         }
@@ -241,7 +241,7 @@ namespace Cascade.Core.Tests
         [Theory]
         [InlineData("sun-of-anton/cascade-sandbox", true)]
         [InlineData("owner/repo.name_1", true)]
-        [InlineData("acme/x/../../repos/acme/cbr", false)]
+        [InlineData("acme/x/../../repos/acme/prod", false)]
         [InlineData("acme/..", false)]
         [InlineData("acme/.", false)]
         [InlineData("acme/repo?x=1", false)]
@@ -261,26 +261,26 @@ namespace Cascade.Core.Tests
 
     public class GitLabProviderTests
     {
-        private static readonly RepositoryRef Project = new RepositoryRef(ProviderKind.GitLab, "52999");
+        private static readonly RepositoryRef Project = new RepositoryRef(ProviderKind.GitLab, "5678");
 
         [Fact]
         public async Task UsesPrivateTokenAndNextPageHeader()
         {
-            var issue = new JObject { ["iid"] = 271, ["id"] = 9000, ["title"] = "t", ["description"] = "d", ["state"] = "opened", ["labels"] = new JArray("area::x"), ["web_url"] = "https://web.git.mil/x/-/issues/271" };
+            var issue = new JObject { ["iid"] = 271, ["id"] = 9000, ["title"] = "t", ["description"] = "d", ["state"] = "opened", ["labels"] = new JArray("area::x"), ["web_url"] = "https://gitlab.example.com/x/-/issues/271" };
             var http = new FakeTransport();
             http.On("GET", "&page=2", 200, new JArray(issue).ToString());
             http.On("GET", "&page=1", 200, new JArray(issue).ToString(), new Dictionary<string, string> { { "X-Next-Page", "2" } });
-            var provider = new GitLabProvider(http, "https://web.git.mil", "glpat", Project, 0);
+            var provider = new GitLabProvider(http, "https://gitlab.example.com", "glpat", Project, 0);
             var items = await provider.ListWorkItemsAsync(new WorkItemQuery(), null, CancellationToken.None);
             Assert.Equal(2, items.Count);
             Assert.Equal(WorkItemState.Open, items[0].State);
-            Assert.Equal("gitlab:52999:271", items[0].Key);
+            Assert.Equal("gitlab:5678:271", items[0].Key);
             Assert.All(http.Calls, c => Assert.Equal("glpat", c.Headers["PRIVATE-TOKEN"]));
-            Assert.All(http.Calls, c => Assert.StartsWith("https://web.git.mil/api/v4/projects/52999/issues", c.Url));
+            Assert.All(http.Calls, c => Assert.StartsWith("https://gitlab.example.com/api/v4/projects/5678/issues", c.Url));
         }
 
         [Theory]
-        [InlineData("52999", true)]
+        [InlineData("5678", true)]
         [InlineData("group/sub/project", true)]
         [InlineData("group/../other", false)]
         [InlineData("project-only", false)]
@@ -294,7 +294,7 @@ namespace Cascade.Core.Tests
         public async Task CreateSendsCommaSeparatedLabelsAndDescription()
         {
             var http = new FakeTransport().On("POST", "/issues", 201, "{\"iid\":5,\"id\":1,\"title\":\"t\",\"description\":\"b\",\"state\":\"opened\",\"labels\":[]}");
-            var provider = new GitLabProvider(http, "https://web.git.mil/api/v4/", "glpat", Project, 0);
+            var provider = new GitLabProvider(http, "https://gitlab.example.com/api/v4/", "glpat", Project, 0);
             var writer = provider.OpenWriter(Project);
             var created = await writer.CreateAsync(new WorkItemDraft { Title = "t", Body = "b", Labels = new List<string> { "a", "b" } }, CancellationToken.None);
             Assert.Equal(5, created.Number);

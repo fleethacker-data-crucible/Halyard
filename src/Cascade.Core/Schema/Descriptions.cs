@@ -72,6 +72,12 @@ namespace Cascade.Core.Schema
             return Compose(newMeta, narrative);
         }
 
+        /// <summary>Rewrites a <c>## Sizing</c> section (when present) from meta so prose and meta never disagree.</summary>
+        public static string SyncSizing(string narrative, CascadeMeta meta)
+        {
+            return SyncSizingSection(narrative ?? string.Empty, meta);
+        }
+
         private static string SyncSizingSection(string narrative, CascadeMeta meta)
         {
             var sizing = new List<string>();

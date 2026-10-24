@@ -6,7 +6,7 @@ BeforeAll {
     $script:Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
     Import-Module (Join-Path $script:Root 'module\Cascade\Cascade.psd1') -Force
     $script:Saved = @{}
-    foreach ($n in @('CASCADE_PROVIDER', 'CASCADE_SOURCE_REPO', 'CASCADE_SANDBOX_REPO', 'GITHUB_TOKEN', 'GH_TOKEN', 'GITLAB_TOKEN', 'GENAI_TOKEN', 'DATABRICKS_TOKEN', 'ARC_PATH', 'CASCADE_USE_ARC', 'CASCADE_WRITE_MODE', 'CASCADE_ALLOW_PRODUCTION', 'GITLAB_PROJECT_ID')) {
+    foreach ($n in @('CASCADE_PROVIDER', 'CASCADE_SOURCE_REPO', 'CASCADE_SANDBOX_REPO', 'GITHUB_TOKEN', 'GH_TOKEN', 'GITLAB_TOKEN', 'LLM_TOKEN', 'DATABRICKS_TOKEN', 'ARC_PATH', 'CASCADE_USE_ARC', 'CASCADE_WRITE_MODE', 'CASCADE_ALLOW_PRODUCTION', 'GITLAB_PROJECT_ID')) {
         $script:Saved[$n] = [Environment]::GetEnvironmentVariable($n, 'Process')
         [Environment]::SetEnvironmentVariable($n, $null, 'Process')
     }
@@ -52,13 +52,13 @@ Describe 'Initialize-CascadeEnvironment' {
     }
 
     It 'builds a sandbox-only write policy that protects the source' {
-        Set-Content (Join-Path $script:Tmp 'config\cascade.env') "CASCADE_PROVIDER=gitlab`nCASCADE_SOURCE_REPO=16629`nCASCADE_SANDBOX_REPO=52999"
+        Set-Content (Join-Path $script:Tmp 'config\cascade.env') "CASCADE_PROVIDER=gitlab`nGITLAB_URL=https://gitlab.example.com`nCASCADE_SOURCE_REPO=1234`nCASCADE_SANDBOX_REPO=5678"
         $s = (Initialize-CascadeEnvironment -Root $script:Tmp -UseArc Never).Settings
         $policy = $s.BuildWritePolicy()
         $policy.Mode.ToString() | Should -Be 'Sandbox'
-        $cbr = [Cascade.Core.Model.RepositoryRef]::new([Cascade.Core.Model.ProviderKind]::GitLab, '16629')
+        $source = [Cascade.Core.Model.RepositoryRef]::new([Cascade.Core.Model.ProviderKind]::GitLab, '1234')
         $intent = [Cascade.Core.Safety.WriteIntent]::new('test', 'pester', $null)
-        { $policy.Assert($cbr, $intent) } | Should -Throw '*WRITE BLOCKED*'
+        { $policy.Assert($source, $intent) } | Should -Throw '*WRITE BLOCKED*'
     }
 }
 
@@ -71,7 +71,7 @@ Describe 'Connect-CascadeArc with a stand-in ARC' {
 $script:PmState = @{ VaultUnlocked = $false }
 $script:UnlockCalls = 0
 function Ensure-VaultUnlocked { $script:UnlockCalls++; $script:PmState.VaultUnlocked = $true; return $true }
-function Get-PmStarkApiKey { param([string]$VaultName) switch ($VaultName) { 'gitmil' { 'glpat-fake-gitlab' } 'genapi' { 'fake-genai' } default { $null } } }
+function Get-PmStarkApiKey { param([string]$VaultName) switch ($VaultName) { 'my-gitlab' { 'glpat-fake-gitlab' } 'my-llm' { 'sk-fake-llm' } default { $null } } }
 function Unprotect-SecretText { param($Protected) $Protected }
 function Find-VaultRows { param($Name) @() }
 '@
@@ -79,12 +79,13 @@ function Find-VaultRows { param($Name) @() }
     AfterAll { Remove-Item $script:FakeArc -Recurse -Force -ErrorAction SilentlyContinue; Remove-Module CascadeArc -ErrorAction SilentlyContinue }
 
     It 'unlocks once and exports mapped items to the process environment' {
-        foreach ($n in @('GITLAB_TOKEN', 'GENAI_TOKEN', 'DATABRICKS_TOKEN', 'GITHUB_TOKEN')) { [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
+        foreach ($n in @('GITLAB_TOKEN', 'LLM_TOKEN', 'DATABRICKS_TOKEN', 'GITHUB_TOKEN')) { [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
+        $env:CASCADE_ARC_ITEM_GitLab = 'my-gitlab'; $env:CASCADE_ARC_ITEM_Llm = 'my-llm'; $env:CASCADE_ARC_ITEM_Databricks = 'my-databricks'
         $r = Connect-CascadeArc -ArcRoot $script:FakeArc
         $r.Unlocked | Should -BeTrue
         $r.Loaded | Should -Contain 'GITLAB_TOKEN'
-        $r.Loaded | Should -Contain 'GENAI_TOKEN'
-        $r.Missing | Should -Contain 'advana-api'
+        $r.Loaded | Should -Contain 'LLM_TOKEN'
+        $r.Missing | Should -Contain 'my-databricks'
         $env:GITLAB_TOKEN | Should -Be 'glpat-fake-gitlab'
     }
 

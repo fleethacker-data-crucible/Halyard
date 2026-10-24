@@ -6,9 +6,9 @@ namespace Cascade.Core.Providers
     public sealed class ProviderSettings
     {
         public ProviderKind Kind { get; set; } = ProviderKind.GitHub;
-        /// <summary>GitHub: https://api.github.com. GitLab: https://web.git.mil (the /api/v4 suffix is added).</summary>
+        /// <summary>GitHub: https://api.github.com by default. GitLab: the instance URL (GITLAB_URL, required; /api/v4 is added).</summary>
         public string BaseUrl { get; set; } = string.Empty;
-        /// <summary>Repository to read from (CBR / source of truth).</summary>
+        /// <summary>Repository to read from (the production backlog / source of truth). Never written in sandbox mode.</summary>
         public string SourceRepository { get; set; } = string.Empty;
         /// <summary>Repository that may be written to (sandbox).</summary>
         public string SandboxRepository { get; set; } = string.Empty;
@@ -21,7 +21,7 @@ namespace Cascade.Core.Providers
             get
             {
                 if (!string.IsNullOrWhiteSpace(BaseUrl)) return BaseUrl.Trim().TrimEnd('/');
-                return Kind == ProviderKind.GitHub ? "https://api.github.com" : "https://web.git.mil";
+                return Kind == ProviderKind.GitHub ? "https://api.github.com" : string.Empty;
             }
         }
 
@@ -45,6 +45,8 @@ namespace Cascade.Core.Providers
             if (settings == null) throw new ArgumentNullException("settings");
             var repo = settings.Source ?? settings.Sandbox;
             if (repo == null) throw new InvalidOperationException("Configure a source or sandbox repository before connecting.");
+            if (settings.Kind == ProviderKind.GitLab && string.IsNullOrWhiteSpace(settings.EffectiveBaseUrl))
+                throw new InvalidOperationException("GITLAB_URL is required for the gitlab provider (for example https://gitlab.example.com).");
             var http = transport ?? new HttpClientTransport();
             switch (settings.Kind)
             {
