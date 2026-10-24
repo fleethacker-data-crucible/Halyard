@@ -76,7 +76,7 @@ export function ProposalsPage({ params, status }: { params: URLSearchParams; sta
       <div className="grid gap-5 xl:grid-cols-[minmax(300px,1fr)_minmax(0,2.6fr)]">
         <div className="flex flex-col gap-5">
           <NewAnalysis status={status} onBatch={(id) => { invalidate('/api/proposals'); setSelectedId(id); }} />
-          <Section title="Batches" aside={<span className="flex items-center gap-1"><ApplyAll batches={batches.data} status={status} onDone={() => { invalidate('/api/proposals'); invalidate('/api/snapshot'); invalidate('/api/review'); invalidate('/api/hierarchy'); }} />{finished.length > 0 ? <Button size="sm" variant="quiet" onClick={() => setConfirmClear(true)} busy={clearing} title="Delete every batch with nothing pending or approved">Clear finished ({finished.length})</Button> : null}</span>}>
+          <Section title="Batches" aside={<span className="flex items-center gap-1"><ApplyAll batches={batches.data} status={status} onDone={() => { invalidate('/api/proposals'); invalidate('/api/snapshot'); invalidate('/api/review'); invalidate('/api/hierarchy'); }} /><Button size="sm" variant="quiet" onClick={() => setConfirmClear(true)} busy={clearing} disabled={finished.length === 0} title={finished.length === 0 ? 'Nothing to clear: every batch still has pending or approved proposals. Delete a batch with its trash icon.' : 'Delete every batch with nothing pending or approved'}>Clear finished ({finished.length})</Button></span>}>
             <ConfirmDialog open={confirmClear} title={`Clear ${finished.length} finished ${finished.length === 1 ? 'batch' : 'batches'}?`} confirmLabel="Clear" danger onCancel={() => setConfirmClear(false)} onConfirm={() => void clearFinished()}>
               Finished means nothing left pending or approved: everything was applied, rejected or failed. Applied changes stay in the sandbox; only the batch files on this machine are removed.
             </ConfirmDialog>
@@ -245,7 +245,7 @@ function BatchRowDelete({ id, label, onDeleted }: { id: string; label: string; o
   };
   return (
     <>
-      <Button size="sm" variant="quiet" className="absolute right-2 top-2 text-ink-3 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 hover:text-err" onClick={() => setConfirm(true)} busy={busy} aria-label={`Delete ${label} batch`} title="Delete this batch"><LuTrash2 size={13} /></Button>
+      <Button size="sm" variant="quiet" className="absolute right-2 top-2 text-ink-3 hover:text-err" onClick={() => setConfirm(true)} busy={busy} aria-label={`Delete ${label} batch`} title="Delete this batch"><LuTrash2 size={13} /></Button>
       <ConfirmDialog open={confirm} title={`Delete this ${label.toLowerCase()} batch?`} confirmLabel="Delete batch" danger onCancel={() => setConfirm(false)} onConfirm={() => void remove()}>
         Removes the batch file and its decisions from this machine. Proposals already applied stay in the sandbox; pending and approved ones are simply forgotten.
       </ConfirmDialog>
