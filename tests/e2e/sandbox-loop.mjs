@@ -8,6 +8,9 @@
 const [base, token, totalArg, ...flags] = process.argv.slice(2);
 const keep = flags.includes('--keep'); // leave the seeded items in place (skips teardown)
 const existing = flags.includes('--existing'); // reuse an already-seeded run (E2E_RUN_ID) instead of seeding
+// --fake <url>: the fake GitHub is reachable, so raw tickets can be planted in a source repository to exercise
+// intake, and the sandbox can be wiped at the end. Never used against a real host.
+const fakeUrl = flags.includes('--fake') ? flags[flags.indexOf('--fake') + 1] : null;
 if (!base || !token) {
   console.error('usage: node tests/e2e/sandbox-loop.mjs <base-url> <session-token> [total] [--keep] [--existing]');
   process.exit(2);
@@ -140,6 +143,58 @@ const wereOpen = review.items.filter((i) => i.deficiencies.some((d) => contentGa
 assert(stillOpen < wereOpen, `content gaps went from ${wereOpen} to ${stillOpen} after refinement`);
 assert(after.items.every((i) => !i.deficiencies.includes('missing_cascade_metadata')), 'no item is left without a cascade-meta block');
 
+// 5. Leadership, planning and vision read the same snapshot.
+const lead = await call('GET', '/api/leadership');
+assert(lead.features.length > 0 && lead.velocity.length > 0, `leadership view: ${lead.featuresOnTrack}/${lead.features.length} features on track, velocity ${lead.velocity.map((v) => v.pointsDone).join('/')}`);
+assert(lead.capacity.configured, 'capacity assessed from config/team.json');
+const reportHtml = await (await fetch(base + '/api/leadership/report.html', { headers: H })).text();
+assert(reportHtml.startsWith('<!doctype html>') && reportHtml.includes('Feature % complete'), 'HTML report renders');
+const planPreview = await call('POST', '/api/plan/preview', { sprintsAhead: 2 });
+assert(planPreview.plan.sprints.length === 3, `planner frames ${planPreview.plan.sprints.length} sprints, places ${planPreview.plan.placed} stories`);
+const planned = await call('POST', '/api/plan/propose', { sprintsAhead: 2 });
+if (planned.batch && planned.batch.total > 0) {
+  await approveAndApply(planned.batch.id, 'sprint plan');
+}
+const skills = await call('POST', '/api/intelligence/skills', {});
+assert(skills.kind === 'skills', `skill tags proposed for ${skills.proposals.length} items`);
+const visionJob = await waitJob(await call('POST', '/api/vision/draft', { useModel: true }), 'vision');
+const visionDoc = await call('GET', `/api/vision/${visionJob.id}`);
+assert(visionDoc.markdown.includes('## Vision') && visionDoc.themes.length > 0, `vision drafted with ${visionDoc.themes.length} themes and ${visionDoc.priorities.length} priorities`);
+
+// 6. Intake: raw tickets in a source repository become structured sandbox copies (fake GitHub only).
+if (fakeUrl) {
+  const raw = [
+    { title: 'As an analyst I want nightly exports so that reports are fresh', body: 'Acceptance criteria\n- export runs nightly\n- failures page someone' },
+    { title: 'Epic: modernise the ingestion platform', body: 'Success picture: every feed has a contract and an owner.' },
+    { title: 'Login page throws 500 on empty password', body: 'Steps: submit the form empty.', labels: ['bug'] },
+    { title: 'Rename the staging bucket', body: '', labels: ['chore'] },
+  ];
+  for (const t of raw) {
+    const r = await fetch(`${fakeUrl}/repos/sun-of-anton/raw-backlog/issues`, { method: 'POST', headers: { Authorization: 'Bearer fake', 'Content-Type': 'application/json' }, body: JSON.stringify({ title: t.title, body: t.body, labels: t.labels ?? [] }) });
+    assert(r.status === 201, `planted raw ticket "${t.title.slice(0, 30)}…"`);
+  }
+  await waitJob(await call('POST', '/api/sync', { repository: 'all' }), 'sync all');
+  const sources = await call('GET', '/api/intake/sources');
+  assert(sources.items.length === raw.length, `${sources.items.length} source tickets visible, none copied yet`);
+  assert(sources.items.find((i) => i.title.startsWith('Epic:')).guessedType === 'EPIC', 'epic guessed from the title prefix');
+  const keys = sources.items.map((i) => i.key);
+  const prev = await call('POST', '/api/intake/preview', { keys });
+  assert(prev.drafts.length === raw.length && prev.drafts.every((d) => d.body.includes('source_iid:')), 'drafts carry the source reference');
+  const intake = await waitJob(await call('POST', '/api/intake/run', { keys }), 'intake');
+  assert(intake.items.length === raw.length && intake.errors.length === 0, `intake copied ${intake.items.length} tickets into the sandbox`);
+  await waitJob(await call('POST', '/api/sync', { repository: 'all' }), 'sync all');
+  const again = await call('GET', '/api/intake/sources');
+  assert(again.items.every((i) => i.copiedAs), 'every source ticket now shows its sandbox copy');
+  const rerun = await call('POST', '/api/intake/preview', { keys });
+  assert(rerun.alreadyCopied === raw.length, 'a second intake would copy nothing twice');
+  const copies = (await call('GET', '/api/review')).items.filter((i) => i.labels.includes('cascade-intake'));
+  assert(copies.length === raw.length && copies.every((i) => i.hasMeta && i.type !== 'UNCLASSIFIED'), 'copies are classified work items with cascade-meta');
+  const sourceWrites = (await call('GET', '/api/writes')).entries.filter((w) => w.target.includes('raw-backlog'));
+  assert(sourceWrites.length === 0, 'the source repository was never written');
+  // back to a run-scoped sandbox snapshot for the teardown checks
+  await syncRun();
+}
+
 const writes = await call('GET', '/api/writes');
 assert(writes.entries.length > 0 && writes.entries.every((w) => w.target.endsWith('cascade-sandbox')), `${writes.entries.length} audited writes, all to the sandbox`);
 
@@ -155,5 +210,9 @@ assert(td.deleted === total, `teardown deleted ${td.deleted}/${total}`);
 
 const blocked = await fetch(base + '/api/sandbox/teardown', { method: 'POST', headers: H, body: JSON.stringify({ scope: 'everything', confirmText: 'yes please' }) });
 assert(blocked.status === 403, 'wipe without the confirmation phrase is refused');
+if (fakeUrl) {
+  const wipe = await waitJob(await call('POST', '/api/sandbox/teardown', { scope: 'everything', confirmText: 'DELETE sun-of-anton/cascade-sandbox' }), 'wipe');
+  assert(wipe.deleted >= 4, `wipe with the phrase removed the ${wipe.deleted} remaining (intake) items`);
+}
 
 console.log('sandbox loop passed');

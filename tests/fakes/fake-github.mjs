@@ -10,13 +10,19 @@ import { createServer } from 'node:http';
 
 const port = Number(process.argv[2] ?? 8790);
 const SANDBOX = 'sun-of-anton/cascade-sandbox';
-const state = { issues: new Map(), labels: new Map(), next: 1, subIssues: [] };
+// One issue store per repository, so a source backlog and the sandbox can coexist (intake copies between them).
+const repos = new Map();
+function repoState(repo) {
+  const key = repo.toLowerCase();
+  if (!repos.has(key)) repos.set(key, { issues: new Map(), labels: new Map(), next: 1, subIssues: [] });
+  return repos.get(key);
+}
 
 function issueJson(repo, n, issue) {
   return {
     number: n,
     id: 100000 + n,
-    node_id: `I_${n}`,
+    node_id: `I_${repo}_${n}`,
     title: issue.title,
     body: issue.body,
     state: issue.state,
@@ -112,12 +118,16 @@ function chat(data, res) {
 
 function graphql(data, res) {
   const node = data.variables?.id ?? '';
-  const n = /^I_\d+$/.test(node) ? Number(node.slice(2)) : -1;
+  // node ids are "I_<repo>_<n>" so a node resolves to exactly one repository
+  const mm = /^I_(.+)_(\d+)$/.exec(node);
+  const owner = mm ? [...repos.entries()].find(([k]) => k === mm[1].toLowerCase()) : null;
+  const n = mm ? Number(mm[2]) : -1;
+  const state = owner ? owner[1] : null;
   if ((data.query ?? '').trimStart().startsWith('query')) {
-    const found = state.issues.has(n) ? { number: n, repository: { nameWithOwner: SANDBOX } } : null;
+    const found = state && state.issues.has(n) ? { number: n, repository: { nameWithOwner: mm[1] } } : null;
     return send(res, 200, { data: { node: found } });
   }
-  if (!state.issues.delete(n)) return send(res, 200, { errors: [{ message: `Could not resolve to a node with the global id of '${node}'` }] });
+  if (!state || !state.issues.delete(n)) return send(res, 200, { errors: [{ message: `Could not resolve to a node with the global id of '${node}'` }] });
   return send(res, 200, { data: { deleteIssue: { clientMutationId: null } } });
 }
 
@@ -131,12 +141,13 @@ const server = createServer(async (req, res) => {
   if (!(req.headers.authorization ?? '').startsWith('Bearer ')) return send(res, 401, { message: 'Bad credentials' });
   if (path === '/graphql' && req.method === 'POST') return graphql(data, res);
   if (path === '/user') return send(res, 200, { login: 'fake-anthony', name: 'Fake User', html_url: 'https://github.com/fake' });
-  if (path === '/user/repos') return send(res, 200, [{ full_name: SANDBOX, html_url: `https://github.com/${SANDBOX}` }]);
+  if (path === '/user/repos') return send(res, 200, [...new Set([SANDBOX, ...repos.keys()])].map((r) => ({ full_name: r, html_url: `https://github.com/${r}` })));
 
   const m = /^\/repos\/([^/]+\/[^/]+)(\/.*)?$/.exec(path);
   if (!m) return send(res, 404, { message: 'Not Found' });
   const repo = decodeURIComponent(m[1]);
   const rest = m[2] ?? '';
+  const state = repoState(repo);
 
   if (req.method === 'GET') {
     if (rest === '') return send(res, 200, { full_name: repo, id: repoId(repo) });

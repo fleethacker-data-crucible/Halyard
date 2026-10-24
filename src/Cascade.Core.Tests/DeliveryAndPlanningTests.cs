@@ -8,6 +8,7 @@ using Cascade.Core.Analysis;
 using Cascade.Core.Intelligence;
 using Cascade.Core.Llm;
 using Cascade.Core.Model;
+using Cascade.Core.Providers;
 using Newtonsoft.Json.Linq;
 using Cascade.Core.Planning;
 using Cascade.Core.Synthetic;
@@ -407,6 +408,113 @@ namespace Cascade.Core.Tests
             Assert.Contains("deterministic", draft.Source);
             Assert.NotEmpty(draft.Warnings);
             Assert.Equal(2, draft.Themes.Count);
+        }
+    }
+
+    public class IntakeTests
+    {
+        private static readonly RepositoryRef Source = new RepositoryRef(ProviderKind.GitHub, "acme/raw-backlog");
+        private static readonly RepositoryRef Sandbox = Items.Repo;
+
+        private static WorkItem Raw(long n, string title, string body, params string[] labels)
+        {
+            var w = new WorkItem(Source, n) { Title = title, Body = body, Url = "https://github.com/acme/raw-backlog/issues/" + n };
+            w.Labels.AddRange(labels);
+            return w;
+        }
+
+        private static List<WorkItem> Snapshot()
+        {
+            var sandbox = SyntheticCatalog.ToWorkItems(SyntheticCatalog.Generate(SyntheticOptions.ForTotal(20)), Sandbox);
+            var all = new List<WorkItem>(sandbox)
+            {
+                Raw(1, "As an analyst I want nightly exports so that reports are fresh", "Acceptance criteria\n- export runs nightly\n- failures page someone"),
+                Raw(2, "Epic: modernise the ingestion platform", "Success picture: every feed has a contract."),
+                Raw(3, "Login page throws 500 on empty password", "Steps: submit empty form.", "bug"),
+                Raw(4, "Rename the staging bucket", "", "chore"),
+                Raw(5, "Streaming ingestion capability", "Done when: feeds arrive within a minute.", "area::platform"),
+            };
+            return all;
+        }
+
+        [Fact]
+        public void PreparesDraftsWithGuessedTypesSourceLinksAndGaps()
+        {
+            var snap = Snapshot();
+            var keys = new HashSet<string>(snap.Where(i => i.Repository.Equals(Source)).Select(i => i.Key), StringComparer.OrdinalIgnoreCase);
+            var drafts = Intake.Prepare(snap, Sandbox, new IntakeOptions { Keys = keys }, Schema.Taxonomy.Default());
+            Assert.Equal(5, drafts.Count);
+            Assert.Equal(WorkItemType.Story, drafts.First(d => d.SourceNumber == 1).Type);
+            Assert.Equal(WorkItemType.Epic, drafts.First(d => d.SourceNumber == 2).Type);
+            Assert.Equal(WorkItemType.Bug, drafts.First(d => d.SourceNumber == 3).Type);
+            Assert.Equal(WorkItemType.Task, drafts.First(d => d.SourceNumber == 4).Type);
+            Assert.Equal(WorkItemType.Feature, drafts.First(d => d.SourceNumber == 5).Type);
+            var story = drafts.First(d => d.SourceNumber == 1);
+            Assert.StartsWith("STORY :: ", story.Title);
+            Assert.StartsWith("STORY-", story.CanonicalId);
+            var meta = CascadeMeta.Parse(story.Body)!;
+            Assert.Equal("acme/raw-backlog", meta.SourceProject);
+            Assert.Equal("1", meta.SourceRef);
+            Assert.Equal("TBD", meta.Points);
+            Assert.Contains("export runs nightly", story.Body);
+            Assert.Contains(Intake.Label, story.Labels);
+            Assert.Contains("type::story", story.Labels);
+            Assert.Contains("refine::sandbox-review", story.Labels);
+            Assert.Contains(Schema.Deficiencies.StoryMissingTasks, story.Gaps);
+            Assert.Equal("platform", drafts.First(d => d.SourceNumber == 5).Area);
+            // Only one theme in the sandbox? The 20-item catalogue has one, so epics/features get it by default.
+            Assert.NotNull(drafts.First(d => d.SourceNumber == 2).Theme);
+            Assert.All(drafts, d => Assert.Null(d.ExistingKey));
+        }
+
+        [Fact]
+        public async Task RunsThroughTheGatewayAndSkipsCopiesAlreadyInTheSandbox()
+        {
+            var snap = Snapshot();
+            // A previous intake already copied ticket #3.
+            var copy = new WorkItem(Sandbox, 900) { Title = "BUG :: Login page throws 500", Body = "~~~cascade-meta\ntype: BUG\nid: BUG-login\nsource_project: acme/raw-backlog\nsource_iid: 3\n~~~\n\nold" };
+            snap.Add(copy);
+            var keys = new HashSet<string>(snap.Where(i => i.Repository.Equals(Source)).Select(i => i.Key), StringComparer.OrdinalIgnoreCase);
+            var drafts = Intake.Prepare(snap, Sandbox, new IntakeOptions { Keys = keys }, Schema.Taxonomy.Default());
+            Assert.Equal(copy.Key, drafts.First(d => d.SourceNumber == 3).ExistingKey);
+
+            var http = new FakeTransport();
+            var next = 500L;
+            http.On("GET", "/repos/" + Sandbox.Identifier, 200, "{\"id\": 111}");
+            http.On("POST", "/labels", 201, "{}");
+            http.On("POST", "/issues", call =>
+            {
+                var sent = JObject.Parse(call.JsonBody!);
+                var n = ++next;
+                var body = new JObject { ["number"] = n, ["id"] = n * 10, ["node_id"] = "N" + n, ["title"] = sent["title"], ["body"] = sent["body"], ["state"] = "open", ["labels"] = new JArray(sent["labels"]!.Select(l => new JObject { ["name"] = l })), ["html_url"] = "https://github.com/x/y/issues/" + n };
+                return new HttpReply(201, body.ToString(), new Dictionary<string, string>());
+            });
+            var provider = new GitHubProvider(http, "https://api.github.com", "tok", Sandbox, 0);
+            var policy = new Safety.WritePolicy();
+            policy.SandboxTargets.Add(Sandbox);
+            policy.ProtectedTargets.Add(Source);
+            var gateway = new Safety.WriteGateway(policy);
+            var manifest = await Intake.RunAsync(drafts, provider, gateway, Sandbox, new IntakeOptions { Keys = keys }, null, CancellationToken.None);
+            Assert.Equal(4, manifest.Items.Count);
+            Assert.Single(manifest.Skipped);
+            Assert.Empty(manifest.Errors);
+            var creates = http.Writes().Where(c => c.Url.EndsWith("/issues")).Select(c => JObject.Parse(c.JsonBody!)).ToList();
+            Assert.Equal(4, creates.Count);
+            Assert.All(creates, c => Assert.Contains("source_iid:", (string)c["body"]!));
+            Assert.All(http.Writes(), c => Assert.Contains("/" + Sandbox.Identifier + "/", c.Url)); // the source repository is never written
+            Assert.All(gateway.Audit, a => Assert.Equal(Sandbox.Key, a.Target));
+        }
+
+        [Fact]
+        public void TypeGuessesExplainThemselves()
+        {
+            string reason;
+            Assert.Equal(WorkItemType.Story, Intake.GuessType(Raw(1, "Thing", "As a user, I want x so that y"), out reason));
+            Assert.Contains("user need", reason);
+            Assert.Equal(WorkItemType.Feature, Intake.GuessType(Raw(2, "Thing", "", "type::feature"), out reason));
+            Assert.Equal("type:: label", reason);
+            Assert.Equal(WorkItemType.Story, Intake.GuessType(Raw(3, "Something vague", "no structure at all"), out reason));
+            Assert.StartsWith("default", reason);
         }
     }
 }

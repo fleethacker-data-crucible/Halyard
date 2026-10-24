@@ -440,5 +440,20 @@ export const VisionDraft = z.object({
 });
 export type VisionDraft = z.infer<typeof VisionDraft>;
 
+export const IntakeSources = z.object({
+  sandbox: Nullable(z.string()),
+  repositories: z.array(z.string()),
+  items: z.array(z.object({ key: z.string(), number: z.number(), repository: z.string(), title: z.string(), state: z.enum(['open', 'closed']), labels: z.array(z.string()), url: Nullable(z.string()), updatedAt: Nullable(z.string()), hasMeta: z.boolean(), guessedType: LevelToken, guessReason: z.string(), copiedAs: Nullable(z.string()), bodyLength: z.number() })),
+});
+export type IntakeSources = z.infer<typeof IntakeSources>;
+export const IntakeDraft = z.object({
+  sourceKey: z.string(), sourceRepository: z.string(), sourceNumber: z.number(), sourceUrl: Nullable(z.string()), sourceTitle: z.string(), type: z.string(), typeToken: LevelToken, canonicalId: z.string(), title: z.string(), theme: Nullable(z.string()), parent: Nullable(z.string()), area: Nullable(z.string()),
+  labels: z.array(z.string()), narrative: z.string(), body: z.string(), confidence: z.string(), reason: z.string(), existingKey: Nullable(z.string()), gaps: z.array(z.string()),
+});
+export type IntakeDraft = z.infer<typeof IntakeDraft>;
+export const IntakePreview = z.object({ drafts: z.array(IntakeDraft), count: z.number(), alreadyCopied: z.number() });
+export const IntakeManifest = z.object({ id: z.string(), target: z.string(), startedAt: z.string(), finishedAt: Nullable(z.string()), requested: z.number(), items: z.array(z.object({ sourceKey: z.string(), canonicalId: z.string(), type: z.string(), number: z.number(), key: z.string(), url: Nullable(z.string()) })), skipped: z.array(z.string()), errors: z.array(z.string()), source: z.string() });
+export type IntakeManifest = z.infer<typeof IntakeManifest>;
+
 export const Repositories = z.array(z.object({ identifier: z.string(), displayName: z.string(), url: Nullable(z.string()), key: z.string() }));
 export const Labels = z.object({ repository: z.string(), labels: z.array(z.string()) });

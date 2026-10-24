@@ -36,6 +36,7 @@ namespace Cascade.Core.Config
         public string SynapseDirectory { get { return Path.Combine(ConfigDirectory, "synapse"); } }
         public string VisionDirectory { get { return Path.Combine(OutputDirectory, "vision"); } }
         public string ReportsDirectory { get { return Path.Combine(OutputDirectory, "reports"); } }
+        public string IntakesDirectory { get { return Path.Combine(OutputDirectory, "intakes"); } }
         public string ProposalsDirectory { get { return Path.Combine(OutputDirectory, "proposals"); } }
         public string SnapshotsDirectory { get { return Path.Combine(OutputDirectory, "snapshots"); } }
         public string SeedsDirectory { get { return Path.Combine(OutputDirectory, "seeds"); } }
