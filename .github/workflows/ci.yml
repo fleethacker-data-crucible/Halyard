@@ -13,7 +13,7 @@ concurrency:
 jobs:
   windows:
     # Self-hosted Windows workstation runner: exercises the exact Windows PowerShell 5.1 / .NET Framework 4.8
-    # runtime the bundle targets. Needs Git, and lets the setup actions below install the SDK/Node/Python.
+    # runtime the bundle targets. Needs Git; the setup actions below install the .NET SDK and Node without admin rights.
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 30
     steps:
@@ -24,25 +24,26 @@ jobs:
           dotnet-version: 8.0.x
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
+          node-version: 22
 
       - name: Core build and tests (net8.0 + net48)
-        shell: pwsh
+        shell: powershell
         run: |
           dotnet build Cascade.sln -c Release --nologo
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
           dotnet test Cascade.sln -c Release --no-build --nologo --logger "trx;LogFileName=core.trx" --results-directory TestResults
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: UI typecheck, tests, build
-        shell: pwsh
+        shell: powershell
         working-directory: web
         run: |
+          $ErrorActionPreference = 'Stop'
           if (Test-Path package-lock.json) { npm ci --no-audit --no-fund } else { npm install --no-audit --no-fund }
-          npm run typecheck
-          npm test
-          npm run build
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run typecheck; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm test; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run build; if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Pester on Windows PowerShell 5.1
         shell: powershell
@@ -55,14 +56,18 @@ jobs:
           $c.Output.Verbosity = 'Detailed'
           Invoke-Pester -Configuration $c
 
-      - name: Pester on PowerShell 7
-        shell: pwsh
+      - name: Pester on PowerShell 7 (skipped when pwsh is not installed)
+        shell: powershell
         run: |
-          if (-not (Get-Module -ListAvailable Pester | Where-Object Version -ge '5.0')) { Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser -Force -SkipPublisherCheck }
-          $c = New-PesterConfiguration
-          $c.Run.Path = 'tests/pester'
-          $c.Run.Exit = $true
-          Invoke-Pester -Configuration $c
+          if (-not (Get-Command pwsh -ErrorAction SilentlyContinue)) { Write-Warning 'PowerShell 7 is not installed on this runner; skipping.'; exit 0 }
+          pwsh -NoProfile -Command {
+            if (-not (Get-Module -ListAvailable Pester | Where-Object Version -ge '5.0')) { Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser -Force -SkipPublisherCheck }
+            $c = New-PesterConfiguration
+            $c.Run.Path = 'tests/pester'
+            $c.Run.Exit = $true
+            Invoke-Pester -Configuration $c
+          }
+          exit $LASTEXITCODE
 
       - name: Offline end-to-end loop (Windows PowerShell 5.1 host)
         shell: powershell
