@@ -27,6 +27,15 @@ namespace Cascade.Core.Host
         /// <summary>Free-form state from the PowerShell launcher (ARC vault unlocked, console hidden...).</summary>
         public Dictionary<string, object?> LauncherState { get; set; } = new Dictionary<string, object?>();
         public IHttpTransport? Transport { get; set; }
+        /// <summary>
+        /// Stop the engine once the browser tab that drives it has gone: the UI sends a heartbeat every few seconds
+        /// and a "leaving" beacon on unload; with no heartbeat for <see cref="HeartbeatTimeout"/> (and no job running)
+        /// the host stops itself. CASCADE_AUTO_STOP=0 or --stay turns this off.
+        /// </summary>
+        public bool AutoStop { get; set; } = true;
+        public TimeSpan HeartbeatTimeout { get; set; } = TimeSpan.FromSeconds(20);
+        /// <summary>Grace after a "leaving" beacon before stopping; a reload sends a new heartbeat well inside it.</summary>
+        public TimeSpan LeavingGrace { get; set; } = TimeSpan.FromSeconds(5);
     }
 
     public sealed class HostInfo
@@ -90,6 +99,48 @@ namespace Cascade.Core.Host
         public int Port { get { return _server == null ? 0 : _server.Port; } }
         public bool StopRequested { get; private set; }
 
+        private readonly object _presenceLock = new object();
+        private DateTimeOffset? _lastHeartbeat;
+        private DateTimeOffset? _leavingAt;
+        private System.Threading.Timer? _presenceTimer;
+
+        /// <summary>Recorded by the UI's heartbeat. <paramref name="leaving"/> marks the tab as unloading.</summary>
+        public void RecordPresence(bool leaving)
+        {
+            lock (_presenceLock)
+            {
+                var now = DateTimeOffset.UtcNow;
+                if (leaving) { _leavingAt = now; }
+                else { _lastHeartbeat = now; _leavingAt = null; }
+            }
+        }
+
+        /// <summary>Presence state for diagnostics and tests.</summary>
+        public object PresenceState()
+        {
+            lock (_presenceLock) return new { autoStop = Options.AutoStop, lastHeartbeat = _lastHeartbeat, leavingAt = _leavingAt, timeoutSeconds = (int)Options.HeartbeatTimeout.TotalSeconds };
+        }
+
+        /// <summary>True when the browser has been gone long enough and nothing is running: the engine should stop.</summary>
+        public bool BrowserGone(DateTimeOffset now)
+        {
+            if (!Options.AutoStop || Jobs.AnyRunning) return false;
+            lock (_presenceLock)
+            {
+                if (_lastHeartbeat == null) return false; // nothing ever connected; the launcher's own timeout handles that
+                if (_leavingAt != null && now - _leavingAt.Value >= Options.LeavingGrace) return true;
+                return now - _lastHeartbeat.Value >= Options.HeartbeatTimeout;
+            }
+        }
+
+        private void PresenceTick(object? state)
+        {
+            if (StopRequested) return;
+            if (!BrowserGone(DateTimeOffset.UtcNow)) return;
+            Log.Info("HOST_AUTO_STOP", "No browser heartbeat; the engine stops itself (CASCADE_AUTO_STOP=0 keeps it running).");
+            Stop();
+        }
+
         public HostInfo Start()
         {
             if (_server != null) throw new InvalidOperationException("Host already started.");
@@ -106,6 +157,7 @@ namespace Cascade.Core.Host
             };
             WriteRuntimeFile(info);
             info.RuntimeFile = _runtimeFile;
+            if (Options.AutoStop) _presenceTimer = new System.Threading.Timer(PresenceTick, null, 2000, 2000);
             Log.Info("HOST_READY", "Cascade " + Version + " provider=" + Settings.Provider.Kind + " " + Gateway.Policy.Describe());
             return info;
         }
@@ -115,6 +167,7 @@ namespace Cascade.Core.Host
             if (StopRequested) return;
             StopRequested = true;
             Log.Info("HOST_STOP", "Stop requested.");
+            try { _presenceTimer?.Dispose(); } catch (ObjectDisposedException) { }
             try { _server?.Stop(); } finally { _stopped.Set(); }
             if (_runtimeFile != null)
             {

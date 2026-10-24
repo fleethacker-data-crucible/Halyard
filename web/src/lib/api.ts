@@ -84,3 +84,37 @@ export function describeError(e: unknown): string {
   if (e instanceof Error) return e.message;
   return String(e);
 }
+
+/**
+ * Presence: the engine stops itself when the tab that drives it is gone. A heartbeat every few seconds
+ * says "still here"; a keepalive "leaving" beacon on unload lets it stop within seconds instead of waiting
+ * for the timeout. A reload sends a fresh heartbeat inside the grace period, so nothing stops.
+ */
+export function startHeartbeat(intervalMs = 5000): () => void {
+  const token = sessionToken();
+  if (!token) return () => {};
+  const send = (leaving: boolean) => {
+    try {
+      void fetch('/api/heartbeat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Cascade-Session': token },
+        body: JSON.stringify({ leaving }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {
+      /* the engine is gone; nothing to do */
+    }
+  };
+  send(false);
+  const timer = window.setInterval(() => send(false), intervalMs);
+  const onHide = () => send(true);
+  const onShow = () => send(false);
+  window.addEventListener('pagehide', onHide);
+  window.addEventListener('pageshow', onShow);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') send(false); });
+  return () => {
+    window.clearInterval(timer);
+    window.removeEventListener('pagehide', onHide);
+    window.removeEventListener('pageshow', onShow);
+  };
+}
