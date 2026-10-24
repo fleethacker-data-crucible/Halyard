@@ -34,14 +34,39 @@ const KIND_LEDE: Record<ProposalKind, string> = {
 export function ProposalsPage({ params, status }: { params: URLSearchParams; status: Status | undefined }) {
   const batches = useResource('/api/proposals', z.array(BatchSummary), { pollMs: 8000 });
   const [selectedId, setSelectedId] = useState<string | null>(params.get('batch'));
+  const toast = useToast();
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
+  const fromUrl = params.get('batch');
   useEffect(() => {
-    const fromUrl = params.get('batch');
-    if (fromUrl && fromUrl !== selectedId) setSelectedId(fromUrl);
-  }, [params, selectedId]);
+    if (fromUrl) setSelectedId(fromUrl);
+  }, [fromUrl]);
   useEffect(() => {
-    if (!selectedId && batches.data && batches.data.length > 0) setSelectedId(batches.data[0]!.id);
-  }, [batches.data, selectedId]);
+    // Keep the selection on an existing batch: newest when nothing is selected or the selected one is gone.
+    if (!batches.data || clearing) return;
+    if (selectedId && batches.data.some((b) => b.id === selectedId)) return;
+    const next = batches.data[0]?.id ?? null;
+    if (next !== selectedId) setSelectedId(next);
+    if (!next || (fromUrl && fromUrl !== next)) navigate('proposals');
+  }, [batches.data, selectedId, fromUrl, clearing]);
+
+  const afterDelete = () => { setSelectedId(null); navigate('proposals'); invalidate('/api/proposals'); };
+  const finished = (batches.data ?? []).filter((b) => b.pending === 0 && b.approved === 0);
+  const clearFinished = async () => {
+    setClearing(true);
+    if (selectedId && finished.some((b) => b.id === selectedId)) { setSelectedId(null); navigate('proposals'); }
+    try {
+      for (const b of finished) await post(`/api/proposals/${encodeURIComponent(b.id)}/delete`);
+      toast.push('ok', `Cleared ${finished.length} finished ${finished.length === 1 ? 'batch' : 'batches'}.`);
+      afterDelete();
+    } catch (e) {
+      toast.push('err', describeError(e));
+    } finally {
+      setClearing(false);
+      setConfirmClear(false);
+    }
+  };
 
   return (
     <Page
@@ -51,29 +76,34 @@ export function ProposalsPage({ params, status }: { params: URLSearchParams; sta
       <div className="grid gap-5 xl:grid-cols-[minmax(300px,1fr)_minmax(0,2.6fr)]">
         <div className="flex flex-col gap-5">
           <NewAnalysis status={status} onBatch={(id) => { invalidate('/api/proposals'); setSelectedId(id); }} />
-          <Section title="Batches" aside={<ApplyAll batches={batches.data} status={status} onDone={() => { invalidate('/api/proposals'); invalidate('/api/snapshot'); invalidate('/api/review'); invalidate('/api/hierarchy'); }} />}>
+          <Section title="Batches" aside={<span className="flex items-center gap-1"><ApplyAll batches={batches.data} status={status} onDone={() => { invalidate('/api/proposals'); invalidate('/api/snapshot'); invalidate('/api/review'); invalidate('/api/hierarchy'); }} />{finished.length > 0 ? <Button size="sm" variant="quiet" onClick={() => setConfirmClear(true)} busy={clearing} title="Delete every batch with nothing pending or approved">Clear finished ({finished.length})</Button> : null}</span>}>
+            <ConfirmDialog open={confirmClear} title={`Clear ${finished.length} finished ${finished.length === 1 ? 'batch' : 'batches'}?`} confirmLabel="Clear" danger onCancel={() => setConfirmClear(false)} onConfirm={() => void clearFinished()}>
+              Finished means nothing left pending or approved: everything was applied, rejected or failed. Applied changes stay in the sandbox; only the batch files on this machine are removed.
+            </ConfirmDialog>
             {!batches.data ? <Skeleton rows={4} /> : batches.data.length === 0 ? <Empty title="No proposals yet">Run an analysis above. Each run becomes a batch you can review, approve and apply.</Empty> : (
               <ul className="scroll-y max-h-[50vh]">
                 {batches.data.map((b) => (
-                  <li key={b.id}>
-                    <button type="button" onClick={() => setSelectedId(b.id)} className={cn('flex w-full flex-col gap-0.5 px-4 py-2.5 text-left hover:bg-surface-2', b.id === selectedId && 'bg-surface-2')}>
+                  <li key={b.id} className={cn('group relative', b.id === selectedId && 'bg-surface-2')}>
+                    <button type="button" onClick={() => setSelectedId(b.id)} className="flex w-full flex-col gap-0.5 px-4 py-2.5 pr-10 text-left hover:bg-surface-2">
                       <span className="flex items-center justify-between gap-2"><span className="font-medium">{KIND_LABEL[b.kind]}</span><span className="text-[12px] text-ink-3">{relativeTime(b.createdAt)}</span></span>
                       <span className="flex flex-wrap gap-1 text-[12px] text-ink-2">
                         <span>{b.total} proposals</span>
-                        {b.pending ? <Pill tone="info">{b.pending} pending</Pill> : null}
-                        {b.approved ? <Pill tone="ok">{b.approved} approved</Pill> : null}
-                        {b.applied ? <Pill tone="neutral">{b.applied} applied</Pill> : null}
+                        <Pill tone={b.pending ? 'info' : 'neutral'}>{b.pending} pending</Pill>
+                        <Pill tone={b.approved ? 'ok' : 'neutral'}>{b.approved} approved</Pill>
+                        <Pill tone="neutral">{b.rejected} rejected</Pill>
+                        <Pill tone="neutral">{b.applied} applied</Pill>
                         {b.failed ? <Pill tone="err">{b.failed} failed</Pill> : null}
                       </span>
                       <span className="mono text-[11px] text-ink-3">{b.source}</span>
                     </button>
+                    <BatchRowDelete id={b.id} label={KIND_LABEL[b.kind]} onDeleted={afterDelete} />
                   </li>
                 ))}
               </ul>
             )}
           </Section>
         </div>
-        {selectedId ? <BatchView batchId={selectedId} status={status} onChanged={() => invalidate('/api/proposals')} onDeleted={() => { invalidate('/api/proposals'); setSelectedId(null); }} /> : <Section><Empty title="Select a batch" /></Section>}
+        {selectedId ? <BatchView key={selectedId} batchId={selectedId} status={status} onChanged={() => invalidate('/api/proposals')} onDeleted={afterDelete} /> : <Section><Empty title="Select a batch">{batches.data && batches.data.length === 0 ? 'Run an analysis to create one.' : 'Pick a batch on the left.'}</Empty></Section>}
       </div>
       {batches.error ? <Notice tone="err">{batches.error}</Notice> : null}
     </Page>
@@ -196,6 +226,33 @@ function NewAnalysis({ status, onBatch }: { status: Status | undefined; onBatch:
   );
 }
 
+function BatchRowDelete({ id, label, onDeleted }: { id: string; label: string; onDeleted: () => void }) {
+  const toast = useToast();
+  const [confirm, setConfirm] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const remove = async () => {
+    setBusy(true);
+    try {
+      await post(`/api/proposals/${encodeURIComponent(id)}/delete`);
+      toast.push('ok', 'Batch deleted. Anything already applied stays in the sandbox.');
+      onDeleted();
+    } catch (e) {
+      toast.push('err', describeError(e));
+    } finally {
+      setBusy(false);
+      setConfirm(false);
+    }
+  };
+  return (
+    <>
+      <Button size="sm" variant="quiet" className="absolute right-2 top-2 text-ink-3 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100 hover:text-err" onClick={() => setConfirm(true)} busy={busy} aria-label={`Delete ${label} batch`} title="Delete this batch"><LuTrash2 size={13} /></Button>
+      <ConfirmDialog open={confirm} title={`Delete this ${label.toLowerCase()} batch?`} confirmLabel="Delete batch" danger onCancel={() => setConfirm(false)} onConfirm={() => void remove()}>
+        Removes the batch file and its decisions from this machine. Proposals already applied stay in the sandbox; pending and approved ones are simply forgotten.
+      </ConfirmDialog>
+    </>
+  );
+}
+
 function BatchView({ batchId, status, onChanged, onDeleted }: { batchId: string; status: Status | undefined; onChanged: () => void; onDeleted: () => void }) {
   const batch = useResource(`/api/proposals/${encodeURIComponent(batchId)}`, Batch);
   const toast = useToast();
@@ -258,7 +315,7 @@ function BatchView({ batchId, status, onChanged, onDeleted }: { batchId: string;
       <ConfirmDialog open={confirmDelete} title="Delete this batch?" confirmLabel="Delete batch" danger onCancel={() => setConfirmDelete(false)} onConfirm={() => void remove()}>
         Removes the batch file and its decisions from this machine. Proposals already applied stay in the sandbox; pending and approved ones are simply forgotten.
       </ConfirmDialog>
-      {!b ? <Skeleton rows={8} /> : (
+      {!b && batch.error ? <Empty title="This batch is gone">{batch.error}</Empty> : !b ? <Skeleton rows={8} /> : (
         <>
           <div className="flex flex-col gap-1 px-4 py-2.5 text-[12.5px] text-ink-2">
             <span>{KIND_LEDE[b.kind]}</span>
