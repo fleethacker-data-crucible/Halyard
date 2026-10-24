@@ -369,5 +369,42 @@ export const Snapshot = z.object({
 });
 export type Snapshot = z.infer<typeof Snapshot>;
 
+export const Leadership = z.object({
+  snapshot: z.object({ id: z.string(), takenAt: z.string(), repository: z.string(), ageSeconds: z.number() }),
+  generatedAt: z.string(),
+  currentSprint: z.string(),
+  currentSprintNumber: z.number(),
+  sprintStart: z.string(),
+  sprintEnd: z.string(),
+  featuresOnTrack: z.number(),
+  featuresActive: z.number(),
+  averageVelocity: z.number(),
+  features: z.array(z.object({
+    key: z.string(), number: z.number(), title: z.string(), canonicalId: z.string(), epic: Nullable(z.string()), theme: Nullable(z.string()), owner: Nullable(z.string()), target: Nullable(z.string()),
+    stories: z.number(), storiesDone: z.number(), points: z.number(), pointsDone: z.number(), blocked: z.number(), percent: z.number(), status: z.enum(['OnTrack', 'AtRisk', 'Parked', 'Done']), reason: z.string(), url: Nullable(z.string()),
+  })),
+  themes: z.array(z.object({ key: z.string(), title: z.string(), points: z.number(), pointsDone: z.number(), features: z.number(), featuresDone: z.number(), percent: z.number() })),
+  velocity: z.array(z.object({ sprint: z.string(), number: z.number(), pointsDone: z.number(), pointsPlanned: z.number(), storiesDone: z.number(), isCurrent: z.boolean(), isPast: z.boolean() })),
+  blockers: z.array(z.object({ key: z.string(), number: z.number(), title: z.string(), type: z.string(), reason: Nullable(z.string()), owner: Nullable(z.string()), since: Nullable(z.string()), ageDays: z.number(), ageBusinessDays: z.number(), escalated: z.boolean(), impact: Nullable(z.string()), url: Nullable(z.string()) })),
+  ready: z.object({ stories: z.number(), points: z.number(), notReady: z.number(), averageVelocity: z.number(), healthy: z.boolean() }),
+  capacity: z.object({ teamCapacity: z.number(), plannedPoints: z.number(), donePoints: z.number(), usedPercent: z.number(), committed: z.number(), allocated: z.number(), experiment: z.number(), teams: z.number(), people: z.number(), configured: z.boolean() }),
+  escalationBusinessDays: z.number(),
+  notes: z.array(z.string()),
+});
+export type Leadership = z.infer<typeof Leadership>;
+
+export const TeamInfo = z.object({
+  path: Nullable(z.string()),
+  sprint: z.object({ prefix: z.string(), lengthDays: z.number(), firstNumber: z.number(), firstStart: z.string(), current: z.string() }),
+  teams: z.array(z.object({ id: z.string(), name: z.string(), pointsPerSprint: z.number(), committed: z.number(), allocated: z.number(), experiment: z.number(), members: z.number() })),
+  people: z.array(z.object({ id: z.string(), name: z.string(), team: z.string(), pointsPerSprint: z.number(), skills: z.record(z.number()), availability: z.string(), fromSynapse: z.boolean(), synapseCard: Nullable(z.string()) })),
+  cardsImported: z.number(),
+  warnings: z.array(z.string()),
+  skillsPath: z.string(),
+  skillCount: z.number(),
+  synapseDirectory: z.string(),
+});
+export type TeamInfo = z.infer<typeof TeamInfo>;
+
 export const Repositories = z.array(z.object({ identifier: z.string(), displayName: z.string(), url: Nullable(z.string()), key: z.string() }));
 export const Labels = z.object({ repository: z.string(), labels: z.array(z.string()) });
