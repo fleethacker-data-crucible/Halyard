@@ -317,6 +317,12 @@ namespace Cascade.Core.Tests
             var next = 100L;
             http.On("POST", "/labels", 201, "{}");
             http.On("POST", "/sub_issues", 201, "{}");
+            http.On("PATCH", "/issues/", call =>
+            {
+                var n = long.Parse(call.Url.Substring(call.Url.LastIndexOf('/') + 1));
+                var body = new JObject { ["number"] = n, ["id"] = n * 10, ["node_id"] = "N" + n, ["title"] = "t", ["body"] = "b", ["state"] = "closed", ["labels"] = new JArray(), ["html_url"] = "https://github.com/x/y/issues/" + n };
+                return new HttpReply(200, body.ToString(), new Dictionary<string, string>());
+            });
             http.On("POST", "/issues", call =>
             {
                 var sent = JObject.Parse(call.JsonBody!);
@@ -335,6 +341,10 @@ namespace Cascade.Core.Tests
             var creates = http.Writes().Where(c => c.Url.EndsWith("/issues")).Select(c => JObject.Parse(c.JsonBody!)).ToList();
             Assert.Equal("THEME", (string)creates[0]["title"]!.ToString().Substring(0, 5));
             Assert.All(creates, c => Assert.Contains("cascade-run::t1", c["labels"]!.Select(l => (string)l!)));
+            // Finished work from past sprints is closed after creation, so the sandbox has delivery history.
+            var closes = http.Writes().Where(c => c.Method == "PATCH").Select(c => JObject.Parse(c.JsonBody!)).ToList();
+            Assert.Equal(catalog.Count(c => c.Closed), closes.Count);
+            Assert.All(closes, c => Assert.Equal("closed", (string)c["state"]!));
             Assert.All(creates, c => Assert.Contains("cascade-synthetic", c["labels"]!.Select(l => (string)l!)));
             // every child's parent was created before it
             var order = creates.Select(c => CascadeMeta.Parse((string)c["body"]!)!).ToList();

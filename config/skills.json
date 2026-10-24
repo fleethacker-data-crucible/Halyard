@@ -1,0 +1,580 @@
+{
+  "version": "1",
+  "source": "Synapse capability taxonomy (13 domains x 8 skills); ids are the slugs Synapse peer cards use",
+  "domains": [
+    {
+      "id": "data-engineering",
+      "name": "Data Engineering"
+    },
+    {
+      "id": "cloud-infrastructure",
+      "name": "Cloud & Infrastructure"
+    },
+    {
+      "id": "cybersecurity-compliance",
+      "name": "Cybersecurity & Compliance"
+    },
+    {
+      "id": "software-development",
+      "name": "Software Development"
+    },
+    {
+      "id": "analytics-bi",
+      "name": "Analytics & BI"
+    },
+    {
+      "id": "systems-engineering",
+      "name": "Systems Engineering"
+    },
+    {
+      "id": "devops-automation",
+      "name": "DevOps & Automation"
+    },
+    {
+      "id": "project-program-delivery",
+      "name": "Project & Program Delivery"
+    },
+    {
+      "id": "shipyard-mission-operations",
+      "name": "Shipyard & Mission Operations"
+    },
+    {
+      "id": "quality-testing",
+      "name": "Quality & Testing"
+    },
+    {
+      "id": "knowledge-training",
+      "name": "Knowledge & Training"
+    },
+    {
+      "id": "collaboration-leadership",
+      "name": "Collaboration & Leadership"
+    },
+    {
+      "id": "innovation-vision-ai-orchestration",
+      "name": "Innovation, Vision & AI Orchestration"
+    }
+  ],
+  "skills": [
+    {
+      "id": "sql-pipelines",
+      "name": "SQL Pipelines",
+      "domain": "data-engineering"
+    },
+    {
+      "id": "data-modeling",
+      "name": "Data Modeling",
+      "domain": "data-engineering"
+    },
+    {
+      "id": "etl-elt",
+      "name": "ETL / ELT",
+      "domain": "data-engineering"
+    },
+    {
+      "id": "data-quality",
+      "name": "Data Quality",
+      "domain": "data-engineering"
+    },
+    {
+      "id": "database-design",
+      "name": "Database Design",
+      "domain": "data-engineering"
+    },
+    {
+      "id": "data-governance",
+      "name": "Data Governance",
+      "domain": "data-engineering"
+    },
+    {
+      "id": "streaming-data",
+      "name": "Streaming Data",
+      "domain": "data-engineering"
+    },
+    {
+      "id": "data-integration",
+      "name": "Data Integration",
+      "domain": "data-engineering"
+    },
+    {
+      "id": "aws-architecture",
+      "name": "AWS Architecture",
+      "domain": "cloud-infrastructure"
+    },
+    {
+      "id": "infrastructure-as-code",
+      "name": "Infrastructure as Code",
+      "domain": "cloud-infrastructure"
+    },
+    {
+      "id": "cloud-networking",
+      "name": "Cloud Networking",
+      "domain": "cloud-infrastructure"
+    },
+    {
+      "id": "identity-access",
+      "name": "Identity & Access",
+      "domain": "cloud-infrastructure"
+    },
+    {
+      "id": "cost-optimization",
+      "name": "Cost Optimization",
+      "domain": "cloud-infrastructure"
+    },
+    {
+      "id": "resilience-recovery",
+      "name": "Resilience & Recovery",
+      "domain": "cloud-infrastructure"
+    },
+    {
+      "id": "container-platforms",
+      "name": "Container Platforms",
+      "domain": "cloud-infrastructure"
+    },
+    {
+      "id": "cloud-observability",
+      "name": "Cloud Observability",
+      "domain": "cloud-infrastructure"
+    },
+    {
+      "id": "security-controls",
+      "name": "Security Controls",
+      "domain": "cybersecurity-compliance"
+    },
+    {
+      "id": "threat-modeling",
+      "name": "Threat Modeling",
+      "domain": "cybersecurity-compliance"
+    },
+    {
+      "id": "vulnerability-triage",
+      "name": "Vulnerability Triage",
+      "domain": "cybersecurity-compliance"
+    },
+    {
+      "id": "security-documentation",
+      "name": "Security Documentation",
+      "domain": "cybersecurity-compliance"
+    },
+    {
+      "id": "access-reviews",
+      "name": "Access Reviews",
+      "domain": "cybersecurity-compliance"
+    },
+    {
+      "id": "zero-trust-design",
+      "name": "Zero Trust Design",
+      "domain": "cybersecurity-compliance"
+    },
+    {
+      "id": "incident-readiness",
+      "name": "Incident Readiness",
+      "domain": "cybersecurity-compliance"
+    },
+    {
+      "id": "risk-assessment",
+      "name": "Risk Assessment",
+      "domain": "cybersecurity-compliance"
+    },
+    {
+      "id": "javascript-development",
+      "name": "JavaScript Development",
+      "domain": "software-development"
+    },
+    {
+      "id": "powershell-automation",
+      "name": "PowerShell Automation",
+      "domain": "software-development"
+    },
+    {
+      "id": "python-development",
+      "name": "Python Development",
+      "domain": "software-development"
+    },
+    {
+      "id": "api-design",
+      "name": "API Design",
+      "domain": "software-development"
+    },
+    {
+      "id": "frontend-engineering",
+      "name": "Frontend Engineering",
+      "domain": "software-development"
+    },
+    {
+      "id": "backend-services",
+      "name": "Backend Services",
+      "domain": "software-development"
+    },
+    {
+      "id": "code-reviews",
+      "name": "Code Reviews",
+      "domain": "software-development"
+    },
+    {
+      "id": "application-architecture",
+      "name": "Application Architecture",
+      "domain": "software-development"
+    },
+    {
+      "id": "power-bi",
+      "name": "Power BI",
+      "domain": "analytics-bi"
+    },
+    {
+      "id": "dashboard-design",
+      "name": "Dashboard Design",
+      "domain": "analytics-bi"
+    },
+    {
+      "id": "statistical-analysis",
+      "name": "Statistical Analysis",
+      "domain": "analytics-bi"
+    },
+    {
+      "id": "metrics-definition",
+      "name": "Metrics Definition",
+      "domain": "analytics-bi"
+    },
+    {
+      "id": "data-storytelling",
+      "name": "Data Storytelling",
+      "domain": "analytics-bi"
+    },
+    {
+      "id": "forecasting",
+      "name": "Forecasting",
+      "domain": "analytics-bi"
+    },
+    {
+      "id": "data-visualization",
+      "name": "Data Visualization",
+      "domain": "analytics-bi"
+    },
+    {
+      "id": "exploratory-analysis",
+      "name": "Exploratory Analysis",
+      "domain": "analytics-bi"
+    },
+    {
+      "id": "requirements-analysis",
+      "name": "Requirements Analysis",
+      "domain": "systems-engineering"
+    },
+    {
+      "id": "systems-integration",
+      "name": "Systems Integration",
+      "domain": "systems-engineering"
+    },
+    {
+      "id": "interface-control",
+      "name": "Interface Control",
+      "domain": "systems-engineering"
+    },
+    {
+      "id": "architecture-modeling",
+      "name": "Architecture Modeling",
+      "domain": "systems-engineering"
+    },
+    {
+      "id": "trade-studies",
+      "name": "Trade Studies",
+      "domain": "systems-engineering"
+    },
+    {
+      "id": "configuration-management",
+      "name": "Configuration Management",
+      "domain": "systems-engineering"
+    },
+    {
+      "id": "reliability-analysis",
+      "name": "Reliability Analysis",
+      "domain": "systems-engineering"
+    },
+    {
+      "id": "verification-planning",
+      "name": "Verification Planning",
+      "domain": "systems-engineering"
+    },
+    {
+      "id": "ci-cd-pipelines",
+      "name": "CI/CD Pipelines",
+      "domain": "devops-automation"
+    },
+    {
+      "id": "git-workflows",
+      "name": "Git Workflows",
+      "domain": "devops-automation"
+    },
+    {
+      "id": "test-automation",
+      "name": "Test Automation",
+      "domain": "devops-automation"
+    },
+    {
+      "id": "release-engineering",
+      "name": "Release Engineering",
+      "domain": "devops-automation"
+    },
+    {
+      "id": "monitoring-alerting",
+      "name": "Monitoring & Alerting",
+      "domain": "devops-automation"
+    },
+    {
+      "id": "build-tooling",
+      "name": "Build Tooling",
+      "domain": "devops-automation"
+    },
+    {
+      "id": "environment-management",
+      "name": "Environment Management",
+      "domain": "devops-automation"
+    },
+    {
+      "id": "workflow-automation",
+      "name": "Workflow Automation",
+      "domain": "devops-automation"
+    },
+    {
+      "id": "agile-facilitation",
+      "name": "Agile Facilitation",
+      "domain": "project-program-delivery"
+    },
+    {
+      "id": "roadmap-planning",
+      "name": "Roadmap Planning",
+      "domain": "project-program-delivery"
+    },
+    {
+      "id": "stakeholder-alignment",
+      "name": "Stakeholder Alignment",
+      "domain": "project-program-delivery"
+    },
+    {
+      "id": "risk-register",
+      "name": "Risk Register",
+      "domain": "project-program-delivery"
+    },
+    {
+      "id": "resource-planning",
+      "name": "Resource Planning",
+      "domain": "project-program-delivery"
+    },
+    {
+      "id": "milestone-tracking",
+      "name": "Milestone Tracking",
+      "domain": "project-program-delivery"
+    },
+    {
+      "id": "backlog-refinement",
+      "name": "Backlog Refinement",
+      "domain": "project-program-delivery"
+    },
+    {
+      "id": "outcome-measurement",
+      "name": "Outcome Measurement",
+      "domain": "project-program-delivery"
+    },
+    {
+      "id": "qualification-planning",
+      "name": "Qualification Planning",
+      "domain": "shipyard-mission-operations"
+    },
+    {
+      "id": "work-package-readiness",
+      "name": "Work Package Readiness",
+      "domain": "shipyard-mission-operations"
+    },
+    {
+      "id": "fleet-sustainment",
+      "name": "Fleet Sustainment",
+      "domain": "shipyard-mission-operations"
+    },
+    {
+      "id": "shipyard-process-mapping",
+      "name": "Shipyard Process Mapping",
+      "domain": "shipyard-mission-operations"
+    },
+    {
+      "id": "technical-work-instructions",
+      "name": "Technical Work Instructions",
+      "domain": "shipyard-mission-operations"
+    },
+    {
+      "id": "maintenance-coordination",
+      "name": "Maintenance Coordination",
+      "domain": "shipyard-mission-operations"
+    },
+    {
+      "id": "mission-continuity",
+      "name": "Mission Continuity",
+      "domain": "shipyard-mission-operations"
+    },
+    {
+      "id": "safety-process-awareness",
+      "name": "Safety Process Awareness",
+      "domain": "shipyard-mission-operations"
+    },
+    {
+      "id": "test-strategy",
+      "name": "Test Strategy",
+      "domain": "quality-testing"
+    },
+    {
+      "id": "acceptance-criteria",
+      "name": "Acceptance Criteria",
+      "domain": "quality-testing"
+    },
+    {
+      "id": "defect-triage",
+      "name": "Defect Triage",
+      "domain": "quality-testing"
+    },
+    {
+      "id": "quality-assurance",
+      "name": "Quality Assurance",
+      "domain": "quality-testing"
+    },
+    {
+      "id": "regression-testing",
+      "name": "Regression Testing",
+      "domain": "quality-testing"
+    },
+    {
+      "id": "root-cause-analysis",
+      "name": "Root Cause Analysis",
+      "domain": "quality-testing"
+    },
+    {
+      "id": "process-improvement",
+      "name": "Process Improvement",
+      "domain": "quality-testing"
+    },
+    {
+      "id": "audit-evidence",
+      "name": "Audit Evidence",
+      "domain": "quality-testing"
+    },
+    {
+      "id": "knowledge-transfer",
+      "name": "Knowledge Transfer",
+      "domain": "knowledge-training"
+    },
+    {
+      "id": "mentoring",
+      "name": "Mentoring",
+      "domain": "knowledge-training"
+    },
+    {
+      "id": "technical-writing",
+      "name": "Technical Writing",
+      "domain": "knowledge-training"
+    },
+    {
+      "id": "curriculum-design",
+      "name": "Curriculum Design",
+      "domain": "knowledge-training"
+    },
+    {
+      "id": "training-facilitation",
+      "name": "Training Facilitation",
+      "domain": "knowledge-training"
+    },
+    {
+      "id": "skills-taxonomy-design",
+      "name": "Skills Taxonomy Design",
+      "domain": "knowledge-training"
+    },
+    {
+      "id": "onboarding-plans",
+      "name": "Onboarding Plans",
+      "domain": "knowledge-training"
+    },
+    {
+      "id": "documentation-stewardship",
+      "name": "Documentation Stewardship",
+      "domain": "knowledge-training"
+    },
+    {
+      "id": "cross-team-facilitation",
+      "name": "Cross-Team Facilitation",
+      "domain": "collaboration-leadership"
+    },
+    {
+      "id": "technical-communication",
+      "name": "Technical Communication",
+      "domain": "collaboration-leadership"
+    },
+    {
+      "id": "conflict-navigation",
+      "name": "Conflict Navigation",
+      "domain": "collaboration-leadership"
+    },
+    {
+      "id": "decision-framing",
+      "name": "Decision Framing",
+      "domain": "collaboration-leadership"
+    },
+    {
+      "id": "peer-coaching",
+      "name": "Peer Coaching",
+      "domain": "collaboration-leadership"
+    },
+    {
+      "id": "change-management",
+      "name": "Change Management",
+      "domain": "collaboration-leadership"
+    },
+    {
+      "id": "customer-discovery",
+      "name": "Customer Discovery",
+      "domain": "collaboration-leadership"
+    },
+    {
+      "id": "inclusive-collaboration",
+      "name": "Inclusive Collaboration",
+      "domain": "collaboration-leadership"
+    },
+    {
+      "id": "problem-framing",
+      "name": "Problem Framing",
+      "domain": "innovation-vision-ai-orchestration"
+    },
+    {
+      "id": "creative-vision",
+      "name": "Creative Vision",
+      "domain": "innovation-vision-ai-orchestration"
+    },
+    {
+      "id": "product-judgment",
+      "name": "Product Judgment",
+      "domain": "innovation-vision-ai-orchestration"
+    },
+    {
+      "id": "systems-thinking",
+      "name": "Systems Thinking",
+      "domain": "innovation-vision-ai-orchestration"
+    },
+    {
+      "id": "ai-orchestration",
+      "name": "AI Orchestration",
+      "domain": "innovation-vision-ai-orchestration"
+    },
+    {
+      "id": "ai-outcome-validation",
+      "name": "AI Outcome Validation",
+      "domain": "innovation-vision-ai-orchestration"
+    },
+    {
+      "id": "rapid-prototyping",
+      "name": "Rapid Prototyping",
+      "domain": "innovation-vision-ai-orchestration"
+    },
+    {
+      "id": "responsible-ai-use",
+      "name": "Responsible AI Use",
+      "domain": "innovation-vision-ai-orchestration"
+    }
+  ]
+}
