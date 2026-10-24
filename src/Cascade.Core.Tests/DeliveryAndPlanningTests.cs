@@ -233,4 +233,85 @@ namespace Cascade.Core.Tests
             Assert.Contains("tagged_by", projected.Body);
         }
     }
+
+    public class SprintPlannerTests
+    {
+        private static (List<WorkItem> items, ReviewReport report, TeamConfig team) Scenario()
+        {
+            var catalog = SyntheticCatalog.Generate(SyntheticOptions.ForTotal(100));
+            var items = SyntheticCatalog.ToWorkItems(catalog, Items.Repo);
+            return (items, Review.Run(items, Schema.Taxonomy.Default()), TeamFixture.Load());
+        }
+
+        [Fact]
+        public void FillsSprintsToTheCommittedShareAndAssignsBySkill()
+        {
+            var (items, report, team) = Scenario();
+            var plan = SprintPlanner.Plan(items, report, team, TeamFixture.Now, new PlanOptions { SprintsAhead = 2 });
+            Assert.Equal(3, plan.Sprints.Count); // current + 2
+            Assert.True(plan.Candidates > 10, "the synthetic backlog has unplanned ready stories");
+            Assert.True(plan.Placed > 0);
+            foreach (var f in plan.Sprints)
+            {
+                Assert.True(f.Proposed <= Math.Max(0, f.CommitCapacity - f.Existing), f.Sprint + " over committed capacity");
+                Assert.Equal(16, f.CommitCapacity); // 22 × 0.75 rounded
+                foreach (var p in f.People) Assert.True(p.Proposed <= Math.Max(0, p.Capacity - p.Existing), p.Name + " given more than their room in " + f.Sprint);
+            }
+            var placed = plan.Sprints.SelectMany(f => f.Stories.Where(x => !x.AlreadyPlanned)).ToList();
+            Assert.All(placed, s => Assert.False(string.IsNullOrEmpty(s.Reason)));
+            // Owners only get work whose skills they have (or work with no skills).
+            foreach (var s in placed.Where(x => x.Owner != null && x.Skills.Count > 0))
+            {
+                var person = team.FindPerson(s.Owner)!;
+                Assert.Contains(s.Skills, sk => person.Has(sk));
+            }
+            // Skill gaps surface skills nobody has (the synthetic vocabulary includes some deliberately).
+            Assert.Contains(placed, s => s.MissingSkills.Count > 0 || s.Owner == null);
+            Assert.NotEmpty(plan.SkillGaps);
+            // Priority: earlier targets are ranked first; within a sprint the rank order is kept (first fit may push a big story later).
+            var byRank = placed.OrderBy(s => s.Priority).ToList();
+            Assert.Equal(byRank.Select(s => s.Target ?? "9999").OrderBy(t => t, StringComparer.Ordinal).ToList(), byRank.Select(s => s.Target ?? "9999").ToList());
+            foreach (var f in plan.Sprints) Assert.Equal(f.Stories.Where(x => !x.AlreadyPlanned).Select(x => x.Priority).OrderBy(x => x).ToList(), f.Stories.Where(x => !x.AlreadyPlanned).Select(x => x.Priority).ToList());
+        }
+
+        [Fact]
+        public void ProposalsCarrySprintAndOwnerAndProjectOntoTheItem()
+        {
+            var (items, report, team) = Scenario();
+            var plan = SprintPlanner.Plan(items, report, team, TeamFixture.Now, new PlanOptions { SprintsAhead = 1 });
+            var batch = SprintPlanner.ToProposals(plan, Items.Repo);
+            Assert.Equal(ProposalKind.SprintPlan, batch.Kind);
+            Assert.Equal(plan.Placed, batch.Proposals.Count);
+            var p = batch.Proposals.First(x => x.ProposedMeta!.ContainsKey("owner"));
+            var item = items.First(i => i.Key == p.ItemKey);
+            var projected = ProposalApplier.Project(item, p);
+            Assert.Equal(p.ProposedMeta!["sprint"], projected.Meta.Sprint);
+            Assert.Equal(p.ProposedMeta["owner"], projected.Meta.Get("owner"));
+            Assert.Contains("planned_by", projected.Body);
+            Assert.Contains("- **Sprint:** " + p.ProposedMeta["sprint"], projected.Body);
+        }
+
+        [Fact]
+        public void BlockedUnsizedAndNotReadyStoriesAreSkippedWithReasons()
+        {
+            var options = SyntheticOptions.ForTotal(100);
+            options.IncludeDefects = true;
+            var items = SyntheticCatalog.ToWorkItems(SyntheticCatalog.Generate(options), Items.Repo);
+            var report = Review.Run(items, Schema.Taxonomy.Default());
+            var plan = SprintPlanner.Plan(items, report, TeamFixture.Load(), TeamFixture.Now, new PlanOptions());
+            Assert.Contains(plan.SkipReasons, r => r.Contains("blocked"));
+            Assert.Contains(plan.SkipReasons, r => r.Contains("not ready") || r.Contains("unsized"));
+            var planned = plan.Sprints.SelectMany(f => f.Stories).Select(s => s.Key).ToHashSet();
+            Assert.DoesNotContain(items.Where(i => i.Labels.Any(l => l.StartsWith("blocked"))).Select(i => i.Key), k => planned.Contains(k));
+        }
+
+        [Fact]
+        public void WithoutATeamThePlanExplainsItself()
+        {
+            var (items, report, _) = Scenario();
+            var plan = SprintPlanner.Plan(items, report, TeamConfig.Default(), TeamFixture.Now, new PlanOptions());
+            Assert.Empty(plan.Sprints);
+            Assert.Contains(plan.Notes, n => n.Contains("team.json"));
+        }
+    }
 }
