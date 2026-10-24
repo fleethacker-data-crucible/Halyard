@@ -1,0 +1,73 @@
+{
+  "format": "synapse-peer-card",
+  "version": 1,
+  "id": "synthetic-jordan-brooks",
+  "name": "Jordan Brooks",
+  "consent": true,
+  "issued": "2026-10-22",
+  "skills": [
+    "sql-pipelines",
+    "data-quality",
+    "data-modeling",
+    "power-bi",
+    "dashboard-design",
+    "aws-architecture",
+    "infrastructure-as-code",
+    "python-development",
+    "ci-cd-pipelines",
+    "ai-orchestration",
+    "data-governance",
+    "metrics-definition"
+  ],
+  "surveys": {
+    "sql-pipelines": {
+      "confidence": 4,
+      "method": "independent"
+    },
+    "data-quality": {
+      "confidence": 3,
+      "method": "independent"
+    },
+    "data-modeling": {
+      "confidence": 3,
+      "method": "independent"
+    },
+    "power-bi": {
+      "confidence": 3,
+      "method": "guided"
+    },
+    "dashboard-design": {
+      "confidence": 2,
+      "method": "independent"
+    },
+    "aws-architecture": {
+      "confidence": 4,
+      "method": "ai"
+    },
+    "infrastructure-as-code": {
+      "confidence": 3,
+      "method": "independent"
+    },
+    "python-development": {
+      "confidence": 4,
+      "method": "independent"
+    },
+    "ci-cd-pipelines": {
+      "confidence": 2,
+      "method": "independent"
+    },
+    "ai-orchestration": {
+      "confidence": 3,
+      "method": "guided"
+    }
+  },
+  "mentorOptIn": false,
+  "mentorTopics": [],
+  "availability": "unknown",
+  "mentorIntro": "",
+  "qualificationClaims": [
+    "Synthetic Cloud Architecture Workshop"
+  ],
+  "qualificationDisclaimer": "FICTIONAL, employee-entered, unverified",
+  "syntheticExample": true
+}

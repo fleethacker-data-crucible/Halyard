@@ -1,0 +1,76 @@
+{
+  "format": "synapse-peer-card",
+  "version": 1,
+  "id": "synthetic-casey-rivera",
+  "name": "Casey Rivera",
+  "consent": true,
+  "issued": "2026-10-22",
+  "skills": [
+    "curriculum-design",
+    "training-facilitation",
+    "mentoring",
+    "knowledge-transfer",
+    "onboarding-plans",
+    "documentation-stewardship",
+    "technical-writing",
+    "qualification-planning",
+    "technical-communication",
+    "cross-team-facilitation",
+    "requirements-analysis",
+    "safety-process-awareness"
+  ],
+  "surveys": {
+    "curriculum-design": {
+      "confidence": 4,
+      "method": "independent"
+    },
+    "training-facilitation": {
+      "confidence": 4,
+      "method": "independent"
+    },
+    "mentoring": {
+      "confidence": 3,
+      "method": "independent"
+    },
+    "knowledge-transfer": {
+      "confidence": 4,
+      "method": "guided"
+    },
+    "onboarding-plans": {
+      "confidence": 3,
+      "method": "independent"
+    },
+    "documentation-stewardship": {
+      "confidence": 4,
+      "method": "ai"
+    },
+    "technical-writing": {
+      "confidence": 2,
+      "method": "independent"
+    },
+    "qualification-planning": {
+      "confidence": 3,
+      "method": "independent"
+    },
+    "technical-communication": {
+      "confidence": 3,
+      "method": "independent"
+    },
+    "cross-team-facilitation": {
+      "confidence": 3,
+      "method": "guided"
+    }
+  },
+  "mentorOptIn": true,
+  "mentorTopics": [
+    "knowledge-transfer",
+    "curriculum-design"
+  ],
+  "availability": "available",
+  "mentorIntro": "Synthetic demo: open to discussing approved, nonsensitive skills.",
+  "qualificationClaims": [
+    "Synthetic Facilitator Workshop"
+  ],
+  "qualificationDisclaimer": "FICTIONAL, employee-entered, unverified",
+  "syntheticExample": true
+}

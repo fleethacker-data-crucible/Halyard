@@ -65,6 +65,39 @@ namespace Cascade.Core.Synthetic
     /// </summary>
     internal static class Vocabulary
     {
+        public static readonly string[] TargetMonths = { "2026-11", "2026-12", "2027-01", "2027-02" };
+
+        /// <summary>Skill ids (Synapse taxonomy) a feature in this vocabulary plausibly needs; stories pick from their feature's pair.</summary>
+        public static readonly string[][] SkillPool =
+        {
+            new[] { "sql-pipelines", "data-quality" },
+            new[] { "etl-elt", "python-development" },
+            new[] { "identity-access", "security-controls" },
+            new[] { "infrastructure-as-code", "ci-cd-pipelines" },
+            new[] { "monitoring-alerting", "cloud-observability" },
+            new[] { "test-automation", "acceptance-criteria" },
+            new[] { "technical-writing", "documentation-stewardship" },
+            new[] { "streaming-data", "api-design" },
+            new[] { "incident-readiness", "resilience-recovery" },
+            new[] { "metrics-definition", "dashboard-design" },
+            new[] { "configuration-management", "environment-management" },
+            new[] { "vulnerability-triage", "audit-evidence" },
+        };
+
+        public static readonly string[] OpsBlockers =
+        {
+            "Waiting on a firewall change request",
+            "Service account approval pending",
+            "Sandbox environment rebuild in progress",
+        };
+
+        public static readonly string[] DependencyBlockers =
+        {
+            "Upstream schema change not yet published",
+            "Needs the ingestion contract from the source team",
+            "Blocked on a library upgrade owned by another team",
+        };
+
         public static readonly string[] Milestones = { "FY26-Q1-Sandbox-Baseline", "FY26-Q2-Evidence-Desk", "FY26-Q3-Platform-Hardening", "FY26-Q4-Portfolio-Review" };
 
         public static readonly string[] TaskVerbs = { "Implement", "Verify", "Document", "Review" };

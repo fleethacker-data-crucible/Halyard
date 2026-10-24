@@ -1,0 +1,75 @@
+{
+  "format": "synapse-peer-card",
+  "version": 1,
+  "id": "synthetic-morgan-vale",
+  "name": "Morgan Vale",
+  "consent": true,
+  "issued": "2026-10-22",
+  "skills": [
+    "qualification-planning",
+    "work-package-readiness",
+    "fleet-sustainment",
+    "shipyard-process-mapping",
+    "maintenance-coordination",
+    "technical-work-instructions",
+    "risk-register",
+    "safety-process-awareness",
+    "configuration-management",
+    "knowledge-transfer",
+    "technical-writing"
+  ],
+  "surveys": {
+    "qualification-planning": {
+      "confidence": 4,
+      "method": "independent"
+    },
+    "work-package-readiness": {
+      "confidence": 3,
+      "method": "independent"
+    },
+    "fleet-sustainment": {
+      "confidence": 3,
+      "method": "independent"
+    },
+    "shipyard-process-mapping": {
+      "confidence": 4,
+      "method": "guided"
+    },
+    "maintenance-coordination": {
+      "confidence": 3,
+      "method": "independent"
+    },
+    "technical-work-instructions": {
+      "confidence": 4,
+      "method": "ai"
+    },
+    "risk-register": {
+      "confidence": 2,
+      "method": "independent"
+    },
+    "safety-process-awareness": {
+      "confidence": 3,
+      "method": "independent"
+    },
+    "configuration-management": {
+      "confidence": 3,
+      "method": "independent"
+    },
+    "knowledge-transfer": {
+      "confidence": 2,
+      "method": "guided"
+    }
+  },
+  "mentorOptIn": true,
+  "mentorTopics": [
+    "shipyard-process-mapping",
+    "qualification-planning"
+  ],
+  "availability": "limited",
+  "mentorIntro": "Synthetic demo: open to discussing approved, nonsensitive skills.",
+  "qualificationClaims": [
+    "Synthetic Maintenance Planner Familiarization"
+  ],
+  "qualificationDisclaimer": "FICTIONAL, employee-entered, unverified",
+  "syntheticExample": true
+}
