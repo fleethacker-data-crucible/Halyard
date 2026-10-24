@@ -1,0 +1,82 @@
+name: CI
+on:
+  push:
+    branches: [main, dev, "feature/**"]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    # Self-hosted Windows workstation runner: exercises the exact Windows PowerShell 5.1 / .NET Framework 4.8
+    # runtime the bundle targets. Needs Git, and lets the setup actions below install the SDK/Node/Python.
+    runs-on: [self-hosted, Windows, X64]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Core build and tests (net8.0 + net48)
+        shell: pwsh
+        run: |
+          dotnet build Cascade.sln -c Release --nologo
+          dotnet test Cascade.sln -c Release --no-build --nologo --logger "trx;LogFileName=core.trx" --results-directory TestResults
+
+      - name: UI typecheck, tests, build
+        shell: pwsh
+        working-directory: web
+        run: |
+          if (Test-Path package-lock.json) { npm ci --no-audit --no-fund } else { npm install --no-audit --no-fund }
+          npm run typecheck
+          npm test
+          npm run build
+
+      - name: Pester on Windows PowerShell 5.1
+        shell: powershell
+        run: |
+          if (-not (Get-Module -ListAvailable Pester | Where-Object Version -ge '5.0')) { Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser -Force -SkipPublisherCheck }
+          Import-Module Pester -MinimumVersion 5.0
+          $c = New-PesterConfiguration
+          $c.Run.Path = 'tests/pester'
+          $c.Run.Exit = $true
+          $c.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $c
+
+      - name: Pester on PowerShell 7
+        shell: pwsh
+        run: |
+          if (-not (Get-Module -ListAvailable Pester | Where-Object Version -ge '5.0')) { Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser -Force -SkipPublisherCheck }
+          $c = New-PesterConfiguration
+          $c.Run.Path = 'tests/pester'
+          $c.Run.Exit = $true
+          Invoke-Pester -Configuration $c
+
+      - name: Offline end-to-end loop (Windows PowerShell 5.1 host)
+        shell: powershell
+        run: .\tests\e2e\Run-E2E.ps1 -Total 30
+
+      - name: Assemble bundle
+        shell: powershell
+        run: .\build\Build-Cascade.ps1 -SkipTests -SkipWeb
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cascade-${{ github.sha }}
+          path: |
+            dist/*.zip
+            TestResults/
+          if-no-files-found: warn
