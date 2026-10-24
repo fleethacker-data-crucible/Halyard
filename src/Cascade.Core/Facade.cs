@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using System.Threading.Tasks;
 using Cascade.Core.Config;
 using Cascade.Core.Host;
 using Cascade.Core.Model;
@@ -45,7 +47,7 @@ namespace Cascade.Core
         public static ProviderIdentity TestConnection(CascadeSettings settings)
         {
             var provider = ProviderFactory.Create(settings.Provider);
-            return provider.TestConnectionAsync(CancellationToken.None).GetAwaiter().GetResult();
+            return Task.Run(() => provider.TestConnectionAsync(CancellationToken.None)).GetAwaiter().GetResult();
         }
 
         public static List<SyntheticWorkItem> GenerateCatalog(int total, int seed, bool includeDefects)
@@ -83,8 +85,7 @@ namespace Cascade.Core
             var gateway = new WriteGateway(settings.BuildWritePolicy());
             var options = new SeedOptions { NativeLinks = nativeLinks, ManifestDirectory = settings.SeedsDirectory };
             if (!string.IsNullOrWhiteSpace(runId)) options.RunId = runId!.Trim();
-            var reporter = progress == null ? null : new SyncProgress<SeedProgress>(p => progress(p.Done + "/" + p.Total + " " + p.Message));
-            return SandboxSeeder.SeedAsync(provider, gateway, sandbox, catalog, options, reporter, CancellationToken.None).GetAwaiter().GetResult();
+            return RunWithProgress(reporter => SandboxSeeder.SeedAsync(provider, gateway, sandbox, catalog, options, reporter, CancellationToken.None), progress);
         }
 
         public static TeardownResult Teardown(CascadeSettings settings, string scope, string? runId, string? confirmText, bool dryRun, Action<string>? progress)
@@ -101,8 +102,7 @@ namespace Cascade.Core
                 case "everything": options.Scope = TeardownScope.Everything; break;
                 default: throw new ArgumentException("scope must be run, allSynthetic or everything.");
             }
-            var reporter = progress == null ? null : new SyncProgress<SeedProgress>(p => progress(p.Done + "/" + p.Total + " " + p.Message));
-            return SandboxTeardown.RunAsync(provider, gateway, sandbox, options, reporter, CancellationToken.None).GetAwaiter().GetResult();
+            return RunWithProgress(reporter => SandboxTeardown.RunAsync(provider, gateway, sandbox, options, reporter, CancellationToken.None), progress);
         }
 
         public static List<WorkItem> ListWorkItems(CascadeSettings settings, string repository, int max)
@@ -110,7 +110,8 @@ namespace Cascade.Core
             var provider = ProviderFactory.Create(settings.Provider);
             var repo = string.Equals(repository, "sandbox", StringComparison.OrdinalIgnoreCase) ? settings.Provider.Sandbox : settings.Provider.Source;
             if (repo == null) throw new InvalidOperationException("Repository '" + repository + "' is not configured.");
-            return provider.ForRepository(repo).ListWorkItemsAsync(new WorkItemQuery { MaxItems = max }, null, CancellationToken.None).GetAwaiter().GetResult().ToList();
+            var reader = provider.ForRepository(repo);
+            return Task.Run(() => reader.ListWorkItemsAsync(new WorkItemQuery { MaxItems = max }, null, CancellationToken.None)).GetAwaiter().GetResult().ToList();
         }
 
         /// <summary>Hides or shows the console window that hosts the PowerShell process (Windows only; no-op elsewhere).</summary>
@@ -139,12 +140,35 @@ namespace Cascade.Core
             public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
         }
 
-        /// <summary>IProgress that invokes synchronously on the reporting thread (Progress&lt;T&gt; posts to a sync context PowerShell lacks).</summary>
-        private sealed class SyncProgress<T> : IProgress<T>
+        /// <summary>
+        /// Runs <paramref name="work"/> on the thread pool and delivers progress messages on the calling thread.
+        /// PowerShell script blocks only run on their own runspace thread, so callbacks must not fire from
+        /// the worker threads that async continuations land on.
+        /// </summary>
+        public static T RunWithProgress<T>(Func<IProgress<SeedProgress>?, Task<T>> work, Action<string>? progress)
         {
-            private readonly Action<T> _action;
-            public SyncProgress(Action<T> action) { _action = action; }
-            public void Report(T value) { _action(value); }
+            if (progress == null) return Task.Run(() => work(null)).GetAwaiter().GetResult();
+            using (var queue = new BlockingCollection<string>())
+            {
+                var reporter = new QueueProgress(queue);
+                var task = Task.Run(async () =>
+                {
+                    try { return await work(reporter).ConfigureAwait(false); }
+                    finally { queue.CompleteAdding(); }
+                });
+                foreach (var message in queue.GetConsumingEnumerable()) progress(message);
+                return task.GetAwaiter().GetResult();
+            }
+        }
+
+        private sealed class QueueProgress : IProgress<SeedProgress>
+        {
+            private readonly BlockingCollection<string> _queue;
+            public QueueProgress(BlockingCollection<string> queue) { _queue = queue; }
+            public void Report(SeedProgress value)
+            {
+                if (!_queue.IsAddingCompleted) _queue.TryAdd(value.Done + "/" + value.Total + " " + value.Message);
+            }
         }
     }
 }

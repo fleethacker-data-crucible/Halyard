@@ -326,6 +326,41 @@ namespace Cascade.Core.Tests
             Assert.NotEqual(a.Select(i => i.Meta.Points).ToArray(), different.Select(i => i.Meta.Points).ToArray());
         }
 
+        [Fact]
+        public void CommittedFixturesMatchTheGenerator()
+        {
+            // If this fails, the generator changed: regenerate with New-CascadeSyntheticCatalog and commit the files.
+            foreach (var (file, defects) in new[] { ("synthetic-work-items.json", false), ("synthetic-work-items-with-gaps.json", true) })
+            {
+                var path = FindFixture(file);
+                var options = SyntheticOptions.ForTotal(100);
+                options.IncludeDefects = defects;
+                var expected = SyntheticCatalog.Generate(options);
+                var committed = SyntheticCatalog.Load(path);
+                Assert.Equal(expected.Count, committed.Count);
+                for (var i = 0; i < expected.Count; i++)
+                {
+                    Assert.Equal(expected[i].Id, committed[i].Id);
+                    Assert.Equal(expected[i].Description, committed[i].Description);
+                }
+            }
+        }
+
+        internal static string FindFixture(string name)
+        {
+            foreach (var start in new[] { AppContext.BaseDirectory, System.IO.Directory.GetCurrentDirectory() })
+            {
+                var dir = new System.IO.DirectoryInfo(start);
+                while (dir != null)
+                {
+                    var candidate = System.IO.Path.Combine(dir.FullName, "fixtures", name);
+                    if (System.IO.File.Exists(candidate)) return candidate;
+                    dir = dir.Parent;
+                }
+            }
+            throw new System.IO.FileNotFoundException("fixture not found: " + name);
+        }
+
         [Theory]
         [InlineData(100, 100)]
         [InlineData(25, 25)]
