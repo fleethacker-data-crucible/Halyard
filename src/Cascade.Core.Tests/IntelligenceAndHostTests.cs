@@ -545,6 +545,23 @@ namespace Cascade.Core.Tests
         }
 
         [Fact]
+        public async Task BatchesCanBeDeletedAndApplyAllNeedsApprovedWork()
+        {
+            var snap = JObject.Parse(await _client.GetStringAsync(_info.Url + "api/snapshot"));
+            var number = (long)snap["items"]!.First(i => (string)i["type"]! == "STORY")["number"]!;
+            var made = JObject.Parse(await (await _client.PostAsync(_info.Url + "api/proposals/manual", new StringContent("{\"number\":" + number + ",\"kind\":\"points\",\"value\":\"3\"}"))).Content.ReadAsStringAsync());
+            var batchId = (string)made["id"]!;
+            Assert.Equal(200, (int)(await _client.GetAsync(_info.Url + "api/proposals/" + batchId)).StatusCode);
+            var del = await _client.PostAsync(_info.Url + "api/proposals/" + batchId + "/delete", new StringContent("{}"));
+            Assert.Equal(200, (int)del.StatusCode);
+            Assert.Equal(404, (int)(await _client.GetAsync(_info.Url + "api/proposals/" + batchId)).StatusCode);
+            Assert.Equal(404, (int)(await _client.PostAsync(_info.Url + "api/proposals/" + batchId + "/delete", new StringContent("{}"))).StatusCode);
+            // Nothing approved is left, so apply-all is a clear 400 rather than an empty job (no provider token here anyway).
+            var all = await _client.PostAsync(_info.Url + "api/proposals/apply-all", new StringContent("{}"));
+            Assert.True((int)all.StatusCode == 400 || (int)all.StatusCode == 409);
+        }
+
+        [Fact]
         public async Task ProviderCallsWithoutTokenAreAClearConflict()
         {
             var r = await _client.PostAsync(_info.Url + "api/sandbox/seed", new StringContent("{\"total\":10}"));

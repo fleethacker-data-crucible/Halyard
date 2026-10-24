@@ -50,6 +50,8 @@ namespace Cascade.Core.Host
             Router.Get("/api/proposals/{batchId}", GetBatch);
             Router.Post("/api/proposals/{batchId}/decide", DecideProposals);
             Router.Post("/api/proposals/{batchId}/apply", StartApply);
+            Router.Post("/api/proposals/{batchId}/delete", DeleteBatch);
+            Router.Post("/api/proposals/apply-all", StartApplyAll);
             Router.Get("/api/proposals/{batchId}/{proposalId}/preview", PreviewProposal);
 
             Router.Get("/api/jobs", r => Task.FromResult(Json.Ok(Jobs.List())));
@@ -658,6 +660,45 @@ namespace Cascade.Core.Host
                 return (object?)result;
             });
             return Task.FromResult(Json.Accepted(new { job, batchId = batch.Id, approved = batch.Proposals.Count(p => p.Decision == ProposalDecision.Approved) }));
+        }
+
+        private Task<HttpResponse> DeleteBatch(HttpRequest r)
+        {
+            var batchId = r.RouteValues["batchId"];
+            var batch = Proposals.Load(batchId);
+            if (batch == null) throw new NotFoundException("No such proposal batch.");
+            // Deleting is a local file operation; the sandbox is untouched. Applied proposals stay on the provider.
+            Proposals.Delete(batchId);
+            Log.Info("BATCH_DELETED", batch.Id + " (" + batch.Kind + ", " + batch.Proposals.Count + " proposals, " + batch.Proposals.Count(p => p.Decision == ProposalDecision.Applied) + " already applied)");
+            return Task.FromResult(Json.Ok(new { deleted = true, batchId }));
+        }
+
+        /// <summary>Applies every approved proposal in every batch made from the sandbox, oldest batch first, as one job.</summary>
+        private Task<HttpResponse> StartApplyAll(HttpRequest r)
+        {
+            var sandbox = SandboxOrThrow();
+            var provider = GetProvider();
+            var batches = Proposals.LoadAll().Where(b => string.Equals(b.Target, sandbox.Key, StringComparison.OrdinalIgnoreCase) && b.Proposals.Any(p => p.Decision == ProposalDecision.Approved)).OrderBy(b => b.CreatedAt).ToList();
+            if (batches.Count == 0) throw new BadRequestException("No approved proposals are waiting in batches made from the sandbox.");
+            Gateway.Policy.Assert(sandbox, new WriteIntent("apply-proposals", "preflight", null));
+            var approved = batches.Sum(b => b.Proposals.Count(p => p.Decision == ProposalDecision.Approved));
+            var job = Jobs.Start("apply", async ctx =>
+            {
+                var totals = new ApplyResult { BatchId = "all" };
+                var done = 0;
+                foreach (var batch in batches)
+                {
+                    ctx.Cancellation.ThrowIfCancellationRequested();
+                    var progress = new Progress<string>(m => ctx.Report(done, approved, batch.Kind + ": " + m));
+                    var result = await ProposalApplier.ApplyAsync(batch, Proposals, provider, Gateway, sandbox, progress, ctx.Cancellation).ConfigureAwait(false);
+                    totals.Applied += result.Applied; totals.Skipped += result.Skipped; totals.Failed += result.Failed;
+                    totals.Messages.AddRange(result.Messages);
+                    done += result.Applied + result.Skipped + result.Failed;
+                }
+                ctx.Report(done, approved, "Applied " + totals.Applied + ", skipped " + totals.Skipped + ", failed " + totals.Failed + " across " + batches.Count + " batches");
+                return (object?)new { totals.Applied, totals.Skipped, totals.Failed, totals.Messages, batches = batches.Count };
+            });
+            return Task.FromResult(Json.Accepted(new { job, batches = batches.Count, approved }));
         }
 
         private async Task<HttpResponse> TestLlm(HttpRequest r)
