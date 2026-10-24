@@ -17,6 +17,9 @@
     <Version>1.0.0</Version>
     <Deterministic>true</Deterministic>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <!-- Libraries don't copy NuGet dependencies to bin by default; the module and the bundle need
+         Newtonsoft.Json.dll next to Cascade.Core.dll. -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <Description>Cascade delivery-intelligence core: provider-agnostic work items, write gateway, synthetic sandbox, local host.</Description>
   </PropertyGroup>
 
