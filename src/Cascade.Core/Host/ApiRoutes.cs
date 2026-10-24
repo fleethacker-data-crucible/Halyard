@@ -336,7 +336,7 @@ namespace Cascade.Core.Host
                 key = item.Key, number = item.Number, title = item.Title, shortName = Descriptions.ShortName(item.Title), type = WorkItemTypes.ToToken(item.Type), canonicalId = item.CanonicalId,
                 item.State, item.Labels, item.Assignees, item.Url, item.Milestone, item.CreatedAt, item.UpdatedAt, body = item.Body, narrative = Descriptions.Narrative(item.Body),
                 meta = item.Meta == null ? null : item.Meta.Entries.Select(e => new { key = e.Key, value = e.Value }),
-                missingMeta = Taxonomy.MissingKeys(item.Type, item.Meta), deficiencies = Deficiencies.Evaluate(item).Select(c => new { code = c, rule = Deficiencies.Find(c) }),
+                missingMeta = Taxonomy.MissingKeys(item.Type, item.Meta), deficiencies = Deficiencies.Evaluate(item).Select(c => { var rule = Deficiencies.Find(c); return new { code = c, rule = rule == null ? null : new { rule.Code, appliesTo = rule.AppliesTo == null ? null : WorkItemTypes.ToToken(rule.AppliesTo.Value), rule.Explanation } }; }),
                 findings = audit.Findings.Where(f => f.Key == item.Key).Select(f => new { f.Code, f.Severity, f.Explanation }),
                 parentKey = audit.ParentEdges.ContainsKey(item.Key) ? audit.ParentEdges[item.Key] : null,
                 children = audit.ParentEdges.Where(kv => kv.Value == item.Key).Select(kv => kv.Key),
