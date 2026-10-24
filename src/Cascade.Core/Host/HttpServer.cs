@@ -216,7 +216,6 @@ namespace Cascade.Core.Host
         private static async Task<HttpRequest> ReadRequest(NetworkStream stream, CancellationToken token)
         {
             var buffer = new byte[8192];
-            var header = new MemoryStream();
             var bodyStart = -1;
             var total = new List<byte>();
             while (bodyStart < 0)
