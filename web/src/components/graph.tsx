@@ -16,7 +16,7 @@ export function HierarchyGraph({ roots, orphans, selectedKey, onSelect, height =
   const gRef = useRef<SVGGElement>(null);
 
   const layout = useMemo(() => {
-    const virtualRoot: GNode = { key: '__root', number: 0, canonicalId: 'root', type: 'UNCLASSIFIED', title: 'Portfolio', fullTitle: 'Portfolio', url: null, state: 'open', points: null, effort: null, sprint: null, rolledUpPoints: 0, descendantCount: 0, children: [...roots, ...orphans], synthetic: true };
+    const virtualRoot: GNode = { key: '__root', number: 0, repository: '', canonicalId: 'root', type: 'UNCLASSIFIED', title: 'Portfolio', fullTitle: 'Portfolio', url: null, state: 'open', points: null, effort: null, sprint: null, rolledUpPoints: 0, descendantCount: 0, children: [...roots, ...orphans], synthetic: true };
     const root = hierarchy<GNode>(virtualRoot, (d) => d.children as GNode[]);
     const leaves = Math.max(1, root.leaves().length);
     const rowHeight = 22;

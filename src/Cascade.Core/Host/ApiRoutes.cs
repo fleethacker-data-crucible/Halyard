@@ -35,6 +35,7 @@ namespace Cascade.Core.Host
             Router.Get("/api/review", r => Task.FromResult(Json.Ok(ReviewPayload(Query(r, "label")))));
             Router.Get("/api/hierarchy", r => Task.FromResult(Json.Ok(HierarchyPayload(Query(r, "label")))));
             Router.Get("/api/items/{number}", GetItem);
+            Router.Get("/api/item", GetItem);
 
             Router.Get("/api/sandbox/preview", PreviewCatalog);
             Router.Post("/api/sandbox/seed", StartSeed);
@@ -243,22 +244,30 @@ namespace Cascade.Core.Host
         private Task<HttpResponse> StartSync(HttpRequest r)
         {
             var body = Json.Body(r);
-            var repo = ResolveRepository(Json.Read<string>(body, "repository"));
+            var repos = ResolveRepositories(Json.Read<string>(body, "repository"));
             var labels = Json.Read<List<string>>(body, "labels") ?? new List<string>();
             var max = Json.Read<int?>(body, "max") ?? Settings.MaxSyncItems;
             var includeClosed = Json.Read<bool?>(body, "includeClosed") ?? true;
             var provider = GetProvider();
             var job = Jobs.Start("sync", async ctx =>
             {
-                var reader = provider.ForRepository(repo);
-                var query = new WorkItemQuery { MaxItems = max, State = includeClosed ? (WorkItemState?)null : WorkItemState.Open };
-                query.Labels.AddRange(labels.Where(l => !string.IsNullOrWhiteSpace(l)));
-                ctx.Report(0, 0, "Fetching work items from " + repo.Key);
-                var progress = new Progress<string>(m => ctx.Report(0, 0, m));
-                var items = await reader.ListWorkItemsAsync(query, progress, ctx.Cancellation).ConfigureAwait(false);
-                var snap = Snapshots.Save(repo, items, labels.Count == 0 ? null : string.Join(",", labels));
-                ctx.Report(items.Count, items.Count, "Snapshot " + snap.Id + " saved with " + items.Count + " items");
-                return (object?)new { snap.Id, count = items.Count, snap.TakenAt, repository = repo.Key };
+                var all = new List<WorkItem>();
+                var done = 0;
+                foreach (var repo in repos)
+                {
+                    ctx.Cancellation.ThrowIfCancellationRequested();
+                    var reader = provider.ForRepository(repo);
+                    var query = new WorkItemQuery { MaxItems = max, State = includeClosed ? (WorkItemState?)null : WorkItemState.Open };
+                    query.Labels.AddRange(labels.Where(l => !string.IsNullOrWhiteSpace(l)));
+                    ctx.Report(done, repos.Count, "Fetching work items from " + repo.Key);
+                    var progress = new Progress<string>(m => ctx.Report(done, repos.Count, repo.Identifier + ": " + m));
+                    var items = await reader.ListWorkItemsAsync(query, progress, ctx.Cancellation).ConfigureAwait(false);
+                    all.AddRange(items);
+                    done++;
+                }
+                var snap = Snapshots.Save(repos, all, labels.Count == 0 ? null : string.Join(",", labels));
+                ctx.Report(repos.Count, repos.Count, "Snapshot " + snap.Id + " saved with " + all.Count + " items from " + repos.Count + " repositor" + (repos.Count == 1 ? "y" : "ies"));
+                return (object?)new { snap.Id, count = all.Count, snap.TakenAt, repository = snap.Repository, repositories = snap.Repositories };
             });
             return Task.FromResult(Json.Accepted(job));
         }
@@ -269,7 +278,7 @@ namespace Cascade.Core.Host
             if (snap == null) return null;
             return new
             {
-                snap.Id, snap.Repository, provider = snap.Provider, snap.TakenAt, ageSeconds = (int)snap.Age.TotalSeconds, snap.LabelFilter, count = snap.ItemCount,
+                snap.Id, snap.Repository, snap.Repositories, provider = snap.Provider, snap.TakenAt, ageSeconds = (int)snap.Age.TotalSeconds, snap.LabelFilter, count = snap.ItemCount,
                 labels = snap.Items.SelectMany(i => i.Labels).GroupBy(l => l, StringComparer.OrdinalIgnoreCase).Select(g => new { label = g.Key, count = g.Count() }).OrderByDescending(x => x.count).ThenBy(x => x.label),
                 items = snap.Items.Select(ItemSummary),
             };
@@ -279,7 +288,7 @@ namespace Cascade.Core.Host
         {
             return new
             {
-                key = i.Key, number = i.Number, title = i.Title, type = WorkItemTypes.ToToken(i.Type), canonicalId = i.CanonicalId, parentId = i.ParentId, themeId = i.ThemeId,
+                key = i.Key, number = i.Number, repository = i.Repository.Identifier, title = i.Title, type = WorkItemTypes.ToToken(i.Type), canonicalId = i.CanonicalId, parentId = i.ParentId, themeId = i.ThemeId,
                 state = i.State, labels = i.Labels, url = i.Url, updatedAt = i.UpdatedAt, hasMeta = i.HasMeta,
                 points = i.Meta == null ? null : i.Meta.Points, effort = i.Meta == null ? null : i.Meta.Effort, sprint = i.Meta == null ? null : i.Meta.Sprint,
             };
@@ -293,7 +302,8 @@ namespace Cascade.Core.Host
             var snap = Snapshots.Current;
             return new
             {
-                snapshot = snap == null ? null : new { snap.Id, snap.TakenAt, snap.Repository },
+                snapshot = snap == null ? null : new { snap.Id, snap.TakenAt, snap.Repository, snap.Repositories },
+                sandbox = Settings.Provider.Sandbox == null ? null : Settings.Provider.Sandbox.Identifier,
                 labelFilter = report.LabelFilter,
                 generatedAt = report.GeneratedAt,
                 summary = report.Summary,
@@ -304,7 +314,7 @@ namespace Cascade.Core.Host
                 },
                 items = report.Items.Select(i => new
                 {
-                    i.Key, i.Number, i.CanonicalId, i.Title, i.Url, type = WorkItemTypes.ToToken(i.Type), i.State, i.Labels, i.ParentId, i.ResolvedParentKey, i.ThemeId, i.HasMeta,
+                    i.Key, i.Number, repository = RepoOf(i.Key), i.CanonicalId, i.Title, i.Url, type = WorkItemTypes.ToToken(i.Type), i.State, i.Labels, i.ParentId, i.ResolvedParentKey, i.ThemeId, i.HasMeta,
                     i.Points, i.Effort, i.Sprint, i.Area, i.UpdatedAt, i.MissingMeta, i.Deficiencies, findings = i.Findings.Select(f => new { f.Code, f.Severity, f.Explanation }), i.NeedsReview,
                 }),
                 parentReviews = report.ParentReviews.Select(p => new { p.Key, p.CanonicalId, p.Title, type = WorkItemTypes.ToToken(p.Type), p.DeclaredParent, expectedParentType = p.ExpectedParentType == null ? null : WorkItemTypes.ToToken(p.ExpectedParentType.Value), candidates = p.Candidates.Select(c => new { c.Key, c.CanonicalId, c.Title, type = WorkItemTypes.ToToken(c.Type), c.Score, c.Evidence }) }),
@@ -320,7 +330,7 @@ namespace Cascade.Core.Host
             Func<HierarchyNode, object>? toJson = null;
             toJson = n => new
             {
-                key = n.Item.Key, number = n.Item.Number, canonicalId = n.Item.CanonicalId, type = WorkItemTypes.ToToken(n.Item.Type), title = Descriptions.ShortName(n.Item.Title), fullTitle = n.Item.Title,
+                key = n.Item.Key, number = n.Item.Number, repository = n.Item.Repository.Identifier, canonicalId = n.Item.CanonicalId, type = WorkItemTypes.ToToken(n.Item.Type), title = Descriptions.ShortName(n.Item.Title), fullTitle = n.Item.Title,
                 url = n.Item.Url, state = n.Item.State, points = n.Item.Meta == null ? null : n.Item.Meta.Points, effort = n.Item.Meta == null ? null : n.Item.Meta.Effort, sprint = n.Item.Meta == null ? null : n.Item.Meta.Sprint,
                 rolledUpPoints = n.RolledUpPoints(), descendantCount = n.Descendants().Count(), children = n.Children.Select(c => toJson!(c)).ToList(),
             };
@@ -334,18 +344,27 @@ namespace Cascade.Core.Host
             };
         }
 
+        /// <summary>Repository identifier from an item key (<c>provider:repo:number</c>).</summary>
+        private static string RepoOf(string key)
+        {
+            var first = key.IndexOf(':');
+            var last = key.LastIndexOf(':');
+            return first < 0 || last <= first ? key : key.Substring(first + 1, last - first - 1);
+        }
+
         private Task<HttpResponse> GetItem(HttpRequest r)
         {
-            long number;
-            if (!long.TryParse(r.RouteValues["number"], out number)) throw new BadRequestException("number must be an integer.");
+            string? which;
+            if (!r.RouteValues.TryGetValue("number", out which) || string.IsNullOrWhiteSpace(which)) which = Query(r, "key");
             var snap = Snapshots.Current;
-            var item = snap == null ? null : snap.Items.FirstOrDefault(i => i.Number == number);
-            if (item == null) throw new NotFoundException("Item #" + number + " is not in the current snapshot.");
-            var all = snap!.Items;
+            var item = FindItem(which);
+            if (item == null || snap == null) throw new NotFoundException("Item " + (which ?? "(none)") + " is not in the current snapshot.");
+            var all = snap.Items;
             var audit = TopologyAudit.Run(all, all, null);
             return Task.FromResult(Json.Ok(new
             {
-                key = item.Key, number = item.Number, title = item.Title, shortName = Descriptions.ShortName(item.Title), type = WorkItemTypes.ToToken(item.Type), canonicalId = item.CanonicalId,
+                key = item.Key, number = item.Number, repository = item.Repository.Identifier, inSandbox = Settings.Provider.Sandbox != null && item.Repository.Equals(Settings.Provider.Sandbox),
+                title = item.Title, shortName = Descriptions.ShortName(item.Title), type = WorkItemTypes.ToToken(item.Type), canonicalId = item.CanonicalId,
                 item.State, item.Labels, item.Assignees, item.Url, item.Milestone, item.CreatedAt, item.UpdatedAt, body = item.Body, narrative = Descriptions.Narrative(item.Body),
                 meta = item.Meta == null ? null : item.Meta.Entries.Select(e => new { key = e.Key, value = e.Value }),
                 missingMeta = Taxonomy.MissingKeys(item.Type, item.Meta), deficiencies = Deficiencies.Evaluate(item).Select(c => { var rule = Deficiencies.Find(c); return new { code = c, rule = rule == null ? null : new { rule.Code, appliesTo = rule.AppliesTo == null ? null : WorkItemTypes.ToToken(rule.AppliesTo.Value), rule.Explanation } }; }),
@@ -471,8 +490,9 @@ namespace Cascade.Core.Host
             var snap = Snapshots.Current;
             if (snap == null) throw new BadRequestException("Synchronize a repository first; proposals are made from the current snapshot.");
             List<WorkItem> all;
-            var items = VisibleItems(label, out all);
-            var target = new RepositoryRef(snap.Provider, snap.Repository);
+            var visible = VisibleItems(label, out all);
+            List<WorkItem> items;
+            var target = ProposalTarget(visible, out items);
             var job = Jobs.Start("estimate", async ctx =>
             {
                 var progress = new Progress<string>(m => ctx.Report(0, 0, m));
@@ -492,11 +512,26 @@ namespace Cascade.Core.Host
             var snap = Snapshots.Current;
             if (snap == null) throw new BadRequestException("Synchronize a repository first.");
             List<WorkItem> all;
-            var items = VisibleItems(label, out all);
-            var report = Review.Run(items, Taxonomy, label, all);
-            var batch = Estimator.ParentProposals(report, new RepositoryRef(snap.Provider, snap.Repository), minimumScore, ReadNumbers(body));
+            var visible = VisibleItems(label, out all);
+            List<WorkItem> items;
+            var target = ProposalTarget(visible, out items);
+            var report = Review.Run(visible, Taxonomy, label, all);
+            var batch = Estimator.ParentProposals(report, target, minimumScore, ReadNumbers(body), new HashSet<string>(items.Select(i => i.Key), StringComparer.OrdinalIgnoreCase));
             Proposals.Save(batch);
             return Task.FromResult(Json.Ok(batch));
+        }
+
+        /// <summary>
+        /// Proposals are only ever written to the sandbox, so they are made for the sandbox items in the snapshot.
+        /// Items from source repositories are read-only context (parents, siblings) until Intake copies them over.
+        /// </summary>
+        private RepositoryRef ProposalTarget(List<WorkItem> visible, out List<WorkItem> candidates)
+        {
+            var sandbox = SandboxOrThrow();
+            candidates = SandboxItems(visible);
+            if (candidates.Count == 0)
+                throw new BadRequestException("The snapshot has no items from the sandbox " + sandbox.Identifier + ". Synchronize the sandbox (or run Intake to copy source items into it) before making proposals.");
+            return sandbox;
         }
 
         /// <summary>Optional <c>numbers: [..]</c> selection from a bulk action; null means every eligible item.</summary>
@@ -521,14 +556,16 @@ namespace Cascade.Core.Host
             var snap = Snapshots.Current;
             if (snap == null) throw new BadRequestException("Synchronize a repository first; proposals are made from the current snapshot.");
             List<WorkItem> all;
-            var items = VisibleItems(label, out all);
-            var report = Review.Run(items, Taxonomy, label, all);
+            var visible = VisibleItems(label, out all);
+            List<WorkItem> items;
+            var target = ProposalTarget(visible, out items);
+            var report = Review.Run(visible, Taxonomy, label, all);
+            options.OnlyKeys = new HashSet<string>(items.Select(i => i.Key), StringComparer.OrdinalIgnoreCase);
             var candidates = Refiner.Candidates(report, options).Count;
-            var target = new RepositoryRef(snap.Provider, snap.Repository);
             var job = Jobs.Start("refine", async ctx =>
             {
                 var progress = new Progress<string>(m => ctx.Report(0, 0, m));
-                var batch = await Refiner.RunAsync(items, report, llm, options, target, progress, ctx.Cancellation).ConfigureAwait(false);
+                var batch = await Refiner.RunAsync(visible, report, llm, options, target, progress, ctx.Cancellation).ConfigureAwait(false);
                 Proposals.Save(batch);
                 ctx.Report(batch.Proposals.Count, batch.Proposals.Count, batch.Proposals.Count + " refinement proposals saved in batch " + batch.Id);
                 return (object?)BatchSummary(batch);
@@ -543,9 +580,11 @@ namespace Cascade.Core.Host
             var snap = Snapshots.Current;
             if (snap == null) throw new BadRequestException("Synchronize a repository first.");
             List<WorkItem> all;
-            var items = VisibleItems(label, out all);
-            var report = Review.Run(items, Taxonomy, label, all);
-            var batch = Refiner.MetadataProposals(items, report, Taxonomy, new RepositoryRef(snap.Provider, snap.Repository), ReadNumbers(body));
+            var visible = VisibleItems(label, out all);
+            List<WorkItem> items;
+            var target = ProposalTarget(visible, out items);
+            var report = Review.Run(visible, Taxonomy, label, all);
+            var batch = Refiner.MetadataProposals(items, report, Taxonomy, target, ReadNumbers(body));
             Proposals.Save(batch);
             return Task.FromResult(Json.Ok(batch));
         }
@@ -553,8 +592,8 @@ namespace Cascade.Core.Host
         private Task<HttpResponse> ManualProposal(HttpRequest r)
         {
             var body = Json.Body(r);
-            var number = Json.Read<long?>(body, "number");
-            if (number == null) throw new BadRequestException("number is required.");
+            var reference = Json.Read<string>(body, "key") ?? (Json.Read<long?>(body, "number") == null ? null : Json.Read<long?>(body, "number")!.Value.ToString());
+            if (reference == null) throw new BadRequestException("key (or number) is required.");
             var kindText = (Json.Read<string>(body, "kind") ?? string.Empty).Trim().ToLowerInvariant();
             ProposalKind kind;
             switch (kindText)
@@ -568,10 +607,12 @@ namespace Cascade.Core.Host
             if (value.Length == 0 || value.Length > 120) throw new BadRequestException("value is required.");
             var snap = Snapshots.Current;
             if (snap == null) throw new BadRequestException("Synchronize a repository first.");
-            var item = snap.Items.FirstOrDefault(i => i.Number == number.Value);
-            if (item == null) throw new NotFoundException("Item #" + number + " is not in the current snapshot.");
+            var item = FindItem(reference);
+            if (item == null) throw new NotFoundException("Item " + reference + " is not in the current snapshot.");
+            var sandbox = SandboxOrThrow();
+            if (!item.Repository.Equals(sandbox)) throw new WriteBlockedException("Item " + item.Key + " is not in the sandbox; only sandbox items can be edited.", item.Repository);
             ProposalBatch batch;
-            try { batch = Estimator.Manual(item, kind, value, Json.Read<string>(body, "note"), new RepositoryRef(snap.Provider, snap.Repository), snap.Items); }
+            try { batch = Estimator.Manual(item, kind, value, Json.Read<string>(body, "note"), sandbox, snap.Items); }
             catch (ArgumentException ex) { throw new BadRequestException(ex.Message); }
             Proposals.Save(batch);
             Log.Info("MANUAL_PROPOSAL", kind + " " + item.CanonicalId + " -> " + batch.Proposals[0].ProposedValue + " (batch " + batch.Id + ")");
@@ -586,7 +627,7 @@ namespace Cascade.Core.Host
             var proposal = batch.Proposals.FirstOrDefault(p => p.Id == r.RouteValues["proposalId"]);
             if (proposal == null) throw new NotFoundException("No such proposal.");
             var snap = Snapshots.Current;
-            var item = snap == null ? null : snap.Items.FirstOrDefault(i => i.Number == proposal.ItemNumber);
+            var item = snap == null ? null : (snap.Items.FirstOrDefault(i => string.Equals(i.Key, proposal.ItemKey, StringComparison.OrdinalIgnoreCase)) ?? snap.Items.FirstOrDefault(i => i.Number == proposal.ItemNumber && string.Equals(i.Repository.Key, batch.Target, StringComparison.OrdinalIgnoreCase)));
             if (item == null) throw new NotFoundException("Item #" + proposal.ItemNumber + " is not in the current snapshot; synchronize again.");
             var projection = ProposalApplier.Project(item, proposal);
             var after = new WorkItem(item.Repository, item.Number) { Title = item.Title, Body = projection.Body };

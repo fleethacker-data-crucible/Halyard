@@ -14,6 +14,7 @@ export const Config = z.object({
   provider: z.enum(['github', 'gitlab']),
   baseUrl: z.string(),
   sourceRepository: z.string(),
+  sourceRepositories: z.array(z.string()),
   sandboxRepository: z.string(),
   hasProviderToken: z.boolean(),
   writeMode: z.enum(['sandbox', 'production']),
@@ -63,7 +64,7 @@ export const Status = z.object({
     error: Nullable(z.string()),
     capabilities: Nullable(z.object({ deleteIssues: z.boolean(), nativeParentLinks: z.boolean(), labelColors: z.boolean(), recommendedWriteDelayMs: z.number() })),
   }),
-  snapshot: Nullable(z.object({ id: z.string(), repository: z.string(), provider: z.string(), takenAt: z.string(), count: z.number(), ageSeconds: z.number(), labelFilter: Nullable(z.string()) })),
+  snapshot: Nullable(z.object({ id: z.string(), repository: z.string(), repositories: z.array(z.string()).optional(), provider: z.string(), takenAt: z.string(), count: z.number(), ageSeconds: z.number(), labelFilter: Nullable(z.string()) })),
   jobs: z.object({ running: z.number() }),
   launcher: z.record(z.unknown()),
   webRoot: Nullable(z.string()),
@@ -97,6 +98,7 @@ export const Finding = z.object({
 export const ReviewItem = z.object({
   key: z.string(),
   number: z.number(),
+  repository: z.string(),
   canonicalId: z.string(),
   title: z.string(),
   url: Nullable(z.string()),
@@ -120,7 +122,8 @@ export const ReviewItem = z.object({
 export type ReviewItem = z.infer<typeof ReviewItem>;
 
 export const Review = z.object({
-  snapshot: Nullable(z.object({ id: z.string(), takenAt: z.string(), repository: z.string() })),
+  snapshot: Nullable(z.object({ id: z.string(), takenAt: z.string(), repository: z.string(), repositories: z.array(z.string()) })),
+  sandbox: Nullable(z.string()),
   labelFilter: Nullable(z.string()),
   generatedAt: z.string(),
   summary: z.object({
@@ -164,6 +167,7 @@ export type Review = z.infer<typeof Review>;
 export type HierarchyNode = {
   key: string;
   number: number;
+  repository: string;
   canonicalId: string;
   type: LevelToken;
   title: string;
@@ -180,6 +184,7 @@ export type HierarchyNode = {
 export const HierarchyNode: z.ZodType<HierarchyNode> = z.lazy(() => z.object({
   key: z.string(),
   number: z.number(),
+  repository: z.string(),
   canonicalId: z.string(),
   type: LevelToken,
   title: z.string(),
@@ -206,6 +211,8 @@ export type Hierarchy = z.infer<typeof Hierarchy>;
 export const ItemDetail = z.object({
   key: z.string(),
   number: z.number(),
+  repository: z.string(),
+  inSandbox: z.boolean(),
   title: z.string(),
   shortName: z.string(),
   type: LevelToken,
@@ -352,6 +359,7 @@ export type Schema = z.infer<typeof Schema>;
 export const Snapshot = z.object({
   id: z.string(),
   repository: z.string(),
+  repositories: z.array(z.string()),
   provider: z.string(),
   takenAt: z.string(),
   ageSeconds: z.number(),

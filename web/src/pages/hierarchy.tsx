@@ -23,13 +23,15 @@ export function HierarchyPage({ params, status }: { params: URLSearchParams; sta
   const all = useMemo(() => (hierarchy.data ? flatten([...hierarchy.data.roots, ...hierarchy.data.orphans]) : []), [hierarchy.data]);
   const byKey = useMemo(() => new Map(all.map((n) => [n.key, n])), [all]);
 
-  // Deep link: #/hierarchy?item=31
+  // Deep link: #/hierarchy?item=<key> (or a bare number, resolved within the sandbox first)
   const itemParam = params.get('item');
   useEffect(() => {
     if (!itemParam || all.length === 0) return;
-    const n = all.find((x) => String(x.number) === itemParam);
+    const sandbox = status?.config.sandboxRepository;
+    const n = all.find((x) => x.key === itemParam) ?? all.find((x) => String(x.number) === itemParam && x.repository === sandbox) ?? all.find((x) => String(x.number) === itemParam);
     if (n) setSelectedKey(n.key);
-  }, [itemParam, all]);
+  }, [itemParam, all, status?.config.sandboxRepository]);
+  const multiRepo = (status?.snapshot?.repositories?.length ?? 1) > 1;
 
   const selected = selectedKey ? byKey.get(selectedKey) ?? null : null;
 
@@ -69,11 +71,11 @@ export function HierarchyPage({ params, status }: { params: URLSearchParams; sta
         >
           {!h ? <Skeleton rows={8} /> : view === 'tree' ? (
             <div className="scroll-y max-h-[calc(100vh-260px)]">
-              <Tree roots={h.roots} selectedKey={selectedKey} onSelect={(n) => setSelectedKey(n.key)} query={query} expandAllSignal={expandSignal} storageKey={status?.snapshot?.repository} />
+              <Tree roots={h.roots} selectedKey={selectedKey} onSelect={(n) => setSelectedKey(n.key)} query={query} expandAllSignal={expandSignal} storageKey={status?.snapshot?.repository} showRepository={multiRepo} />
               {h.orphans.length > 0 ? (
                 <div className="hairline">
                   <div className="px-4 pt-3 pb-1 text-[12.5px] text-warn">Without a resolved parent</div>
-                  <Tree roots={h.orphans} selectedKey={selectedKey} onSelect={(n) => setSelectedKey(n.key)} query={query} expandAllSignal={expandSignal} storageKey={status?.snapshot?.repository ? status.snapshot.repository + ':orphans' : undefined} />
+                  <Tree roots={h.orphans} selectedKey={selectedKey} onSelect={(n) => setSelectedKey(n.key)} query={query} expandAllSignal={expandSignal} storageKey={status?.snapshot?.repository ? status.snapshot.repository + ':orphans' : undefined} showRepository={multiRepo} />
                 </div>
               ) : null}
               <p className="px-4 py-2 text-[11.5px] text-ink-3"><Kbd>↑</Kbd> <Kbd>↓</Kbd> move · <Kbd>→</Kbd> <Kbd>←</Kbd> expand, collapse · <Kbd>Enter</Kbd> open · type to jump</p>
@@ -83,15 +85,15 @@ export function HierarchyPage({ params, status }: { params: URLSearchParams; sta
           )}
         </Section>
         <Section title={selected ? 'Work item' : 'Select a work item'}>
-          {selected ? <Detail node={selected} byKey={byKey} all={all} onSelect={setSelectedKey} /> : <Empty title="Nothing selected">Pick a row in the tree or a box in the graph to read its definition, metadata and findings.</Empty>}
+          {selected ? <Detail node={selected} byKey={byKey} all={all} onSelect={setSelectedKey} multiRepo={multiRepo} /> : <Empty title="Nothing selected">Pick a row in the tree or a box in the graph to read its definition, metadata and findings.</Empty>}
         </Section>
       </div>
     </Page>
   );
 }
 
-function Detail({ node, byKey, all, onSelect }: { node: HierarchyNode; byKey: Map<string, HierarchyNode>; all: HierarchyNode[]; onSelect: (key: string) => void }) {
-  const detail = useResource(`/api/items/${node.number}`, ItemDetail);
+function Detail({ node, byKey, all, onSelect, multiRepo }: { node: HierarchyNode; byKey: Map<string, HierarchyNode>; all: HierarchyNode[]; onSelect: (key: string) => void; multiRepo: boolean }) {
+  const detail = useResource(`/api/item?key=${encodeURIComponent(node.key)}`, ItemDetail);
   const [editing, setEditing] = useState(false);
   useEffect(() => setEditing(false), [node.key]);
   const d = detail.data;
@@ -123,12 +125,12 @@ function Detail({ node, byKey, all, onSelect }: { node: HierarchyNode; byKey: Ma
         ) : expected ? <span className="text-[12px] text-warn">No resolved parent. A {LEVEL_LABEL[node.type]} belongs under a {LEVEL_LABEL[expected]}.</span> : null}
         <div className="flex items-start justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2"><LevelChip type={node.type} /><Mono className="text-[11.5px]">#{node.number}</Mono>{node.state === 'closed' ? <Pill tone="neutral">closed</Pill> : null}</div>
+            <div className="flex items-center gap-2"><LevelChip type={node.type} /><Mono className="text-[11.5px]">{multiRepo ? `${node.repository} ` : ''}#{node.number}</Mono>{node.state === 'closed' ? <Pill tone="neutral">closed</Pill> : null}{d && !d.inSandbox ? <Pill tone="neutral" >source · read-only</Pill> : null}</div>
             <h2 className="mt-1.5 text-[15px]">{node.title}</h2>
             <Mono className="text-[11.5px]">{node.canonicalId}</Mono>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            {node.type === 'STORY' || node.type === 'FEATURE' || node.type === 'EPIC' || node.type === 'TASK' ? <Button size="sm" variant={editing ? 'default' : 'quiet'} onClick={() => setEditing((e) => !e)}><LuPencil size={13} />Edit</Button> : null}
+            {(node.type === 'STORY' || node.type === 'FEATURE' || node.type === 'EPIC' || node.type === 'TASK') && d?.inSandbox ? <Button size="sm" variant={editing ? 'default' : 'quiet'} onClick={() => setEditing((e) => !e)}><LuPencil size={13} />Edit</Button> : null}
             {node.url ? <a href={node.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px]">Open <LuExternalLink size={12} /></a> : null}
           </div>
         </div>
@@ -200,7 +202,7 @@ function EditPanel({ node, all, onDone }: { node: HierarchyNode; all: HierarchyN
   const submit = async (kind: 'points' | 'effort' | 'parent', value: string) => {
     setBusy(kind);
     try {
-      const b = Batch.parse(await post('/api/proposals/manual', { number: node.number, kind, value, note: note.trim() || undefined }));
+      const b = Batch.parse(await post('/api/proposals/manual', { key: node.key, kind, value, note: note.trim() || undefined }));
       setQueued(b.id);
       invalidate('/api/proposals');
       toast.push('ok', `Change queued as an approved proposal. Apply it from Proposals.`);

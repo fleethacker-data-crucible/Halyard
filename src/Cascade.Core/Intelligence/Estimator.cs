@@ -156,11 +156,12 @@ namespace Cascade.Core.Intelligence
         }
 
         /// <summary>Parent-link proposals from deterministic evidence; the top candidate becomes the proposal when it clearly leads.</summary>
-        public static ProposalBatch ParentProposals(ReviewReport report, RepositoryRef target, double minimumScore = 2.0, HashSet<long>? onlyNumbers = null)
+        public static ProposalBatch ParentProposals(ReviewReport report, RepositoryRef target, double minimumScore = 2.0, HashSet<long>? onlyNumbers = null, HashSet<string>? onlyKeys = null)
         {
             var batch = new ProposalBatch { Kind = ProposalKind.ParentLink, Target = target.Key, Source = "deterministic" };
             foreach (var review in report.ParentReviews)
             {
+                if (onlyKeys != null && !onlyKeys.Contains(review.Key)) continue;
                 if (onlyNumbers != null)
                 {
                     var ir = report.Items.FirstOrDefault(i => i.Key == review.Key);
