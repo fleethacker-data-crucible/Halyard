@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { LuExternalLink, LuListTree, LuNetwork } from 'react-icons/lu';
+import { LuExternalLink, LuListTree, LuNetwork, LuPencil } from 'react-icons/lu';
 import { navigate } from '../app';
 import { HierarchyGraph } from '../components/graph';
 import { Tree, flatten } from '../components/tree';
-import { Button, Empty, Input, LevelChip, Mono, Page, Pill, Section, SeverityIcon, cn, severityTone } from '../components/ui';
+import { Button, Empty, Field, Input, Kbd, LevelChip, Mono, Notice, Page, Pill, Section, Select, SeverityIcon, cn, severityTone, useToast } from '../components/ui';
+import { describeError, post } from '../lib/api';
 import { humanizeCode, shortDate } from '../lib/format';
 import { LEVEL_LABEL, expectedParent } from '../lib/levels';
-import { Hierarchy, ItemDetail, type HierarchyNode, type Status } from '../lib/schemas';
-import { useResource } from '../lib/useResource';
+import { Batch, Hierarchy, ItemDetail, type HierarchyNode, type Status } from '../lib/schemas';
+import { useLocalState } from '../lib/storage';
+import { invalidate, useResource } from '../lib/useResource';
 import { Skeleton } from './overview';
 
 export function HierarchyPage({ params, status }: { params: URLSearchParams; status: Status | undefined }) {
   const label = params.get('label') ?? status?.config.labelFilter ?? '';
   const hierarchy = useResource(status?.snapshot ? `/api/hierarchy${label ? `?label=${encodeURIComponent(label)}` : ''}` : null, Hierarchy);
-  const [view, setView] = useState<'tree' | 'graph'>('tree');
+  const [view, setView] = useLocalState<'tree' | 'graph'>('hierarchy.view', 'tree');
   const [query, setQuery] = useState('');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [expandSignal, setExpandSignal] = useState({ expanded: true, tick: 0 });
@@ -67,28 +69,31 @@ export function HierarchyPage({ params, status }: { params: URLSearchParams; sta
         >
           {!h ? <Skeleton rows={8} /> : view === 'tree' ? (
             <div className="scroll-y max-h-[calc(100vh-260px)]">
-              <Tree roots={h.roots} selectedKey={selectedKey} onSelect={(n) => setSelectedKey(n.key)} query={query} expandAllSignal={expandSignal} />
+              <Tree roots={h.roots} selectedKey={selectedKey} onSelect={(n) => setSelectedKey(n.key)} query={query} expandAllSignal={expandSignal} storageKey={status?.snapshot?.repository} />
               {h.orphans.length > 0 ? (
                 <div className="hairline">
                   <div className="px-4 pt-3 pb-1 text-[12.5px] text-warn">Without a resolved parent</div>
-                  <Tree roots={h.orphans} selectedKey={selectedKey} onSelect={(n) => setSelectedKey(n.key)} query={query} expandAllSignal={expandSignal} />
+                  <Tree roots={h.orphans} selectedKey={selectedKey} onSelect={(n) => setSelectedKey(n.key)} query={query} expandAllSignal={expandSignal} storageKey={status?.snapshot?.repository ? status.snapshot.repository + ':orphans' : undefined} />
                 </div>
               ) : null}
+              <p className="px-4 py-2 text-[11.5px] text-ink-3"><Kbd>↑</Kbd> <Kbd>↓</Kbd> move · <Kbd>→</Kbd> <Kbd>←</Kbd> expand, collapse · <Kbd>Enter</Kbd> open · type to jump</p>
             </div>
           ) : (
             <HierarchyGraph roots={h.roots} orphans={h.orphans} selectedKey={selectedKey} onSelect={(n) => setSelectedKey(n.key)} />
           )}
         </Section>
         <Section title={selected ? 'Work item' : 'Select a work item'}>
-          {selected ? <Detail node={selected} byKey={byKey} onSelect={setSelectedKey} /> : <Empty title="Nothing selected">Pick a row in the tree or a box in the graph to read its definition, metadata and findings.</Empty>}
+          {selected ? <Detail node={selected} byKey={byKey} all={all} onSelect={setSelectedKey} /> : <Empty title="Nothing selected">Pick a row in the tree or a box in the graph to read its definition, metadata and findings.</Empty>}
         </Section>
       </div>
     </Page>
   );
 }
 
-function Detail({ node, byKey, onSelect }: { node: HierarchyNode; byKey: Map<string, HierarchyNode>; onSelect: (key: string) => void }) {
+function Detail({ node, byKey, all, onSelect }: { node: HierarchyNode; byKey: Map<string, HierarchyNode>; all: HierarchyNode[]; onSelect: (key: string) => void }) {
   const detail = useResource(`/api/items/${node.number}`, ItemDetail);
+  const [editing, setEditing] = useState(false);
+  useEffect(() => setEditing(false), [node.key]);
   const d = detail.data;
   const chain: HierarchyNode[] = [];
   if (d?.parentKey) {
@@ -122,7 +127,10 @@ function Detail({ node, byKey, onSelect }: { node: HierarchyNode; byKey: Map<str
             <h2 className="mt-1.5 text-[15px]">{node.title}</h2>
             <Mono className="text-[11.5px]">{node.canonicalId}</Mono>
           </div>
-          {node.url ? <a href={node.url} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center gap-1 text-[12px]">Open <LuExternalLink size={12} /></a> : null}
+          <div className="flex shrink-0 items-center gap-2">
+            {node.type === 'STORY' || node.type === 'FEATURE' || node.type === 'EPIC' || node.type === 'TASK' ? <Button size="sm" variant={editing ? 'default' : 'quiet'} onClick={() => setEditing((e) => !e)}><LuPencil size={13} />Edit</Button> : null}
+            {node.url ? <a href={node.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[12px]">Open <LuExternalLink size={12} /></a> : null}
+          </div>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-ink-2">
           {node.points ? <span>Points <span className="num font-medium text-ink">{node.points}</span></span> : null}
@@ -132,6 +140,7 @@ function Detail({ node, byKey, onSelect }: { node: HierarchyNode; byKey: Map<str
           {d?.updatedAt ? <span>Updated {shortDate(d.updatedAt)}</span> : null}
         </div>
       </div>
+      {editing ? <EditPanel node={node} all={all} onDone={() => setEditing(false)} /> : null}
       {d && (d.findings.length > 0 || d.deficiencies.length > 0 || d.missingMeta.length > 0) ? (
         <ul className="hairline flex flex-col gap-1.5 px-4 py-3 text-[12.5px]">
           {d.findings.map((f) => <li key={f.code} className="flex items-start gap-2"><SeverityIcon severity={f.severity} /><span><Pill tone={severityTone(f.severity)} className="mr-1.5">{humanizeCode(f.code)}</Pill>{f.explanation}</span></li>)}
@@ -168,6 +177,72 @@ function Detail({ node, byKey, onSelect }: { node: HierarchyNode; byKey: Map<str
           </ul>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * In-place edit: points, effort or parent. Each change is recorded as an already-approved proposal and
+ * applied from the Proposals page, so hand edits get the same preview, audit log and sandbox-only path.
+ */
+function EditPanel({ node, all, onDone }: { node: HierarchyNode; all: HierarchyNode[]; onDone: () => void }) {
+  const toast = useToast();
+  const [points, setPoints] = useState(node.points ?? '');
+  const [effort, setEffort] = useState(node.effort ?? '');
+  const expected = expectedParent(node.type);
+  const parents = useMemo(() => all.filter((n) => n.type === expected).sort((a, b) => a.title.localeCompare(b.title)), [all, expected]);
+  const [parentFilter, setParentFilter] = useState('');
+  const [parent, setParent] = useState('');
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [queued, setQueued] = useState<string | null>(null);
+
+  const submit = async (kind: 'points' | 'effort' | 'parent', value: string) => {
+    setBusy(kind);
+    try {
+      const b = Batch.parse(await post('/api/proposals/manual', { number: node.number, kind, value, note: note.trim() || undefined }));
+      setQueued(b.id);
+      invalidate('/api/proposals');
+      toast.push('ok', `Change queued as an approved proposal. Apply it from Proposals.`);
+    } catch (e) {
+      toast.push('err', describeError(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const shown = parents.filter((p) => !parentFilter || p.title.toLowerCase().includes(parentFilter.toLowerCase()) || p.canonicalId.toLowerCase().includes(parentFilter.toLowerCase()) || String(p.number) === parentFilter).slice(0, 60);
+
+  return (
+    <div className="hairline flex flex-col gap-3 bg-surface-2/60 px-4 py-3 text-[12.5px]">
+      <p className="text-ink-2">Edits are not written here. Each one becomes an approved proposal you apply from the Proposals page, with a diff and the audit log.</p>
+      {node.type === 'STORY' ? (
+        <div className="flex items-end gap-2">
+          <Field label="Story points" className="w-32"><Select value={points} onChange={(e) => setPoints(e.target.value)}><option value="">(choose)</option>{['1', '2', '3', '5', '8', 'TBD'].map((v) => <option key={v} value={v}>{v}</option>)}</Select></Field>
+          <Button size="sm" variant="primary" disabled={!points || points === node.points} busy={busy === 'points'} onClick={() => void submit('points', points)}>Queue points</Button>
+        </div>
+      ) : null}
+      {node.type === 'FEATURE' ? (
+        <div className="flex items-end gap-2">
+          <Field label="Effort" className="w-32"><Select value={effort} onChange={(e) => setEffort(e.target.value)}><option value="">(choose)</option>{['Small', 'Medium', 'Large', 'TBD'].map((v) => <option key={v} value={v}>{v}</option>)}</Select></Field>
+          <Button size="sm" variant="primary" disabled={!effort || effort === node.effort} busy={busy === 'effort'} onClick={() => void submit('effort', effort)}>Queue effort</Button>
+        </div>
+      ) : null}
+      {expected ? (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-ink-2">Parent {LEVEL_LABEL[expected]}</span>
+          <div className="flex items-end gap-2">
+            <Input placeholder={`Find a ${LEVEL_LABEL[expected].toLowerCase()}…`} value={parentFilter} onChange={(e) => setParentFilter(e.target.value)} className="w-48" aria-label="Filter parents" />
+            <Select value={parent} onChange={(e) => setParent(e.target.value)} className="min-w-0 flex-1" aria-label="Parent">
+              <option value="">(choose)</option>
+              {shown.map((p) => <option key={p.key} value={p.canonicalId}>{p.title} · #{p.number}</option>)}
+            </Select>
+            <Button size="sm" variant="primary" disabled={!parent} busy={busy === 'parent'} onClick={() => void submit('parent', parent)}>Queue parent</Button>
+          </div>
+        </div>
+      ) : null}
+      <Field label="Note (optional)"><Input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why this change" /></Field>
+      {queued ? <Notice tone="ok">Queued in batch <Mono>{queued}</Mono>. <button type="button" className="underline" onClick={() => navigate('proposals', { batch: queued })}>Review and apply</button></Notice> : null}
+      <div><Button size="sm" variant="quiet" onClick={onDone}>Close</Button></div>
     </div>
   );
 }

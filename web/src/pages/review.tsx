@@ -1,12 +1,27 @@
-import { useMemo, useState } from 'react';
-import { LuDownload } from 'react-icons/lu';
+import { useEffect, useMemo, useState } from 'react';
+import { LuDownload, LuSparkles, LuWrench, LuX } from 'react-icons/lu';
 import { navigate } from '../app';
-import { Button, Empty, Input, LevelChip, Mono, Page, Pill, Section, Select, SeverityIcon, Tabs, severityTone } from '../components/ui';
+import { Button, Empty, Input, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, SeverityIcon, Tabs, cn, severityTone, useToast } from '../components/ui';
+import { describeError, post } from '../lib/api';
 import { downloadText, humanizeCode, toCsv } from '../lib/format';
+import { useJob } from '../lib/jobs';
 import { LEVELS, LEVEL_LABEL } from '../lib/levels';
-import { Review, type LevelToken, type ReviewItem, type Status } from '../lib/schemas';
-import { useResource } from '../lib/useResource';
+import { Batch, Review, type LevelToken, type ReviewItem, type Status } from '../lib/schemas';
+import { invalidate, useResource } from '../lib/useResource';
 import { Skeleton } from './overview';
+
+const CONTENT_GAPS = new Set(['story_missing_acceptance_criteria', 'story_missing_user_need', 'story_missing_tasks', 'feature_missing_done_when', 'feature_missing_short_description', 'epic_missing_outcome_statement', 'epic_missing_success_picture', 'theme_missing_purpose', 'theme_missing_scope']);
+const META_GAPS = new Set(['missing_cascade_metadata', 'invalid_cascade_metadata', 'story_missing_points', 'story_invalid_points', 'story_missing_sprint', 'story_has_effort_band', 'feature_has_story_points', 'feature_missing_effort', 'feature_invalid_effort', 'epic_missing_theme']);
+
+/** Which proposal paths can act on an item, from its open gaps. Drives the bulk-action bar. */
+export function remedies(i: ReviewItem): Array<'refine' | 'metadata' | 'parents' | 'sizes'> {
+  const out: Array<'refine' | 'metadata' | 'parents' | 'sizes'> = [];
+  if (i.deficiencies.some((d) => CONTENT_GAPS.has(d))) out.push('refine');
+  if (i.deficiencies.some((d) => META_GAPS.has(d)) || i.missingMeta.length > 0) out.push('metadata');
+  if (!i.resolvedParentKey && (i.type === 'EPIC' || i.type === 'FEATURE' || i.type === 'STORY' || i.type === 'TASK')) out.push('parents');
+  if ((i.type === 'STORY' && (!i.points || i.points === 'TBD')) || (i.type === 'FEATURE' && (!i.effort || i.effort === 'TBD'))) out.push('sizes');
+  return out;
+}
 
 type Tab = 'items' | 'gaps' | 'findings' | 'parents';
 
@@ -18,7 +33,9 @@ export function ReviewPage({ params, status }: { params: URLSearchParams; status
   const [code, setCode] = useState<string>(params.get('code') ?? '');
   const [onlyProblems, setOnlyProblems] = useState(true);
   const [query, setQuery] = useState('');
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   const r = review.data;
+  useEffect(() => setSelected(new Set()), [r?.snapshot?.id]);
 
   const items = useMemo(() => {
     if (!r) return [];
@@ -38,6 +55,14 @@ export function ReviewPage({ params, status }: { params: URLSearchParams; status
     const rows = items.map((i) => ({ number: i.number, id: i.canonicalId, type: i.type, title: i.title, parent: i.parentId ?? '', points: i.points ?? '', effort: i.effort ?? '', sprint: i.sprint ?? '', state: i.state, missingMeta: i.missingMeta, gaps: i.deficiencies, findings: i.findings.map((f) => f.code), url: i.url ?? '' }));
     downloadText(`cascade-review-${r.snapshot?.id ?? 'snapshot'}.csv`, `# snapshot ${r.snapshot?.id ?? ''} taken ${r.snapshot?.takenAt ?? ''}; exported ${new Date().toISOString()}\r\n` + toCsv(rows, ['number', 'id', 'type', 'title', 'parent', 'points', 'effort', 'sprint', 'state', 'missingMeta', 'gaps', 'findings', 'url']), 'text/csv');
   };
+  const exportMarkdown = () => {
+    if (!r) return;
+    downloadText(`cascade-review-${r.snapshot?.id ?? 'snapshot'}.md`, reviewPackMarkdown(r, items), 'text/markdown');
+  };
+  const visibleNumbers = items.map((i) => i.number);
+  const allSelected = visibleNumbers.length > 0 && visibleNumbers.every((n) => selected.has(n));
+  const toggleAll = () => setSelected(allSelected ? new Set() : new Set(visibleNumbers));
+  const toggle = (n: number) => setSelected((s) => { const next = new Set(s); if (next.has(n)) next.delete(n); else next.add(n); return next; });
 
   if (status && !status.snapshot) {
     return <Page title="Review" lede="Every item checked against its level's definition of ready and the declared topology."><Section><Empty title="No snapshot yet" action={<Button variant="primary" onClick={() => navigate('connection')}>Connect and synchronize</Button>}>Synchronize a repository to review it.</Empty></Section></Page>;
@@ -47,9 +72,10 @@ export function ReviewPage({ params, status }: { params: URLSearchParams; status
     <Page
       title="Review"
       lede={r ? <>{r.summary.needsReview} of {r.summary.total} items need attention{r.labelFilter ? <>, within <Mono>{r.labelFilter}</Mono></> : null}. Nothing here changes the source; it is a reading of the snapshot.</> : 'Every item checked against its level\'s definition of ready and the declared topology.'}
-      actions={<Button onClick={exportCsv} disabled={!r}><LuDownload size={14} />Export review pack</Button>}
+      actions={<><Button onClick={exportMarkdown} disabled={!r}><LuDownload size={14} />Review pack (Markdown)</Button><Button variant="quiet" onClick={exportCsv} disabled={!r}>CSV</Button></>}
     >
       {review.error ? <p className="text-err">{review.error}</p> : null}
+      {r && selected.size > 0 ? <BulkActions items={r.items.filter((i) => selected.has(i.number))} status={status} onClear={() => setSelected(new Set())} /> : null}
       <Section>
         <Tabs
           value={tab}
@@ -71,13 +97,13 @@ export function ReviewPage({ params, status }: { params: URLSearchParams; status
               <Input placeholder="Find by title, id or #number" value={query} onChange={(e) => setQuery(e.target.value)} className="w-64" aria-label="Find" />
               <label className="inline-flex items-center gap-2 text-ink-2"><input type="checkbox" checked={onlyProblems} onChange={(e) => setOnlyProblems(e.target.checked)} />Only items that need attention</label>
               {code ? <Pill tone="info">filter: {humanizeCode(code)} <button type="button" className="ml-1 underline" onClick={() => setCode('')}>clear</button></Pill> : null}
-              <span className="ml-auto text-ink-3">{items.length} shown</span>
+              <span className="ml-auto text-ink-3">{items.length} shown{selected.size ? ` · ${selected.size} selected` : ''}</span>
             </div>
             {!r ? <Skeleton rows={8} /> : items.length === 0 ? <Empty title="No items match">Loosen the filters or untick "only items that need attention".</Empty> : (
               <div className="scroll-y max-h-[calc(100vh-300px)]">
                 <table className="table-dense w-full">
-                  <thead><tr><th className="w-24">Level</th><th>Work item</th><th className="w-40">Parent</th><th className="w-20">Size</th><th>Gaps and findings</th></tr></thead>
-                  <tbody>{items.map((i) => <ItemRow key={i.key} item={i} />)}</tbody>
+                  <thead><tr><th className="w-8"><input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all shown" /></th><th className="w-24">Level</th><th>Work item</th><th className="w-40">Parent</th><th className="w-20">Size</th><th>Gaps and findings</th><th className="w-36">Fix with</th></tr></thead>
+                  <tbody>{items.map((i) => <ItemRow key={i.key} item={i} selected={selected.has(i.number)} onToggle={() => toggle(i.number)} />)}</tbody>
                 </table>
               </div>
             )}
@@ -91,9 +117,13 @@ export function ReviewPage({ params, status }: { params: URLSearchParams; status
   );
 }
 
-function ItemRow({ item: i }: { item: ReviewItem }) {
+const REMEDY_LABEL = { refine: 'Draft sections', metadata: 'Repair meta', parents: 'Find parent', sizes: 'Size' } as const;
+
+function ItemRow({ item: i, selected, onToggle }: { item: ReviewItem; selected: boolean; onToggle: () => void }) {
+  const fixes = remedies(i);
   return (
-    <tr className="cursor-pointer" onClick={() => navigate('hierarchy', { item: String(i.number) })}>
+    <tr className={cn('cursor-pointer', selected && 'bg-surface-2')} onClick={() => navigate('hierarchy', { item: String(i.number) })}>
+      <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selected} onChange={onToggle} aria-label={`Select #${i.number}`} /></td>
       <td><LevelChip type={i.type} /></td>
       <td><div className="font-medium">{i.title}</div><div className="mono text-[11.5px] text-ink-3">#{i.number} · {i.canonicalId}</div></td>
       <td className="text-ink-2">{i.resolvedParentKey ? <span className="text-ok">resolved</span> : i.parentId ? <span className="text-warn" title={i.parentId}>declared, unresolved</span> : <span className="text-ink-3">none</span>}</td>
@@ -106,8 +136,100 @@ function ItemRow({ item: i }: { item: ReviewItem }) {
           {!i.needsReview ? <span className="text-ok">complete</span> : null}
         </div>
       </td>
+      <td className="text-[11.5px] text-ink-3">{fixes.length ? fixes.map((f) => REMEDY_LABEL[f]).join(' · ') : i.needsReview ? 'human' : ''}</td>
     </tr>
   );
+}
+
+/** Floating bar for the selected items: each proposal path runs on just those numbers and lands in Proposals. */
+function BulkActions({ items, status, onClear }: { items: ReviewItem[]; status: Status | undefined; onClear: () => void }) {
+  const toast = useToast();
+  const numbers = items.map((i) => i.number);
+  const counts = { refine: 0, metadata: 0, parents: 0, sizes: 0 };
+  for (const i of items) for (const f of remedies(i)) counts[f]++;
+  const hasModel = !!status?.config.hasLlmToken;
+  const [busy, setBusy] = useState<string | null>(null);
+  const job = useJob((j) => {
+    if (j.state === 'succeeded') {
+      const r = j.result as { id?: string; total?: number } | null;
+      toast.push('ok', `${r?.total ?? 0} proposals ready.`);
+      invalidate('/api/proposals');
+      if (r?.id) navigate('proposals', { batch: r.id });
+    } else if (j.state === 'failed') toast.push('err', j.error ?? 'Analysis failed');
+  });
+  const deterministic = async (path: string) => {
+    setBusy(path);
+    try {
+      const b = Batch.parse(await post(path, { numbers }));
+      toast.push('ok', `${b.proposals.length} proposals ready.`);
+      invalidate('/api/proposals');
+      navigate('proposals', { batch: b.id });
+    } catch (e) {
+      toast.push('err', describeError(e));
+    } finally {
+      setBusy(null);
+    }
+  };
+  const stories = items.filter((i) => i.type === 'STORY').length;
+  const features = items.filter((i) => i.type === 'FEATURE').length;
+  return (
+    <div className="panel flex flex-wrap items-center gap-2 px-4 py-2.5">
+      <span className="font-medium">{items.length} selected</span>
+      <span className="text-[12.5px] text-ink-3">Proposals are made for these items only; you approve them on the Proposals page.</span>
+      <span className="ml-auto flex flex-wrap items-center gap-2">
+        <Button size="sm" onClick={() => void deterministic('/api/intelligence/metadata')} busy={busy === '/api/intelligence/metadata'} disabled={counts.metadata === 0}><LuWrench size={13} />Repair metadata ({counts.metadata})</Button>
+        <Button size="sm" onClick={() => void deterministic('/api/intelligence/parents')} busy={busy === '/api/intelligence/parents'} disabled={counts.parents === 0}>Find parents ({counts.parents})</Button>
+        <Button size="sm" variant="primary" onClick={() => void job.start('/api/intelligence/refine', { numbers, maxItems: 100 })} busy={job.running} disabled={!hasModel || counts.refine === 0} title={hasModel ? undefined : 'Add a model key in Settings'}><LuSparkles size={13} />Draft sections ({counts.refine})</Button>
+        <Button size="sm" variant="primary" onClick={() => void job.start('/api/intelligence/estimate', { numbers, kind: stories >= features ? 'storyPoints' : 'featureEffort', onlyUnsized: false, maxItems: 200 })} busy={job.running} disabled={!hasModel || (stories === 0 && features === 0)} title={hasModel ? undefined : 'Add a model key in Settings'}><LuSparkles size={13} />Propose {stories >= features ? 'points' : 'effort'} ({stories >= features ? stories : features})</Button>
+        <Button size="sm" variant="quiet" onClick={onClear} aria-label="Clear selection"><LuX size={13} /></Button>
+      </span>
+      {job.job && job.running ? <div className="w-full"><Progress done={job.job.progressDone} total={job.job.progressTotal} label={job.job.message ?? job.job.state} /></div> : null}
+      {job.error ? <Notice tone="err" className="w-full">{job.error}</Notice> : null}
+    </div>
+  );
+}
+
+/** A readable review pack for a refinement meeting: summary, gaps by code, then every item that needs attention. */
+export function reviewPackMarkdown(r: Review, items: ReviewItem[]): string {
+  const lines: string[] = [];
+  lines.push(`# Cascade review pack`);
+  lines.push('');
+  lines.push(`Snapshot ${r.snapshot?.id ?? ''} of ${r.snapshot?.repository ?? ''} taken ${r.snapshot?.takenAt ?? ''}${r.labelFilter ? ` (filter ${r.labelFilter})` : ''}. Exported ${new Date().toISOString()}.`);
+  lines.push('');
+  lines.push('## Summary');
+  lines.push('');
+  lines.push(`| | |`); lines.push(`|---|---|`);
+  lines.push(`| Work items | ${r.summary.total} |`);
+  lines.push(`| Need attention | ${r.summary.needsReview} |`);
+  lines.push(`| Without a resolved parent | ${r.summary.missingParents} |`);
+  lines.push(`| Stories with points | ${r.summary.storiesWithPoints} of ${r.summary.stories} (${r.summary.totalPoints} points) |`);
+  lines.push(`| Features with effort | ${r.summary.featuresWithEffort} of ${r.summary.features} |`);
+  lines.push(`| Topology errors / warnings | ${r.audit.errorCount} / ${r.audit.warningCount} |`);
+  lines.push('');
+  const gaps = Object.entries(r.summary.deficiencyCounts).sort((a, b) => b[1] - a[1]);
+  if (gaps.length) {
+    lines.push('## Definition-of-ready gaps');
+    lines.push('');
+    lines.push('| Gap | Items |'); lines.push('|---|---|');
+    for (const [code, n] of gaps) lines.push(`| ${humanizeCode(code)} (\`${code}\`) | ${n} |`);
+    lines.push('');
+  }
+  const attention = items.filter((i) => i.needsReview);
+  lines.push(`## Items needing attention (${attention.length})`);
+  lines.push('');
+  for (const i of attention) {
+    lines.push(`### ${i.type} :: ${i.title.replace(/^\s*(THEME|EPIC|FEATURE|STORY|TASK|BUG)\s*::\s*/i, '')} (#${i.number})`);
+    lines.push('');
+    lines.push(`- Id: \`${i.canonicalId}\`${i.url ? ` · ${i.url}` : ''}`);
+    lines.push(`- Parent: ${i.resolvedParentKey ? 'resolved' : i.parentId ? `declared \`${i.parentId}\`, unresolved` : 'none'}${i.points ? ` · Points: ${i.points}` : ''}${i.effort ? ` · Effort: ${i.effort}` : ''}${i.sprint ? ` · Sprint: ${i.sprint}` : ''}`);
+    for (const f of i.findings) lines.push(`- **${f.severity}** ${humanizeCode(f.code)}: ${f.explanation}`);
+    for (const d of i.deficiencies) lines.push(`- ${humanizeCode(d)}: ${explainDeficiency(d)}`);
+    if (i.missingMeta.length) lines.push(`- Required meta missing: ${i.missingMeta.join(', ')}`);
+    const fixes = remedies(i);
+    if (fixes.length) lines.push(`- Suggested path: ${fixes.map((f) => REMEDY_LABEL[f]).join(', ')}`);
+    lines.push('');
+  }
+  return lines.join('\n');
 }
 
 function CodeTable({ rows, onPick, explain, empty }: { rows: Array<{ code: string; count: number }>; onPick: (code: string) => void; explain: (code: string) => string; empty: string }) {

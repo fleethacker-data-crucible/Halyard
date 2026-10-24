@@ -52,15 +52,28 @@ namespace Cascade.Core
 
         public static List<SyntheticWorkItem> GenerateCatalog(int total, int seed, bool includeDefects)
         {
+            return GenerateCatalog(total, seed, includeDefects, 0.20);
+        }
+
+        /// <param name="defectRate">Share of items given a gap when <paramref name="includeDefects"/> is set (0.2 = 80% complete, 20% needing review).</param>
+        public static List<SyntheticWorkItem> GenerateCatalog(int total, int seed, bool includeDefects, double defectRate)
+        {
             var options = SyntheticOptions.ForTotal(total, seed);
             options.IncludeDefects = includeDefects;
+            options.DefectRate = defectRate;
             return SyntheticCatalog.Generate(options);
         }
 
         public static string WriteCatalog(string path, int total, int seed, bool includeDefects)
         {
+            return WriteCatalog(path, total, seed, includeDefects, 0.20);
+        }
+
+        public static string WriteCatalog(string path, int total, int seed, bool includeDefects, double defectRate)
+        {
             var options = SyntheticOptions.ForTotal(total, seed);
             options.IncludeDefects = includeDefects;
+            options.DefectRate = defectRate;
             var items = SyntheticCatalog.Generate(options);
             SyntheticCatalog.Save(path, items, options);
             return Path.GetFullPath(path);
@@ -68,7 +81,12 @@ namespace Cascade.Core
 
         public static SeedManifest Seed(CascadeSettings settings, int total, int seed, bool includeDefects, string? runId, bool nativeLinks, Action<string>? progress)
         {
-            var catalog = GenerateCatalog(total, seed, includeDefects);
+            return Seed(settings, total, seed, includeDefects, 0.20, runId, nativeLinks, progress);
+        }
+
+        public static SeedManifest Seed(CascadeSettings settings, int total, int seed, bool includeDefects, double defectRate, string? runId, bool nativeLinks, Action<string>? progress)
+        {
+            var catalog = GenerateCatalog(total, seed, includeDefects, defectRate);
             return Seed(settings, catalog, runId, nativeLinks, progress);
         }
 

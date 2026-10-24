@@ -184,10 +184,11 @@ function New-CascadeSyntheticCatalog {
         [string]$Path = (Join-Path (Get-CascadeRoot) 'fixtures\synthetic-work-items.json'),
         [ValidateRange(5, 2000)][int]$Total = 100,
         [int]$Seed = 20261024,
-        [switch]$IncludeDefects
+        [switch]$IncludeDefects,
+        [ValidateRange(0.0, 0.5)][double]$DefectRate = 0.2
     )
     Import-CascadeCore
-    [Cascade.Core.Facade]::WriteCatalog($Path, $Total, $Seed, [bool]$IncludeDefects)
+    [Cascade.Core.Facade]::WriteCatalog($Path, $Total, $Seed, [bool]$IncludeDefects, [double]$DefectRate)
 }
 
 function Invoke-CascadeSeed {
@@ -195,7 +196,8 @@ function Invoke-CascadeSeed {
     .SYNOPSIS
       Creates a synthetic Theme -> Epic -> Feature -> Story -> Task hierarchy in the sandbox repository.
     .EXAMPLE
-      Invoke-CascadeSeed -Total 100 -RunId demo-1
+      Invoke-CascadeSeed -Total 100 -RunId demo-1 -IncludeDefects
+      Creates 100 items of which about 20 carry a deliberate gap for the human review workflow.
     #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     param(
@@ -203,6 +205,7 @@ function Invoke-CascadeSeed {
         [int]$Seed = 20261024,
         [string]$RunId,
         [switch]$IncludeDefects,
+        [ValidateRange(0.0, 0.5)][double]$DefectRate = 0.2,
         [switch]$NoNativeLinks,
         [string]$CatalogPath,
         [ValidateSet('Auto', 'Always', 'Never')][string]$UseArc = 'Auto'
@@ -214,9 +217,9 @@ function Invoke-CascadeSeed {
     if ($CatalogPath) {
         $manifest = [Cascade.Core.Facade]::SeedFromFile($s, $CatalogPath, $RunId, -not $NoNativeLinks, $progress)
     } else {
-        $manifest = [Cascade.Core.Facade]::Seed($s, $Total, $Seed, [bool]$IncludeDefects, $RunId, -not $NoNativeLinks, $progress)
+        $manifest = [Cascade.Core.Facade]::Seed($s, $Total, $Seed, [bool]$IncludeDefects, [double]$DefectRate, $RunId, -not $NoNativeLinks, $progress)
     }
-    Write-Host ('Run ' + $manifest.RunId + ': created ' + $manifest.Items.Count + ' of ' + $manifest.Requested + ' in ' + $manifest.Target) -ForegroundColor Green
+    Write-Host ('Run ' + $manifest.RunId + ': created ' + $manifest.Items.Count + ' of ' + $manifest.Requested + ' in ' + $manifest.Target + ' (' + $manifest.NeedsReview + ' seeded with gaps for review)') -ForegroundColor Green
     if ($manifest.Errors.Count -gt 0) { $manifest.Errors | ForEach-Object { Write-Warning $_ } }
     return $manifest
 }

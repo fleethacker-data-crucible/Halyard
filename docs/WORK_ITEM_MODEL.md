@@ -32,7 +32,7 @@ SPRINT         iteration timebox — primarily on Stories
 | Milestone | Optional link on Epic, Feature, and/or Story |
 | Points | Stories only (Fibonacci: 1, 2, 3, 5, 8, 13) |
 | Effort | Features only: Small \| Medium \| Large |
-| Writes | Cascade sandbox first; CBR only after human accept |
+| Writes | Cascade sandbox first; the source backlog only after human accept |
 
 ### Title pattern
 
@@ -58,12 +58,12 @@ theme: THEME-...
 parent: EPIC-... or FEATURE-...
 state: open|closed
 status: active|sunset          # Theme mainly
-area: data-crucible
+area: platform
 effort: Small|Medium|Large     # Feature
 points: 1|2|3|5|8|13           # Story
 sprint: 2026-S12               # Story
 milestone: FY26-Q1-Release     # optional; Epic/Feature/Story
-source_project: 16629          # when mirrored from CBR
+source_project: 1234           # when mirrored from the source backlog
 source_iid: 271
 ~~~
 ```
@@ -97,7 +97,7 @@ theme: THEME-platform-engineering
 parent:
 state: open
 status: active
-area: data-crucible
+area: platform
 ~~~
 ```
 
@@ -128,7 +128,7 @@ Funding tables, story points, sprint dates, task checklists, detailed delivery p
 
 ```markdown
 ## Purpose
-Platform engineering for Data Crucible: shared data platform services,
+Platform engineering for the data platform: shared data platform services,
 environments, and operational automation used by multiple product Epics.
 
 ## In scope
@@ -141,7 +141,7 @@ environments, and operational automation used by multiple product Epics.
 - Enterprise network tickets owned by other orgs
 
 ## Owner
-Data Crucible tech lead (or named PO)
+Platform tech lead (or named PO)
 
 ## Child Epics
 - (linked as created)
@@ -164,7 +164,7 @@ id: EPIC-prod-test-schema-parity
 theme: THEME-platform-engineering
 parent:
 state: open
-area: data-crucible
+area: platform
 milestone: FY26-Data-Platform-Stabilization
 ~~~
 ```
@@ -199,7 +199,7 @@ Story-point totals as a plan of record, day-by-day task lists, sprint assignment
 ```markdown
 ## Outcome
 AWS Test PostgreSQL RDS schema matches Production for the schemas
-Data Crucible teams use for ETL and app testing.
+platform teams use for ETL and app testing.
 
 ## Success picture
 - [ ] Schema-only sync path documented and repeatable
@@ -239,7 +239,7 @@ id: FEATURE-rds-iam-auth
 theme: THEME-platform-engineering
 parent: EPIC-prod-test-schema-parity
 state: open
-area: data-crucible
+area: platform
 effort: Medium
 milestone: FY26-Data-Platform-Stabilization
 ~~~
@@ -278,7 +278,7 @@ milestone: FY26-Data-Platform-Stabilization
 ```markdown
 ## Description
 Enable SageMaker-associated IAM principals to authenticate to PostgreSQL
-RDS using IAM, reducing static password use for Data Crucible tooling.
+RDS using IAM, reducing static password use for platform tooling.
 
 ## Parent
 EPIC-prod-test-schema-parity
@@ -315,7 +315,7 @@ id: STORY-associate-iam-postgres-roles
 theme: THEME-platform-engineering
 parent: FEATURE-rds-iam-auth
 state: open
-area: data-crucible
+area: platform
 points: 5
 sprint: 2026-S12
 milestone: FY26-Data-Platform-Stabilization
@@ -367,7 +367,7 @@ Do **not** put story points on Tasks.
 
 ```markdown
 ## User need
-As a Data Crucible engineer, I need my SageMaker execution role mapped to
+As a platform engineer, I need my SageMaker execution role mapped to
 a Postgres role in TEST so I can run governed queries without a shared password.
 
 ## Acceptance criteria
@@ -398,7 +398,7 @@ Milestone is **not** a hierarchy level. It is a **named time/release gate**.
 | **Feature** | Feature ships in that gate even if Epic continues |
 | **Story** | Story is required for the gate (common for near-term release) |
 
-Use **one consistent milestone name** string in meta and body (example: `FY26-Q2-Data-Crucible-Release`).
+Use **one consistent milestone name** string in meta and body (example: `FY26-Q2-Platform-Release`).
 
 GitLab Milestone object may also be linked in the project UI; Cascade meta keeps the name portable.
 
@@ -408,7 +408,7 @@ GitLab Milestone object may also be linked in the project UI; Cascade meta keeps
 
 | Label | Use |
 |-------|-----|
-| `area::data-crucible` | Product area filter |
+| `area::platform` | Product area filter |
 | `type::theme` / `type::epic` / `type::feature` / `type::story` | Optional explicit type label |
 | `theme::...` | Optional mirror of theme id |
 | `cascade` | Created or managed by Cascade |
@@ -432,10 +432,10 @@ For each `REVIEW ::` / `REVIEW-MEETING ::` item:
 4. **Body** — Outcome/AC/Tasks present at the right level?  
 5. **Split** — Is this larger than one sprint (Story) or one Feature effort? Mark split.  
 6. **Milestone** — Needed? If yes, same name as siblings.  
-7. **CBR link** — `source_iid` points at the real item; compare intent.  
-8. **Decision** — Approve structure / Request edits / Reject (keep on CBR as-is) / Meeting.
+7. **Source link** — `source_iid` points at the real item; compare intent.  
+8. **Decision** — Approve structure / Request edits / Reject (keep on the source backlog as-is) / Meeting.
 
-Sandbox is a **proposal board**. CBR stays system of record until a deliberate promote.
+Sandbox is a **proposal board**. The source backlog stays system of record until a deliberate promote.
 
 ---
 
@@ -449,7 +449,7 @@ Sandbox is a **proposal board**. CBR stays system of record until a deliberate p
 | Story without AC | Add testable AC before Accept |
 | Tasks as separate backlog issues by default | Checklist on Story |
 | Milestone as parent of Features | Associate milestone; parent stays Epic/Feature |
-| Bulk AI table applied straight to CBR | Sandbox review first |
+| Bulk AI table applied straight to the source backlog | Sandbox review first |
 
 ---
 

@@ -9,8 +9,8 @@ used through a browser on `127.0.0.1`.
 | Constraint | Consequence |
 |---|---|
 | Target workstation runs Windows PowerShell 5.1 on .NET Framework 4.8; no installs, no admin | The runtime is PowerShell + one .NET library + static web files. No Node, Python, services or installers on the workstation. |
-| CAC + TOTP happen inside ARC (`pm.ps1`) in a console | PowerShell stays the launcher and owns the ARC unlock. Everything after that is C#. |
-| Two Git hosts: github.com for development, web.git.mil (GitLab) for real work | One provider-agnostic work-item model; hosts are adapters. |
+| On some workstations, CAC + TOTP happen inside a PowerShell vault (ARC, `pm.ps1`) in a console | PowerShell stays the launcher and owns the vault unlock. Everything after that is C#. |
+| Two Git hosts: github.com for development, a self-hosted GitLab for real work | One provider-agnostic work-item model; hosts are adapters. |
 | Production backlog must never be written by accident | Every write goes through one gateway with a sandbox allow-list. |
 | Build happens off the workstation | Compiled DLLs and built UI ship in a bundle; nothing is fetched at runtime. |
 
@@ -38,7 +38,7 @@ Launch-Cascade.bat
   └─ scripts/Start-Cascade.ps1
        └─ module/Cascade (PowerShell)
             ├─ config/cascade.env → process environment
-            ├─ ARC pm.ps1 (GitLab only, or CASCADE_USE_ARC=1) → GITLAB_TOKEN, GENAI_TOKEN, DATABRICKS_TOKEN
+            ├─ vault bridge (ARC; GitLab only, or CASCADE_USE_ARC=1) → GITLAB_TOKEN, LLM_TOKEN, DATABRICKS_TOKEN
             └─ Cascade.Core.dll
                  ├─ Host        loopback HTTP server, router, jobs, session token, static UI
                  ├─ Providers   GitHub REST/GraphQL, GitLab REST v4  → IWorkItemProvider
@@ -46,8 +46,8 @@ Launch-Cascade.bat
                  ├─ Model       WorkItem, CascadeMeta, RepositoryRef
                  ├─ Schema      taxonomy, sizing policy, definition-of-ready checks, body composer
                  ├─ Analysis    topology audit, hierarchy tree, parent candidates, review report
-                 ├─ Intelligence model-based sizing proposals, proposal store, applier
-                 ├─ Llm         GenAI / Grok (Databricks) / OpenAI-compatible client
+                 ├─ Intelligence sizing (model), refinement drafts (model), metadata repair and parents (deterministic), manual edits, proposal store, projection + applier
+                 ├─ Llm         OpenAI-compatible and Databricks serving-endpoint client
                  ├─ Synthetic   deterministic catalogue, sandbox seeder, teardown
                  └─ Snapshots   point-in-time copies the analysis runs on
 ```
@@ -72,11 +72,13 @@ The analysis, UI and tests do not change.
    per-operation opt-in in code; the browser cannot set any of these.
 3. The configured source repository is added to a protected list whenever it differs from the sandbox.
    Every real write run opens through `OpenVerifiedAsync`, which compares the host's numeric repository ids,
-   so one project spelled two ways (`group/cbr` vs `16629`, or a renamed GitHub repo) is still caught.
+   so one project spelled two ways (`group/project` vs its numeric id, or a renamed GitHub repo) is still caught.
+   `CASCADE_PROTECTED_REPOS` adds further never-write repositories.
    Repository identifiers are validated (no `.`/`..` segments) and escaped before they reach a URL.
 4. Provider, API URL, source and sandbox come only from `config/cascade.env`. The browser can change the
-   label filter and model profile, nothing that decides where Cascade reads, writes or sends tokens.
-   The sandbox is read only from `CASCADE_SANDBOX_REPO`, never from generic names like `GITLAB_PROJECT_ID`.
+   label filter, the model profile, the model name and the model API key, nothing that decides where
+   Cascade reads, writes or sends tokens: the model endpoint URL is file-only, so a key entered in the
+   browser can only go where the file points. The sandbox is read only from `CASCADE_SANDBOX_REPO`.
 5. Everything created is stamped with the `cascade` label; synthetic items also get `cascade-synthetic`
    and `cascade-run::<id>`.
 6. Deletes re-read the item first and check `cascade-synthetic` on the live copy, not the caller's. On GitHub
@@ -84,7 +86,9 @@ The analysis, UI and tests do not change.
    `deleteIssue` runs. A full wipe needs the typed phrase `DELETE <repository>`.
 7. Every attempt, successful or not, is recorded in the write audit (Diagnostics → Write audit).
 8. Applying proposals re-reads each item, checks it is still the same canonical id, and rewrites meta, the visible `### Cascade` mirror and any
-   `## Sizing` section together, so the body never disagrees with itself.
+   `## Sizing` section together, so the body never disagrees with itself. `ProposalApplier.Project` is the
+   one function that turns an item plus a proposal into the new body; the preview endpoint shows its
+   output and the applier writes it, so the diff a reviewer approved is exactly what lands.
 
 ## Local host security
 
@@ -111,7 +115,12 @@ sync (job) → Snapshot (JSON) → Review.Run
 
 Model-based sizing (`Intelligence/Estimator`) skips items that are not definable, asks for a strict JSON
 array, parses tolerantly (JSON, markdown table, regex), clamps to policy (13 → 8, XL → Large) and saves a
-batch of proposals. Nothing is written until a human approves and applies.
+batch of proposals. Refinement (`Intelligence/Refiner`) sends one item at a time with its gaps, parent and
+siblings, asks for the complete narrative with the missing sections added, strips any meta the model
+emits, re-runs the definition-of-ready rules on the result and measures how much of the original text
+survived; drafts that lose text or leave gaps open are marked low confidence. Metadata repair and parent
+proposals are deterministic. Hand edits are recorded as approved proposals. Nothing is written until a
+human approves and applies.
 
 ## Risk to watch
 

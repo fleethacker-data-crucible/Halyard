@@ -21,12 +21,16 @@ export const Config = z.object({
   labelFilter: Nullable(z.string()),
   preferredPort: z.number(),
   maxSyncItems: z.number(),
+  protectedRepositories: z.array(z.string()),
   llmProfile: z.string(),
   llmResolvedProfile: z.string(),
   llmModel: z.string(),
   llmUrl: z.string(),
   hasLlmToken: z.boolean(),
-  llmProfiles: z.array(z.object({ profile: z.string(), model: z.string(), configured: z.boolean() })),
+  llmMissing: Nullable(z.string()),
+  llmProfiles: z.array(z.object({ profile: z.string(), model: z.string(), url: z.string(), configured: z.boolean(), missing: Nullable(z.string()) })),
+  envFile: z.string(),
+  envFileExists: z.boolean(),
   rootDirectory: z.string(),
   outputDirectory: z.string(),
 });
@@ -224,10 +228,13 @@ export const ItemDetail = z.object({
 });
 export type ItemDetail = z.infer<typeof ItemDetail>;
 
+export const ProposalKind = z.enum(['storyPoints', 'featureEffort', 'parentLink', 'refinement', 'metadata']);
+export type ProposalKind = z.infer<typeof ProposalKind>;
+
 export const Proposal = z.object({
   id: z.string(),
   batchId: z.string(),
-  kind: z.enum(['storyPoints', 'featureEffort', 'parentLink']),
+  kind: ProposalKind,
   itemKey: z.string(),
   itemNumber: z.number(),
   itemCanonicalId: z.string(),
@@ -243,12 +250,29 @@ export const Proposal = z.object({
   decidedAt: Nullable(z.string()),
   appliedAt: Nullable(z.string()),
   error: Nullable(z.string()),
+  proposedMeta: Nullable(z.record(z.string().nullable())),
+  addresses: z.array(z.string()),
+  remaining: z.array(z.string()),
 });
 export type Proposal = z.infer<typeof Proposal>;
 
+const MetaRows = Nullable(z.array(z.object({ key: z.string(), value: z.string() })));
+export const ProposalPreview = z.object({
+  proposalId: z.string(),
+  batchId: z.string(),
+  number: z.number(),
+  title: z.string(),
+  type: LevelToken,
+  current: z.object({ body: z.string(), narrative: z.string(), meta: MetaRows, deficiencies: z.array(z.string()) }),
+  proposed: z.object({ body: z.string(), narrative: z.string(), meta: MetaRows, deficiencies: z.array(z.string()) }),
+  unchanged: z.boolean(),
+  snapshotStale: z.boolean(),
+});
+export type ProposalPreview = z.infer<typeof ProposalPreview>;
+
 export const BatchSummary = z.object({
   id: z.string(),
-  kind: z.enum(['storyPoints', 'featureEffort', 'parentLink']),
+  kind: ProposalKind,
   target: z.string(),
   createdAt: z.string(),
   source: z.string(),
@@ -266,7 +290,7 @@ export type BatchSummary = z.infer<typeof BatchSummary>;
 
 export const Batch = z.object({
   id: z.string(),
-  kind: z.enum(['storyPoints', 'featureEffort', 'parentLink']),
+  kind: ProposalKind,
   target: z.string(),
   createdAt: z.string(),
   source: z.string(),
@@ -285,18 +309,22 @@ export const SeedManifest = z.object({
   startedAt: z.string(),
   finishedAt: Nullable(z.string()),
   requested: z.number(),
-  items: z.array(z.object({ id: z.string(), type: z.string(), parentId: Nullable(z.string()), number: z.number(), key: z.string(), url: Nullable(z.string()), nativeLinked: z.boolean() })),
+  items: z.array(z.object({ id: z.string(), type: z.string(), parentId: Nullable(z.string()), number: z.number(), key: z.string(), url: Nullable(z.string()), nativeLinked: z.boolean(), defects: z.array(z.string()), expectedCodes: z.array(z.string()) })),
   errors: z.array(z.string()),
   completed: z.boolean(),
+  needsReview: z.number(),
 });
 export type SeedManifest = z.infer<typeof SeedManifest>;
 
 export const CatalogPreview = z.object({
-  options: z.object({ themes: z.number(), epicsPerTheme: z.number(), featuresPerEpic: z.number(), stories: z.number(), tasks: z.number(), seed: z.number(), includeDefects: z.boolean(), total: z.number() }).passthrough(),
+  options: z.object({ themes: z.number(), epicsPerTheme: z.number(), featuresPerEpic: z.number(), stories: z.number(), tasks: z.number(), seed: z.number(), includeDefects: z.boolean(), defectRate: z.number(), total: z.number() }).passthrough(),
   total: z.number(),
   counts: z.record(z.number()),
+  complete: z.number(),
+  needsReview: z.number(),
   sample: z.array(z.object({ id: z.string(), type: LevelToken, title: z.string(), parentId: Nullable(z.string()), labels: z.array(z.string()), points: Nullable(z.string()), effort: Nullable(z.string()) })),
-  defects: z.array(z.object({ id: z.string(), defects: z.array(z.string()) })),
+  defects: z.array(z.object({ id: z.string(), type: LevelToken.optional(), defects: z.array(z.string()), expectedCodes: z.array(z.string()) })),
+  defectKinds: z.array(z.string()),
 });
 export type CatalogPreview = z.infer<typeof CatalogPreview>;
 

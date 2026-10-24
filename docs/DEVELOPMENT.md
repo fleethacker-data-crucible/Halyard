@@ -18,7 +18,7 @@ web/                         React + TypeScript UI (build.mjs → web/dist)
 tests/pester/                PowerShell tests and repository rules
 tests/e2e/sandbox-loop.mjs   full seed → apply → teardown walk against a running host
 tests/fakes/fake-github.mjs  in-memory GitHub + chat-completions fake for offline e2e (Node)
-fixtures/                    deterministic synthetic catalogues (100 items)
+fixtures/                    deterministic synthetic catalogues (100 items; one with 20% gaps)
 config/                      cascade.env.example, taxonomy.json
 docs/                        this documentation
 build/Build-Cascade.ps1      test + bundle
@@ -53,7 +53,9 @@ node tests/fakes/fake-github.mjs 8790 &
 node tests/e2e/sandbox-loop.mjs http://127.0.0.1:8773 <session token from the launch URL> 30
 ```
 
-The same script against the real `cascade-sandbox` repository proves the concept on GitHub.
+The loop seeds with gaps, checks the audit raises every expected code, repairs metadata, drafts sections
+with the fake model, sizes, applies a manual edit, re-syncs and tears down. The same script against a
+real sandbox repository proves the concept on GitHub.
 
 ## Conventions
 
@@ -66,6 +68,8 @@ The same script against the real `cascade-sandbox` repository proves the concept
 - The synthetic generator is deterministic. If you change it, regenerate the fixtures:
   `New-CascadeSyntheticCatalog; New-CascadeSyntheticCatalog -Path fixtures\synthetic-work-items-with-gaps.json -IncludeDefects`.
   A test fails when they drift.
+- Nothing organisation-specific goes in the repository: no real hostnames, project ids, team names or
+  vault item names. They belong in `config/cascade.env`.
 
 ## CI
 
