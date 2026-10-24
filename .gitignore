@@ -30,7 +30,7 @@ TestResults/
 .vs/
 
 # Web build output and dependencies
-web/node_modules/
+web/node_modules
 web/dist/
 node_modules/
 
