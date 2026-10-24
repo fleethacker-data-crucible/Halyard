@@ -26,6 +26,8 @@ namespace Cascade.Core.Synthetic
         public string SprintStart { get; set; } = "2026-09-21";
         /// <summary>Which sprint (offset from the first) is "now": earlier sprints are history, later ones are plan.</summary>
         public int CurrentSprintOffset { get; set; } = 2;
+        /// <summary>Points planned into each sprint before the remaining stories stay in the unplanned backlog (matches config/team.json's demo team).</summary>
+        public int SprintCapacity { get; set; } = 22;
         /// <summary>People ids used as owners; the defaults are the fictional Synapse example personas.</summary>
         public string[] People { get; set; } = { "jordan-brooks", "riley-chen", "casey-rivera", "morgan-vale" };
         /// <summary>When true, <see cref="DefectRate"/> of the items get deliberate gaps so the human review workflow has real work.</summary>
@@ -171,6 +173,7 @@ namespace Cascade.Core.Synthetic
             var perFeature = features.Count == 0 ? 0 : options.Stories / features.Count;
             var remainder = features.Count == 0 ? 0 : options.Stories % features.Count;
             var sprintIndex = 0;
+            var sprintLoad = new int[Math.Max(1, options.SprintCount)];
             for (var fi = 0; fi < features.Count; fi++)
             {
                 var featItem = features[fi];
@@ -189,16 +192,26 @@ namespace Cascade.Core.Synthetic
                         Id = Unique(usedIds, Descriptions.MakeId(WorkItemType.Story, storyName)),
                     };
                     var points = Sizing.StoryPointScale[WeightedPointIndex(rng)];
-                    var sprintNumber = options.FirstSprint + (sprintIndex++ % Math.Max(1, options.SprintCount));
-                    var sprint = options.SprintPrefix + sprintNumber.ToString("00");
+                    // Sprints fill round-robin up to the capacity; what does not fit stays in the backlog with sprint TBD,
+                    // which is what a sprint planner later has to place.
+                    var slot = sprintIndex++ % sprintLoad.Length;
+                    var planned = sprintLoad[slot] + points <= options.SprintCapacity + 2;
+                    var sprintNumber = options.FirstSprint + slot;
                     story.Meta.Set("type", "STORY").Set("id", story.Id).Set("theme", featItem.ThemeId).Set("parent", featItem.Id).Set("state", "open").Set("area", options.Area)
-                        .Set("points", points.ToString()).Set("sprint", sprint);
+                        .Set("points", points.ToString()).Set("sprint", planned ? options.SprintPrefix + sprintNumber.ToString("00") : Sizing.Tbd);
+                    if (planned) sprintLoad[slot] += points;
                     if (featItem.Meta.Has("milestone") && rng.Next(3) == 0) story.Meta.Set("milestone", featItem.Meta.Milestone);
                     // Delivery history: past sprints are done (one in five carried over), the current sprint is partly done.
-                    var done = sprintNumber < currentSprint ? rng.Next(5) != 0 : sprintNumber == currentSprint && rng.Next(5) < 2;
-                    if (sprintNumber < currentSprint && !done) story.Meta.Set("sprint", options.SprintPrefix + currentSprint.ToString("00"));
+                    var done = planned && (sprintNumber < currentSprint ? rng.Next(5) != 0 : sprintNumber == currentSprint && rng.Next(5) < 2);
+                    if (planned && sprintNumber < currentSprint && !done)
+                    {
+                        // Carried over: into the current sprint when it still has room, otherwise back to the backlog.
+                        var currentSlot = currentSprint - options.FirstSprint;
+                        if (currentSlot >= 0 && currentSlot < sprintLoad.Length && sprintLoad[currentSlot] + points <= options.SprintCapacity + 2) { sprintLoad[currentSlot] += points; story.Meta.Set("sprint", options.SprintPrefix + currentSprint.ToString("00")); }
+                        else story.Meta.Set("sprint", Sizing.Tbd);
+                    }
                     if (done) { story.Closed = true; story.Meta.Set("state", "closed").Set("status", "done"); }
-                    if (sprintNumber <= currentSprint && options.People.Length > 0) story.Meta.Set("owner", options.People[rng.Next(options.People.Length)]);
+                    if (planned && sprintNumber <= currentSprint && options.People.Length > 0) story.Meta.Set("owner", options.People[rng.Next(options.People.Length)]);
                     var pool = (featItem.Meta.Get("skills") ?? string.Empty).Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToArray();
                     if (pool.Length > 0) story.Meta.Set("skills", rng.Next(3) == 0 && pool.Length > 1 ? pool[0] + ", " + pool[1] : pool[rng.Next(pool.Length)]);
                     story.Narrative = StoryBody(seed, featItem, points);

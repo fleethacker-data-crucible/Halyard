@@ -80,6 +80,9 @@ namespace Cascade.Core.Host
         public ProposalStore Proposals { get; private set; }
         public Taxonomy Taxonomy { get; private set; }
         public Router Router { get; private set; }
+        /// <summary>Teams, people and the sprint calendar; re-read from disk on each use so edits to config/team.json apply without a relaunch.</summary>
+        public Planning.TeamConfig Team { get { return Planning.TeamConfig.Load(Settings.TeamPath, Settings.SynapseDirectory); } }
+        public Planning.SkillsTaxonomy Skills { get { return Planning.SkillsTaxonomy.Load(Settings.SkillsPath); } }
         public string SessionToken { get; private set; }
         public DateTimeOffset StartedAt { get; private set; }
         public int Port { get { return _server == null ? 0 : _server.Port; } }

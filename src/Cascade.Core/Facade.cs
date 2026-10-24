@@ -44,6 +44,35 @@ namespace Cascade.Core
             });
         }
 
+        /// <summary>The leadership report (HTML) from the current snapshot on disk; used by Send-CascadeReport.ps1.</summary>
+        public static string LeadershipReportHtml(CascadeSettings settings, string? labelFilter = null, string? title = null)
+        {
+            var store = new Snapshots.SnapshotStore(settings.SnapshotsDirectory);
+            var snap = store.Current;
+            if (snap == null) throw new InvalidOperationException("No snapshot under " + settings.SnapshotsDirectory + "; synchronize first (Sync-CascadeSnapshot or the Connection page).");
+            var items = string.IsNullOrWhiteSpace(labelFilter) ? snap.Items : snap.Items.Where(i => i.HasLabel(labelFilter!)).ToList();
+            var team = Planning.TeamConfig.Load(settings.TeamPath, settings.SynapseDirectory);
+            var report = Analysis.Delivery.Build(items, team, DateTimeOffset.UtcNow, snap.Repository);
+            return Analysis.DeliveryHtml.Render(report, string.IsNullOrWhiteSpace(title) ? "Cascade Leadership Dashboard" : title!);
+        }
+
+        /// <summary>Synchronizes every configured source (or the sandbox) into a new snapshot without the host; used by scheduled reports.</summary>
+        public static Snapshots.Snapshot SyncSnapshot(CascadeSettings settings, string which = "source", bool includeClosed = true)
+        {
+            var provider = ProviderFactory.Create(settings.Provider);
+            var repos = string.Equals(which, "sandbox", StringComparison.OrdinalIgnoreCase)
+                ? new List<RepositoryRef> { settings.Provider.Sandbox ?? throw new InvalidOperationException("No sandbox repository is configured.") }
+                : (settings.Provider.Sources.Count > 0 ? settings.Provider.Sources : new List<RepositoryRef> { settings.Provider.Sandbox ?? throw new InvalidOperationException("No source or sandbox repository is configured.") });
+            var all = new List<WorkItem>();
+            foreach (var repo in repos)
+            {
+                var reader = provider.ForRepository(repo);
+                var query = new WorkItemQuery { MaxItems = settings.MaxSyncItems, State = includeClosed ? (WorkItemState?)null : WorkItemState.Open };
+                all.AddRange(Task.Run(() => reader.ListWorkItemsAsync(query, null, CancellationToken.None)).GetAwaiter().GetResult());
+            }
+            return new Snapshots.SnapshotStore(settings.SnapshotsDirectory).Save(repos, all, null);
+        }
+
         public static ProviderIdentity TestConnection(CascadeSettings settings)
         {
             var provider = ProviderFactory.Create(settings.Provider);

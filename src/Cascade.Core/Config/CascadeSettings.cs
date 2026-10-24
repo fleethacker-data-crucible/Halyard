@@ -31,6 +31,11 @@ namespace Cascade.Core.Config
         public int MaxSyncItems { get; set; } = 2000;
 
         public string TaxonomyPath { get { return Path.Combine(ConfigDirectory, "taxonomy.json"); } }
+        public string TeamPath { get { return Path.Combine(ConfigDirectory, "team.json"); } }
+        public string SkillsPath { get { return Path.Combine(ConfigDirectory, "skills.json"); } }
+        public string SynapseDirectory { get { return Path.Combine(ConfigDirectory, "synapse"); } }
+        public string VisionDirectory { get { return Path.Combine(OutputDirectory, "vision"); } }
+        public string ReportsDirectory { get { return Path.Combine(OutputDirectory, "reports"); } }
         public string ProposalsDirectory { get { return Path.Combine(OutputDirectory, "proposals"); } }
         public string SnapshotsDirectory { get { return Path.Combine(OutputDirectory, "snapshots"); } }
         public string SeedsDirectory { get { return Path.Combine(OutputDirectory, "seeds"); } }
