@@ -1,0 +1,128 @@
+@{
+    RootModule        = 'Cascade.psm1'
+    ModuleVersion     = '1.0.0'
+    GUID              = 'a7c3e8f1-4b2d-4e9a-9c1f-8d6e5a4b3c2d'
+    Author            = 'SMPG'
+    Description       = 'Cascade AI-Agile-Native tooling (PowerShell): GitLab schemas, hierarchy, roll-ups, migrate, metrics, leadership dashboard'
+    PowerShellVersion = '5.1'
+    FunctionsToExport = @(
+        'New-CascadeAgentRun',
+        'Test-CascadeHierarchyIntegrity',
+        'Get-CascadeBacklogFindings',
+        'Invoke-BacklogAssess',
+        'Get-CascadeAgentEvaluation',
+        'Invoke-CascadeAgentRun',
+        'Set-CascadeAgentApproval',
+        'Get-CascadeAgentRun',
+    'ConvertFrom-CascadeLlmJson', 'Extract-CascadeJsonPayload', 'ConvertFrom-CascadeClusterMarkdown',
+        'Get-CascadeMeta'
+        'Test-CascadeBodyHasDoneWhen'
+        'Test-CascadeBodyHasAcceptanceCriteria'
+        'Get-CascadeTemplatePack'
+        'Build-CascadeDescriptionWithMirror'
+        'New-CascadeVisibleMirror'
+        'Get-CascadeWorkItemDeficiencies'
+        'Get-CascadeDorRules'
+        'Test-CascadeMeta'
+        'New-CascadeMetaBlock'
+        'Build-CascadeDescription'
+        'Get-CascadeIssuesFromFixture'
+        'Test-CascadeGitLabConnection'
+        'Import-CascadeGitLabEnv'
+        'Get-CascadeGitLabToken'
+        'Clear-CascadeGitLabTokenSession'
+        'Get-CascadeIssuesFromGitLab'
+        'Invoke-CascadeGitLabGetJson'
+        'Get-CascadeGitLabApiRoot'
+        'Get-CascadeGitLabHeaders'
+        'Get-CascadeGitLabBase'
+        'Invoke-CascadeGitLabApi'
+        'Set-CascadeGitLabIssue'
+        'New-CascadeGitLabIssue'
+        'Build-CascadeTree'
+        'Get-CascadeRollup'
+        'Get-CascadeCloseSuggestions'
+        'Get-CascadeMetrics'
+        'Export-CascadeTreeReport'
+        'Export-CascadeMondayHtml'
+        'Invoke-CascadeMigrateDryRun'
+        'Invoke-CascadeMigrateApply'
+        'Get-CascadeSuggestedType'
+        'Get-CascadeLlmConfig'
+        'Get-CascadeLlmToken'
+        'Invoke-CascadeChat'
+        'Test-CascadeLlmConnection'
+        'Invoke-CascadeSuggestParents'
+        'Select-CascadeLlmModel'
+        'Convert-CascadePackageToChatMessages'
+        'New-CascadeParentPackage'
+        'Get-CascadeHierarchyCatalog'
+        'Find-CascadeArcRoot'
+        'Get-CascadeArcRequiredFiles'
+        'Get-CascadeArcMissingFiles'
+        'Get-CascadeArcLoadDiagnostics'
+        'Get-CascadeArcSecretByName'
+        'Select-CascadeArcSecret'
+        'Get-CascadeArcSecretCatalog'
+        'Import-CascadeArcSession'
+        'Test-CascadeArcVaultUnlocked'
+        'Get-CascadeHierarchyProjection'
+        'Publish-CascadeArcFunctionsToGlobal'
+        'Test-CascadeArcHelpersAvailable'
+        'Get-CascadeArcCanonicalNames',
+        'Resolve-CascadeArcMappedName',
+        'Get-CascadeTokenFromArc'
+        'Convert-CascadePlanCsvToJson'
+        'Get-CascadePlaybookText'
+        'Convert-CascadeAiPackageToChatMessages'
+        'New-CascadeAiWorkPackage'
+        'Convert-CascadeNormalizedToPlanDoc'
+        'Convert-CascadeGitLabIssuesToNormalized'
+        'Convert-CascadeGitLabIssueToNormalized'
+        'Get-CascadeLlmModels'
+        # Normalize helpers
+        'Get-CascadeLabelList'
+        'Get-CascadeLabelValue'
+        'Convert-CascadeEffortBandToPoints'
+        'Get-CascadeBusinessDayAge'
+        # Leadership dashboard
+        'Get-CascadeDefaultLeadershipConfig'
+        'Get-CascadeDemoLeadershipBoard'
+        'Get-CascadeLeadershipMetrics'
+        'Export-CascadeLeadershipHtml'
+        'Export-CascadeNormalizedJson',
+        # Write policy
+        'Get-CascadeWriteMode',
+        'Get-CascadeProjectIds',
+        'Get-CascadeWriteContext',
+        'Assert-CascadeWriteTarget',
+        'Write-CascadeWriteBanner',
+        'Get-CascadeOutputDir',
+        'Write-CascadeErrorLog',
+        'Write-CascadeInfoLog',
+        'Get-CascadeTaxonomy',
+        'Get-CascadeAgentDefaults',
+        'Get-CascadeThemeById',
+        'Format-CascadeTaxonomyTitle',
+        'New-CascadeMetaBlockFromTaxonomy',
+        'Add-CascadeChildLinkAppendOnly',
+        'Test-CascadeStorySprintSized',
+        'Get-CascadePlanningCapacityAdvice',
+        'New-CascadeAgentPlan',
+        'Get-CascadeAgentWorkspace',
+        'Set-CascadeAgentApproveAll',
+        'Invoke-CascadeAgentScanStoryPoints',
+        'Invoke-CascadeAgentSuggestParents',
+        'Invoke-CascadeAgentApplySandboxPoints',
+        'Invoke-CascadeAgentPromoteCbr',
+        'Start-CascadeAgentGoal',
+        'Get-CascadeGitActivity','Get-CascadeEvidenceFingerprint','ConvertTo-CascadeDiscoveryPlan','Export-CascadeDiscovery',
+        'Get-CascadeStableId','Get-CascadeWorkCategory','Get-CascadeWorkClusters','Get-CascadeIssueEvidenceKeys',
+        'New-CascadeReconciliationPlan','Test-CascadeReconciliationPlan','New-CascadeDeliveryBrief',
+        'Invoke-CascadeAutonomousCycle','Invoke-CascadeApprovedSandboxPlan',
+        'Get-CascadeTopologyRecord','New-CascadeTopologyFinding','Get-CascadeTopologyAudit',
+        'Get-CascadeIntelligencePreview','Get-CascadeRelationshipKeywords','Get-CascadeRelationshipReview',
+        'Assert-CascadeIssueLabelFilter','Test-CascadeIssueHasLabel','Get-CascadeScopedGitMilSnapshot',
+        'Get-CascadeGitMilAvailableLabels','Initialize-CascadeGitMilSession','Invoke-CascadeGitMilPaged','Get-CascadeGitMilSnapshot','ConvertTo-CascadeGitMilPlan','Export-CascadeGitMilPlan'
+    )
+}
