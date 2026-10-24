@@ -128,7 +128,8 @@ namespace Cascade.Core.Analysis
                 {
                     summary.Stories++;
                     int p;
-                    if (item.Meta != null && int.TryParse(item.Meta.Points, out p))
+                    // Only policy values count as sized; 13 or 21 is a finding, not a size.
+                    if (item.Meta != null && Sizing.IsValidPoints(item.Meta.Points) && int.TryParse(item.Meta.Points, out p))
                     {
                         summary.StoriesWithPoints++;
                         summary.TotalPoints += p;
