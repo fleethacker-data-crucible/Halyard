@@ -149,7 +149,7 @@ function Start-Cascade {
     Write-Host ('Cascade is running at ' + $info.Url) -ForegroundColor Cyan
     Write-Host ('  provider ' + $settings.Provider.Kind + ', ' + $hostObj.Gateway.Policy.Describe()) -ForegroundColor DarkGray
     Write-Host '  Use "End session" in the browser to stop it. Closing this window also stops it.' -ForegroundColor DarkGray
-    if (-not $NoBrowser) { Start-Process $info.LaunchUrl }
+    if ($NoBrowser) { Write-Host ('  Session link (open once): ' + $info.LaunchUrl) -ForegroundColor DarkGray } else { Start-Process $info.LaunchUrl }
     $arcFailed = $envInfo.Arc -and -not $envInfo.Arc.Unlocked
     if (-not $KeepConsole -and -not $arcFailed) {
         Start-Sleep -Milliseconds 800
