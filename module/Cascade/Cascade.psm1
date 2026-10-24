@@ -132,7 +132,8 @@ function Start-Cascade {
         [switch]$NoBrowser,
         [switch]$KeepConsole,
         [ValidateSet('Auto', 'Always', 'Never')][string]$UseArc = 'Auto',
-        [string]$WebRoot
+        [string]$WebRoot,
+        [bool]$AutoStop = $true
     )
     $envInfo = Initialize-CascadeEnvironment -Root $Root -UseArc $UseArc
     $settings = $envInfo.Settings
@@ -146,12 +147,14 @@ function Start-Cascade {
         if ($envInfo.Arc.Error) { $launcher['arcError'] = $envInfo.Arc.Error }
     }
     $preferred = if ($Port -gt 0) { $Port } else { $settings.PreferredPort }
-    $hostObj = [Cascade.Core.Facade]::CreateHost($settings, $WebRoot, $preferred, $launcher)
+    $autoStop = $AutoStop -and $settings.AutoStop
+    $hostObj = [Cascade.Core.Facade]::CreateHost($settings, $WebRoot, $preferred, $launcher, $autoStop)
     $info = $hostObj.Start()
     Write-Host ''
     Write-Host ('Cascade is running at ' + $info.Url) -ForegroundColor Cyan
     Write-Host ('  provider ' + $settings.Provider.Kind + ', ' + $hostObj.Gateway.Policy.Describe()) -ForegroundColor DarkGray
-    Write-Host '  Use "End session" in the browser to stop it. Closing this window also stops it.' -ForegroundColor DarkGray
+    if ($autoStop) { Write-Host '  It stops by itself when the browser tab closes (--stay keeps it running). "End session" in the browser also stops it.' -ForegroundColor DarkGray }
+    else { Write-Host '  Use "End session" in the browser or scripts\Stop-Cascade.ps1 to stop it. Closing this window also stops it.' -ForegroundColor DarkGray }
     if ($NoBrowser) { Write-Host ('  Session link (open once): ' + $info.LaunchUrl) -ForegroundColor DarkGray } else { Start-Process $info.LaunchUrl }
     $arcFailed = $envInfo.Arc -and -not $envInfo.Arc.Unlocked
     if (-not $KeepConsole -and -not $arcFailed) {

@@ -28,6 +28,8 @@ namespace Cascade.Core.Config
         public bool AllowProduction { get; set; }
         public string? LabelFilter { get; set; }
         public int PreferredPort { get; set; } = 8773;
+        /// <summary>Stop the engine when the browser tab is gone (CASCADE_AUTO_STOP=0 disables).</summary>
+        public bool AutoStop { get; set; } = true;
         public int MaxSyncItems { get; set; } = 2000;
 
         public string TaxonomyPath { get { return Path.Combine(ConfigDirectory, "taxonomy.json"); } }
@@ -104,6 +106,7 @@ namespace Cascade.Core.Config
             s.LabelFilter = env("CASCADE_LABEL_FILTER");
             int port;
             if (int.TryParse(env("CASCADE_PORT"), out port) && port >= 1024 && port <= 65535) s.PreferredPort = port;
+            if (env("CASCADE_AUTO_STOP") == "0") s.AutoStop = false;
             int max;
             if (int.TryParse(env("CASCADE_MAX_SYNC_ITEMS"), out max) && max > 0) s.MaxSyncItems = max;
             s.WebRootDirectory = env("CASCADE_WEBROOT") ?? string.Empty;
@@ -187,6 +190,7 @@ namespace Cascade.Core.Config
                 { "allowProduction", AllowProduction },
                 { "labelFilter", LabelFilter },
                 { "preferredPort", PreferredPort },
+                { "autoStop", AutoStop },
                 { "maxSyncItems", MaxSyncItems },
                 { "protectedRepositories", ProtectedRepositories },
                 { "llmProfile", LlmSettings.ProfileToken(Llm.Profile) },

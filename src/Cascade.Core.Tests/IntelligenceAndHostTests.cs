@@ -509,6 +509,29 @@ namespace Cascade.Core.Tests
         }
 
         [Fact]
+        public async Task EngineStopsItselfOnlyAfterTheBrowserIsGone()
+        {
+            // The fixture host has AutoStop on but its timer only fires on the rule below; exercise the rule directly.
+            var t0 = DateTimeOffset.UtcNow;
+            Assert.False(_host.BrowserGone(t0 + TimeSpan.FromHours(1)), "nothing ever connected: the launcher decides, not the heartbeat");
+
+            var reply = await _client.PostAsync(_info.Url + "api/heartbeat", new StringContent("{\"leaving\":false}", System.Text.Encoding.UTF8, "application/json"));
+            Assert.Equal(200, (int)reply.StatusCode);
+            Assert.False(_host.BrowserGone(DateTimeOffset.UtcNow + TimeSpan.FromSeconds(5)), "within the timeout");
+            Assert.True(_host.BrowserGone(DateTimeOffset.UtcNow + TimeSpan.FromSeconds(25)), "no heartbeat for longer than the timeout");
+
+            await _client.PostAsync(_info.Url + "api/heartbeat", new StringContent("{\"leaving\":true}", System.Text.Encoding.UTF8, "application/json"));
+            Assert.False(_host.BrowserGone(DateTimeOffset.UtcNow + TimeSpan.FromSeconds(1)), "inside the leaving grace: a reload may follow");
+            Assert.True(_host.BrowserGone(DateTimeOffset.UtcNow + TimeSpan.FromSeconds(6)), "tab closed and the grace passed");
+
+            await _client.PostAsync(_info.Url + "api/heartbeat", new StringContent("{\"leaving\":false}", System.Text.Encoding.UTF8, "application/json"));
+            Assert.False(_host.BrowserGone(DateTimeOffset.UtcNow + TimeSpan.FromSeconds(6)), "the reload arrived; the leaving mark is cleared");
+
+            var anon = new HttpClient();
+            Assert.Equal(401, (int)(await anon.PostAsync(_info.Url + "api/heartbeat", new StringContent("{}", System.Text.Encoding.UTF8, "application/json"))).StatusCode);
+        }
+
+        [Fact]
         public async Task ReviewAndHierarchyServeTheSnapshot()
         {
             var review = JObject.Parse(await _client.GetStringAsync(_info.Url + "api/review"));

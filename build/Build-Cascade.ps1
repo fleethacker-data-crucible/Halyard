@@ -40,6 +40,14 @@ function Run([string]$exe, [string[]]$arguments, [string]$cwd = $root) {
     } finally { $ErrorActionPreference = $previous; Pop-Location }
 }
 
+# A running engine holds Cascade.Core.dll and the build cannot replace it. Stop it first and say so.
+. (Join-Path $root 'scripts\Cascade-Process.ps1')
+$running = @(Get-CascadeProcesses -Root $root)
+if ($running.Count -gt 0) {
+    Step 'Stopping the running Cascade engine so the DLL can be replaced'
+    foreach ($p in Stop-CascadeProcesses -Root $root) { Write-Host ('  stopped PID ' + $p) -ForegroundColor Yellow }
+}
+
 foreach ($tool in @('dotnet', 'node', 'npm')) {
     if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
         if ($tool -ne 'dotnet' -and $SkipWeb) { continue }

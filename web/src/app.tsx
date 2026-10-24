@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { LuActivity, LuArrowRightToLine, LuBoxes, LuCalendarRange, LuClipboardCheck, LuCompass, LuGitBranch, LuLayoutDashboard, LuPlug, LuPower, LuPresentation, LuSettings2, LuSparkles, LuTestTubeDiagonal } from 'react-icons/lu';
-import { post, sessionToken } from './lib/api';
+import { post, sessionToken, startHeartbeat } from './lib/api';
 import { ageLabel } from './lib/format';
 import { Status } from './lib/schemas';
 import { useResource } from './lib/useResource';
@@ -71,6 +71,8 @@ function Shell() {
   const toast = useToast();
   const [confirmStop, setConfirmStop] = useState(false);
   const [stopped, setStopped] = useState(false);
+
+  useEffect(() => startHeartbeat(), []);
 
   const endSession = useCallback(async () => {
     try {

@@ -75,6 +75,7 @@ skills and consent.
 - [docs/OPERATIONS.md](docs/OPERATIONS.md): running, configuration, sandbox lifecycle, troubleshooting
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): building, testing, the offline end-to-end loop, CI
 - [docs/WORK_ITEM_MODEL.md](docs/WORK_ITEM_MODEL.md): the hierarchy, cascade-meta, definition of ready, PfW/DWI
+- [docs/LOCAL_APP_LIFECYCLE.md](docs/LOCAL_APP_LIFECYCLE.md): the engine stops with its browser tab; the standard every local app in this family follows
 - [ROADMAP.md](ROADMAP.md)
 
 ## Safety in one paragraph

@@ -87,6 +87,13 @@ namespace Cascade.Core.Host
             });
             Router.Get("/api/writes", r => Task.FromResult(Json.Ok(new { policy = PolicyPayload(), entries = Gateway.Audit.Reverse().Take(500) })));
             Router.Post("/api/llm/test", TestLlm);
+            Router.Post("/api/heartbeat", r =>
+            {
+                var body = Json.Body(r);
+                var leaving = Json.Read<bool?>(body, "leaving") ?? false;
+                RecordPresence(leaving);
+                return Task.FromResult(Json.Ok(PresenceState()));
+            });
         }
 
         private static string? Query(HttpRequest r, string name)
