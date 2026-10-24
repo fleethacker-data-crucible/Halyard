@@ -22,6 +22,10 @@ namespace Cascade.Core.Synthetic
         public string Key { get; set; } = string.Empty;
         public string? Url { get; set; }
         public bool NativeLinked { get; set; }
+        /// <summary>Injected defect kinds; empty for a complete item.</summary>
+        public List<string> Defects { get; set; } = new List<string>();
+        /// <summary>Audit codes expected for this item, so a run can be verified end to end.</summary>
+        public List<string> ExpectedCodes { get; set; } = new List<string>();
     }
 
     public sealed class SeedManifest
@@ -34,6 +38,7 @@ namespace Cascade.Core.Synthetic
         public List<SeededItem> Items { get; set; } = new List<SeededItem>();
         public List<string> Errors { get; set; } = new List<string>();
         public bool Completed { get { return FinishedAt != null && Errors.Count == 0 && Items.Count == Requested; } }
+        public int NeedsReview { get { return Items.Count(i => i.Defects.Count > 0); } }
 
         public string ToJson()
         {
@@ -51,7 +56,7 @@ namespace Cascade.Core.Synthetic
         public string RunId { get; set; } = NewRunId();
         /// <summary>Attempt native parent links (GitHub sub-issues). Best-effort; never fails the seed.</summary>
         public bool NativeLinks { get; set; } = true;
-        /// <summary>Adds the review-queue label so seeded items appear in the refine workflow.</summary>
+        /// <summary>Adds the review-queue label to items seeded with a deliberate gap, so the human review queue is visible on the provider too.</summary>
         public bool AddReviewLabel { get; set; } = true;
         /// <summary>Directory where the manifest is written; null skips the file.</summary>
         public string? ManifestDirectory { get; set; }
@@ -121,25 +126,29 @@ namespace Cascade.Core.Synthetic
             {
                 cancellation.ThrowIfCancellationRequested();
                 var meta = entry.Meta.Clone();
-                meta.Set("source", "cascade-synthetic");
-                meta.Set("run_id", options.RunId);
+                var hasMeta = meta.Count > 0; // a "no metadata" defect ships the narrative alone, as a hand-written ticket would
+                if (hasMeta)
+                {
+                    meta.Set("source", "cascade-synthetic");
+                    meta.Set("run_id", options.RunId);
+                }
                 WorkItem? parent = null;
-                if (!string.IsNullOrEmpty(entry.ParentId) && created.TryGetValue(entry.ParentId!, out parent))
+                if (!string.IsNullOrEmpty(entry.ParentId) && created.TryGetValue(entry.ParentId!, out parent) && hasMeta)
                     meta.Set("parent_ref", "#" + parent.Number);
                 var labelsForItem = new List<string>(entry.Labels);
                 labelsForItem.Add(Labels.Run(options.RunId));
-                if (options.AddReviewLabel && !labelsForItem.Contains(Labels.ReviewQueue)) labelsForItem.Add(Labels.ReviewQueue);
+                if (options.AddReviewLabel && entry.NeedsHumanReview && !labelsForItem.Contains(Labels.ReviewQueue)) labelsForItem.Add(Labels.ReviewQueue);
                 var draft = new WorkItemDraft
                 {
                     Title = entry.Title,
-                    Body = Schema.Descriptions.Compose(meta, entry.Narrative),
+                    Body = hasMeta ? Schema.Descriptions.Compose(meta, entry.Narrative) : entry.Narrative,
                     Labels = labelsForItem.Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
                 };
                 try
                 {
                     var item = await writer.CreateAsync(draft, cancellation).ConfigureAwait(false);
                     created[entry.Id] = item;
-                    var seeded = new SeededItem { Id = entry.Id, Type = WorkItemTypes.ToToken(entry.Type), ParentId = entry.ParentId, Number = item.Number, Key = item.Key, Url = item.Url };
+                    var seeded = new SeededItem { Id = entry.Id, Type = WorkItemTypes.ToToken(entry.Type), ParentId = entry.ParentId, Number = item.Number, Key = item.Key, Url = item.Url, Defects = entry.Defects.ToList(), ExpectedCodes = entry.ExpectedCodes.ToList() };
                     if (options.NativeLinks && parent != null && provider.Capabilities.NativeParentLinks)
                     {
                         try { seeded.NativeLinked = await writer.LinkParentAsync(item, parent, cancellation).ConfigureAwait(false); }

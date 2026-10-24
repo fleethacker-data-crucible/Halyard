@@ -44,7 +44,7 @@ namespace Cascade.Core.Model
         public DateTimeOffset? CreatedAt { get; set; }
         public DateTimeOffset? UpdatedAt { get; set; }
 
-        /// <summary><c>github:owner/repo:12</c> or <c>gitlab:52999:271</c>. Unique across providers.</summary>
+        /// <summary><c>github:owner/repo:12</c> or <c>gitlab:4242:271</c>. Unique across providers.</summary>
         public string Key { get { return Repository.Key + ":" + Number; } }
 
         private CascadeMeta? _meta;

@@ -156,7 +156,8 @@ function Connect-CascadeArc {
     <#
     .SYNOPSIS
       Loads ARC once, completes CAC + TOTP in this console, and copies named vault items into process
-      environment variables (GITLAB_TOKEN, GENAI_TOKEN, DATABRICKS_TOKEN, GITHUB_TOKEN).
+      environment variables (GITLAB_TOKEN, LLM_TOKEN, DATABRICKS_TOKEN, GITHUB_TOKEN). The vault item names
+      come from CASCADE_ARC_ITEM_GitLab / _Llm / _Databricks / _GitHub in config\cascade.env; unset = skipped.
     .OUTPUTS
       A summary object with Unlocked, ArcRoot, Loaded (names of variables set) and Error.
     #>
@@ -196,11 +197,14 @@ function Connect-CascadeArc {
     if (-not $result.Unlocked) { $result.Error = 'ARC_STATE_NOT_UNLOCKED'; return $result }
 
     $map = @(
-        @{ Env = 'GITLAB_TOKEN';     Item = $env:CASCADE_ARC_ITEM_GitLab; Default = 'gitmil' },
-        @{ Env = 'GENAI_TOKEN';      Item = $env:CASCADE_ARC_ITEM_GenAi;  Default = 'genapi' },
-        @{ Env = 'DATABRICKS_TOKEN'; Item = $env:CASCADE_ARC_ITEM_Grok;   Default = 'advana-api' },
-        @{ Env = 'GITHUB_TOKEN';     Item = $env:CASCADE_ARC_ITEM_GitHub; Default = '' }
+        @{ Env = 'GITLAB_TOKEN';     Item = $env:CASCADE_ARC_ITEM_GitLab;     Default = '' },
+        @{ Env = 'LLM_TOKEN';        Item = $env:CASCADE_ARC_ITEM_Llm;        Default = '' },
+        @{ Env = 'DATABRICKS_TOKEN'; Item = $env:CASCADE_ARC_ITEM_Databricks; Default = '' },
+        @{ Env = 'GITHUB_TOKEN';     Item = $env:CASCADE_ARC_ITEM_GitHub;     Default = '' }
     )
+    if (($map | Where-Object { -not [string]::IsNullOrWhiteSpace($_.Item) }).Count -eq 0) {
+        Write-Host '    No CASCADE_ARC_ITEM_* names are configured; nothing was read from the vault.' -ForegroundColor DarkYellow
+    }
     $loaded = New-Object System.Collections.Generic.List[string]
     $missing = New-Object System.Collections.Generic.List[string]
     foreach ($entry in $map) {

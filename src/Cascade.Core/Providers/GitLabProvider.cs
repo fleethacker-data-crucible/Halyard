@@ -9,7 +9,7 @@ using Newtonsoft.Json.Linq;
 namespace Cascade.Core.Providers
 {
     /// <summary>
-    /// GitLab REST v4 adapter (web.git.mil or any instance). Project identifier is a numeric id or a
+    /// GitLab REST v4 adapter (gitlab.com or any self-hosted instance). Project identifier is a numeric id or a
     /// URL-encodable <c>group/project</c> path. Pagination follows the <c>X-Next-Page</c> header.
     /// Native parent links are not used: cascade-meta is the hierarchy source of truth.
     /// </summary>

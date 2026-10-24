@@ -15,66 +15,85 @@ namespace Cascade.Core.Llm
     public enum LlmProfile
     {
         Auto = 0,
-        /// <summary>api.genai.mil, OpenAI-compatible chat completions.</summary>
-        GenAi = 1,
-        /// <summary>Databricks model-serving endpoint (Grok on Advana).</summary>
-        Grok = 2,
-        /// <summary>Any OpenAI-compatible endpoint (personal development).</summary>
-        OpenAi = 3,
+        /// <summary>Any OpenAI-compatible chat-completions endpoint: api.openai.com, Azure OpenAI, an organisation gateway, a local server.</summary>
+        OpenAi = 1,
+        /// <summary>Databricks model-serving endpoint (<c>/serving-endpoints/{name}/invocations</c>; no <c>stream</c> flag).</summary>
+        Databricks = 2,
     }
 
     public sealed class LlmSettings
     {
         public LlmProfile Profile { get; set; } = LlmProfile.Auto;
-        public string? GenAiUrl { get; set; }
-        public string? GenAiModel { get; set; }
-        public string? GenAiToken { get; set; }
-        public string? GrokUrl { get; set; }
-        public string? GrokModel { get; set; }
-        public string? GrokToken { get; set; }
         public string? OpenAiUrl { get; set; }
         public string? OpenAiModel { get; set; }
         public string? OpenAiToken { get; set; }
+        public string? DatabricksUrl { get; set; }
+        public string? DatabricksModel { get; set; }
+        public string? DatabricksToken { get; set; }
         public int MaxTokens { get; set; } = 4000;
         public double Temperature { get; set; } = 0.2;
         public int TimeoutSeconds { get; set; } = 300;
         /// <summary>Directory for redacted request/response transcripts; null disables them.</summary>
         public string? TranscriptDirectory { get; set; }
 
-        public const string DefaultGenAiUrl = "https://api.genai.mil/v1/chat/completions";
-        public const string DefaultGenAiModel = "gemini-3.8-flash";
-        public const string DefaultGrokUrl = "https://advana-jupiter.cloud.databricks.mil/serving-endpoints/databricks-grok-4-6/invocations";
-        public const string DefaultGrokModel = "system.ai.grok-4-6";
         public const string DefaultOpenAiUrl = "https://api.openai.com/v1/chat/completions";
         public const string DefaultOpenAiModel = "gpt-4o-mini";
 
-        /// <summary>Resolves Auto to a concrete profile from whichever token is configured.</summary>
+        public static readonly LlmProfile[] Concrete = { LlmProfile.OpenAi, LlmProfile.Databricks };
+
+        public static LlmProfile? ParseProfile(string? text)
+        {
+            switch ((text ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case "": case "auto": return LlmProfile.Auto;
+                case "openai": case "openai-compatible": case "gateway": return LlmProfile.OpenAi;
+                case "databricks": return LlmProfile.Databricks;
+                default: return null;
+            }
+        }
+
+        public static string ProfileToken(LlmProfile profile)
+        {
+            return profile.ToString().ToLowerInvariant();
+        }
+
+        /// <summary>Resolves Auto to a concrete profile from whichever token is configured; OpenAI-compatible wins ties.</summary>
         public LlmProfile Resolve()
         {
             if (Profile != LlmProfile.Auto) return Profile;
-            if (!string.IsNullOrWhiteSpace(GenAiToken)) return LlmProfile.GenAi;
-            if (!string.IsNullOrWhiteSpace(GrokToken)) return LlmProfile.Grok;
             if (!string.IsNullOrWhiteSpace(OpenAiToken)) return LlmProfile.OpenAi;
-            return LlmProfile.GenAi;
+            if (!string.IsNullOrWhiteSpace(DatabricksToken)) return LlmProfile.Databricks;
+            return LlmProfile.OpenAi;
         }
 
         public string Url(LlmProfile profile)
         {
             switch (profile)
             {
-                case LlmProfile.Grok: return (string.IsNullOrWhiteSpace(GrokUrl) ? DefaultGrokUrl : GrokUrl!).TrimEnd('/');
-                case LlmProfile.OpenAi: return (string.IsNullOrWhiteSpace(OpenAiUrl) ? DefaultOpenAiUrl : OpenAiUrl!).TrimEnd('/');
-                default: return (string.IsNullOrWhiteSpace(GenAiUrl) ? DefaultGenAiUrl : GenAiUrl!).TrimEnd('/');
+                case LlmProfile.Databricks: return (DatabricksUrl ?? string.Empty).Trim().TrimEnd('/');
+                default: return NormalizeOpenAiUrl(OpenAiUrl);
             }
+        }
+
+        /// <summary>
+        /// Accepts a full chat-completions URL or a base such as <c>https://api.openai.com/v1</c> (the shape
+        /// OPENAI_BASE_URL uses) and returns the chat-completions URL.
+        /// </summary>
+        public static string NormalizeOpenAiUrl(string? url)
+        {
+            if (string.IsNullOrWhiteSpace(url)) return DefaultOpenAiUrl;
+            var u = url!.Trim().TrimEnd('/');
+            if (u.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase) || u.EndsWith("/invocations", StringComparison.OrdinalIgnoreCase)) return u;
+            if (u.EndsWith("/v1", StringComparison.OrdinalIgnoreCase) || u.EndsWith("/openai", StringComparison.OrdinalIgnoreCase)) return u + "/chat/completions";
+            return u + "/v1/chat/completions";
         }
 
         public string Model(LlmProfile profile)
         {
             switch (profile)
             {
-                case LlmProfile.Grok: return string.IsNullOrWhiteSpace(GrokModel) ? DefaultGrokModel : GrokModel!;
-                case LlmProfile.OpenAi: return string.IsNullOrWhiteSpace(OpenAiModel) ? DefaultOpenAiModel : OpenAiModel!;
-                default: return string.IsNullOrWhiteSpace(GenAiModel) ? DefaultGenAiModel : GenAiModel!;
+                case LlmProfile.Databricks: return (DatabricksModel ?? string.Empty).Trim();
+                default: return string.IsNullOrWhiteSpace(OpenAiModel) ? DefaultOpenAiModel : OpenAiModel!.Trim();
             }
         }
 
@@ -82,15 +101,28 @@ namespace Cascade.Core.Llm
         {
             switch (profile)
             {
-                case LlmProfile.Grok: return Clean(GrokToken);
-                case LlmProfile.OpenAi: return Clean(OpenAiToken);
-                default: return Clean(GenAiToken);
+                case LlmProfile.Databricks: return Clean(DatabricksToken);
+                default: return Clean(OpenAiToken);
             }
         }
 
         public bool IsConfigured(LlmProfile profile)
         {
-            return !string.IsNullOrWhiteSpace(Token(profile));
+            if (string.IsNullOrWhiteSpace(Token(profile))) return false;
+            if (profile == LlmProfile.Databricks) return !string.IsNullOrWhiteSpace(DatabricksUrl);
+            return true;
+        }
+
+        /// <summary>Why a profile is not usable, or null when it is.</summary>
+        public string? MissingFor(LlmProfile profile)
+        {
+            if (profile == LlmProfile.Databricks)
+            {
+                if (string.IsNullOrWhiteSpace(DatabricksUrl)) return "DATABRICKS_URL is not set.";
+                if (string.IsNullOrWhiteSpace(Token(profile))) return "DATABRICKS_TOKEN is not set.";
+                return null;
+            }
+            return string.IsNullOrWhiteSpace(Token(profile)) ? "No API key: set LLM_TOKEN (or OPENAI_API_KEY) in config/cascade.env, or enter one in Settings." : null;
         }
 
         /// <summary>Strips quotes, a 'Bearer ' prefix and line breaks: the usual vault paste accidents.</summary>
@@ -139,9 +171,9 @@ namespace Cascade.Core.Llm
     }
 
     /// <summary>
-    /// One client for the three OpenAI-shaped endpoints Cascade talks to. Body shape differs slightly
-    /// (Databricks has no <c>stream</c> flag); response parsing tolerates the variations government
-    /// gateways return. Tokens live in memory and are never written to transcripts.
+    /// One client for the OpenAI-shaped endpoints Cascade talks to. Body shape differs slightly
+    /// (Databricks has no <c>stream</c> flag); response parsing tolerates the variations gateways
+    /// return. Tokens live in memory and are never written to transcripts.
     /// </summary>
     public sealed class LlmClient : ILlmClient
     {
@@ -154,7 +186,7 @@ namespace Cascade.Core.Llm
             _settings = settings ?? throw new ArgumentNullException("settings");
             _http = http ?? new HttpClientTransport();
             Profile = profile ?? settings.Resolve();
-            if (Profile == LlmProfile.Auto) Profile = LlmProfile.GenAi;
+            if (Profile == LlmProfile.Auto) Profile = LlmProfile.OpenAi;
         }
 
         public LlmProfile Profile { get; private set; }
@@ -165,7 +197,8 @@ namespace Cascade.Core.Llm
         {
             if (messages == null || messages.Count == 0) throw new ArgumentException("At least one message is required.", "messages");
             var token = _settings.Token(Profile);
-            if (string.IsNullOrEmpty(token)) throw new InvalidOperationException("No token is configured for the " + Profile + " profile. Unlock the vault or set the token environment variable.");
+            var missing = _settings.MissingFor(Profile);
+            if (missing != null) throw new InvalidOperationException("LLM profile " + LlmSettings.ProfileToken(Profile) + " is not usable: " + missing);
 
             var payload = new JObject
             {
@@ -174,7 +207,7 @@ namespace Cascade.Core.Llm
                 ["model"] = Model,
                 ["temperature"] = _settings.Temperature,
             };
-            if (Profile != LlmProfile.Grok) payload["stream"] = false;
+            if (Profile != LlmProfile.Databricks) payload["stream"] = false;
 
             var call = new HttpCall("POST", Url) { JsonBody = payload.ToString(Formatting.None), Timeout = TimeSpan.FromSeconds(_settings.TimeoutSeconds) };
             call.Headers["Authorization"] = "Bearer " + token;

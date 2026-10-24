@@ -43,10 +43,14 @@ namespace Cascade.Core.Host
 
             Router.Post("/api/intelligence/estimate", StartEstimate);
             Router.Post("/api/intelligence/parents", ParentProposals);
+            Router.Post("/api/intelligence/refine", StartRefine);
+            Router.Post("/api/intelligence/metadata", MetadataProposals);
             Router.Get("/api/proposals", r => Task.FromResult(Json.Ok(Proposals.LoadAll().Select(BatchSummary))));
+            Router.Post("/api/proposals/manual", ManualProposal);
             Router.Get("/api/proposals/{batchId}", GetBatch);
             Router.Post("/api/proposals/{batchId}/decide", DecideProposals);
             Router.Post("/api/proposals/{batchId}/apply", StartApply);
+            Router.Get("/api/proposals/{batchId}/{proposalId}/preview", PreviewProposal);
 
             Router.Get("/api/jobs", r => Task.FromResult(Json.Ok(Jobs.List())));
             Router.Get("/api/jobs/{id}", r =>
@@ -154,15 +158,38 @@ namespace Cascade.Core.Host
             var llmProfile = Json.Read<string>(body, "llmProfile");
             if (llmProfile != null)
             {
-                switch (llmProfile.Trim().ToLowerInvariant())
-                {
-                    case "auto": Settings.Llm.Profile = Llm.LlmProfile.Auto; break;
-                    case "genai": Settings.Llm.Profile = Llm.LlmProfile.GenAi; break;
-                    case "grok": Settings.Llm.Profile = Llm.LlmProfile.Grok; break;
-                    case "openai": Settings.Llm.Profile = Llm.LlmProfile.OpenAi; break;
-                    default: throw new BadRequestException("llmProfile must be auto, genai, grok or openai.");
-                }
+                var parsed = Llm.LlmSettings.ParseProfile(llmProfile);
+                if (parsed == null) throw new BadRequestException("llmProfile must be auto, openai or databricks.");
+                Settings.Llm.Profile = parsed.Value;
                 changed.Add("llmProfile");
+            }
+            // The OpenAI-compatible API key and model may be entered in the browser. The key stays in memory;
+            // the endpoint URL is deliberately not settable here, so the key can only ever go where
+            // config/cascade.env points. "remember" writes both into the git-ignored env file on this machine.
+            var persist = new Dictionary<string, string?>();
+            if (body["llmToken"] != null)
+            {
+                var token = Llm.LlmSettings.Clean(Json.Read<string>(body, "llmToken"));
+                if (token != null && (token.Length < 8 || token.Length > 4096)) throw new BadRequestException("llmToken does not look like an API key.");
+                Settings.Llm.OpenAiToken = token;
+                changed.Add(token == null ? "llmToken (cleared)" : "llmToken");
+                persist["LLM_TOKEN"] = token;
+                if (token == null) persist["OPENAI_API_KEY"] = null;
+            }
+            if (body["llmModel"] != null)
+            {
+                var model = (Json.Read<string>(body, "llmModel") ?? string.Empty).Trim();
+                if (model.Length > 200 || model.IndexOfAny(new[] { '\r', '\n', '"' }) >= 0) throw new BadRequestException("llmModel is not a valid model name.");
+                Settings.Llm.OpenAiModel = model.Length == 0 ? null : model;
+                changed.Add("llmModel");
+                persist["LLM_MODEL"] = model.Length == 0 ? null : model;
+            }
+            var remembered = false;
+            if (Json.Read<bool?>(body, "remember") == true && persist.Count > 0)
+            {
+                Config.CascadeSettings.UpsertEnvFile(Settings.EnvFilePath, persist);
+                remembered = true;
+                Log.Info("CONFIG_PERSISTED", string.Join(", ", persist.Keys) + " written to " + Settings.EnvFilePath);
             }
             var delay = Json.Read<int?>(body, "writeDelayMs");
             if (delay != null) { p.WriteDelayMs = delay.Value; changed.Add("writeDelayMs"); }
@@ -171,7 +198,7 @@ namespace Cascade.Core.Host
                 ResetProvider();
                 Log.Info("CONFIG_UPDATED", string.Join(", ", changed));
             }
-            return Task.FromResult(Json.Ok(new { changed, config = Settings.ToPublicDictionary(), policy = PolicyPayload() }));
+            return Task.FromResult(Json.Ok(new { changed, remembered, config = Settings.ToPublicDictionary(), policy = PolicyPayload() }));
         }
 
         // ---- provider ----
@@ -420,6 +447,7 @@ namespace Cascade.Core.Host
                 MaxItems = Math.Min(Math.Max(Json.Read<int?>(body, "maxItems") ?? 40, 1), 200),
                 RequireDefinition = Json.Read<bool?>(body, "requireDefinition") ?? true,
             };
+            options.OnlyNumbers = ReadNumbers(body);
             var label = Json.Read<string>(body, "label") ?? Settings.LabelFilter;
             var llm = CreateLlm(Json.Read<string>(body, "profile"));
             var snap = Snapshots.Current;
@@ -448,9 +476,111 @@ namespace Cascade.Core.Host
             List<WorkItem> all;
             var items = VisibleItems(label, out all);
             var report = Review.Run(items, Taxonomy, label, all);
-            var batch = Estimator.ParentProposals(report, new RepositoryRef(snap.Provider, snap.Repository), minimumScore);
+            var batch = Estimator.ParentProposals(report, new RepositoryRef(snap.Provider, snap.Repository), minimumScore, ReadNumbers(body));
             Proposals.Save(batch);
             return Task.FromResult(Json.Ok(batch));
+        }
+
+        /// <summary>Optional <c>numbers: [..]</c> selection from a bulk action; null means every eligible item.</summary>
+        private static HashSet<long>? ReadNumbers(JObject body)
+        {
+            var list = Json.Read<List<long>>(body, "numbers");
+            if (list == null || list.Count == 0) return null;
+            if (list.Count > 500) throw new BadRequestException("Select at most 500 items at a time.");
+            return new HashSet<long>(list);
+        }
+
+        private Task<HttpResponse> StartRefine(HttpRequest r)
+        {
+            var body = Json.Body(r);
+            var options = new RefineOptions
+            {
+                MaxItems = Math.Min(Math.Max(Json.Read<int?>(body, "maxItems") ?? 10, 1), 100),
+                OnlyNumbers = ReadNumbers(body),
+            };
+            var label = Json.Read<string>(body, "label") ?? Settings.LabelFilter;
+            var llm = CreateLlm(Json.Read<string>(body, "profile"));
+            var snap = Snapshots.Current;
+            if (snap == null) throw new BadRequestException("Synchronize a repository first; proposals are made from the current snapshot.");
+            List<WorkItem> all;
+            var items = VisibleItems(label, out all);
+            var report = Review.Run(items, Taxonomy, label, all);
+            var candidates = Refiner.Candidates(report, options).Count;
+            var target = new RepositoryRef(snap.Provider, snap.Repository);
+            var job = Jobs.Start("refine", async ctx =>
+            {
+                var progress = new Progress<string>(m => ctx.Report(0, 0, m));
+                var batch = await Refiner.RunAsync(items, report, llm, options, target, progress, ctx.Cancellation).ConfigureAwait(false);
+                Proposals.Save(batch);
+                ctx.Report(batch.Proposals.Count, batch.Proposals.Count, batch.Proposals.Count + " refinement proposals saved in batch " + batch.Id);
+                return (object?)BatchSummary(batch);
+            });
+            return Task.FromResult(Json.Accepted(new { job, profile = llm.Profile, model = llm.Model, candidates, sending = Math.Min(candidates, options.MaxItems) }));
+        }
+
+        private Task<HttpResponse> MetadataProposals(HttpRequest r)
+        {
+            var body = Json.Body(r);
+            var label = Json.Read<string>(body, "label") ?? Settings.LabelFilter;
+            var snap = Snapshots.Current;
+            if (snap == null) throw new BadRequestException("Synchronize a repository first.");
+            List<WorkItem> all;
+            var items = VisibleItems(label, out all);
+            var report = Review.Run(items, Taxonomy, label, all);
+            var batch = Refiner.MetadataProposals(items, report, Taxonomy, new RepositoryRef(snap.Provider, snap.Repository), ReadNumbers(body));
+            Proposals.Save(batch);
+            return Task.FromResult(Json.Ok(batch));
+        }
+
+        private Task<HttpResponse> ManualProposal(HttpRequest r)
+        {
+            var body = Json.Body(r);
+            var number = Json.Read<long?>(body, "number");
+            if (number == null) throw new BadRequestException("number is required.");
+            var kindText = (Json.Read<string>(body, "kind") ?? string.Empty).Trim().ToLowerInvariant();
+            ProposalKind kind;
+            switch (kindText)
+            {
+                case "points": case "storypoints": kind = ProposalKind.StoryPoints; break;
+                case "effort": case "featureeffort": kind = ProposalKind.FeatureEffort; break;
+                case "parent": case "parentlink": kind = ProposalKind.ParentLink; break;
+                default: throw new BadRequestException("kind must be points, effort or parent.");
+            }
+            var value = (Json.Read<string>(body, "value") ?? string.Empty).Trim();
+            if (value.Length == 0 || value.Length > 120) throw new BadRequestException("value is required.");
+            var snap = Snapshots.Current;
+            if (snap == null) throw new BadRequestException("Synchronize a repository first.");
+            var item = snap.Items.FirstOrDefault(i => i.Number == number.Value);
+            if (item == null) throw new NotFoundException("Item #" + number + " is not in the current snapshot.");
+            ProposalBatch batch;
+            try { batch = Estimator.Manual(item, kind, value, Json.Read<string>(body, "note"), new RepositoryRef(snap.Provider, snap.Repository), snap.Items); }
+            catch (ArgumentException ex) { throw new BadRequestException(ex.Message); }
+            Proposals.Save(batch);
+            Log.Info("MANUAL_PROPOSAL", kind + " " + item.CanonicalId + " -> " + batch.Proposals[0].ProposedValue + " (batch " + batch.Id + ")");
+            return Task.FromResult(Json.Ok(batch));
+        }
+
+        /// <summary>What applying one proposal would do to the snapshot copy of its item: current and proposed body side by side.</summary>
+        private Task<HttpResponse> PreviewProposal(HttpRequest r)
+        {
+            var batch = Proposals.Load(r.RouteValues["batchId"]);
+            if (batch == null) throw new NotFoundException("No such proposal batch.");
+            var proposal = batch.Proposals.FirstOrDefault(p => p.Id == r.RouteValues["proposalId"]);
+            if (proposal == null) throw new NotFoundException("No such proposal.");
+            var snap = Snapshots.Current;
+            var item = snap == null ? null : snap.Items.FirstOrDefault(i => i.Number == proposal.ItemNumber);
+            if (item == null) throw new NotFoundException("Item #" + proposal.ItemNumber + " is not in the current snapshot; synchronize again.");
+            var projection = ProposalApplier.Project(item, proposal);
+            var after = new WorkItem(item.Repository, item.Number) { Title = item.Title, Body = projection.Body };
+            after.Labels.AddRange(item.Labels);
+            return Task.FromResult(Json.Ok(new
+            {
+                proposalId = proposal.Id, batchId = batch.Id, number = item.Number, title = item.Title, type = WorkItemTypes.ToToken(item.Type),
+                current = new { body = item.Body, narrative = Descriptions.Narrative(item.Body), meta = item.Meta == null ? null : item.Meta.Entries.Select(e => new { key = e.Key, value = e.Value }), deficiencies = Deficiencies.Evaluate(item) },
+                proposed = new { body = projection.Body, narrative = Descriptions.Narrative(projection.Body), meta = projection.Meta.Entries.Select(e => new { key = e.Key, value = e.Value }), deficiencies = Deficiencies.Evaluate(after) },
+                unchanged = projection.Body == item.Body,
+                snapshotStale = snap!.Age.TotalMinutes > 30,
+            }));
         }
 
         private static object BatchSummary(ProposalBatch b)

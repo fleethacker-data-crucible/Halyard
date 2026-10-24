@@ -18,12 +18,14 @@ namespace Cascade.Core.Synthetic
         public int Stories { get; set; } = 50;
         public int Tasks { get; set; } = 24;
         public int Seed { get; set; } = 20261024;
-        public string Area { get; set; } = "data-crucible";
+        public string Area { get; set; } = "platform";
         public string SprintPrefix { get; set; } = "2026-S";
         public int FirstSprint { get; set; } = 21;
         public int SprintCount { get; set; } = 4;
-        /// <summary>When true, a small share of items gets deliberate DoR gaps so audits have something to show.</summary>
+        /// <summary>When true, <see cref="DefectRate"/> of the items get deliberate gaps so the human review workflow has real work.</summary>
         public bool IncludeDefects { get; set; }
+        /// <summary>Share of items given a defect when <see cref="IncludeDefects"/> is set. Default 0.2: 80% complete, 20% needing review.</summary>
+        public double DefectRate { get; set; } = 0.20;
 
         public int Total { get { return Themes + Themes * EpicsPerTheme + Themes * EpicsPerTheme * FeaturesPerEpic + Stories + Tasks; } }
 
@@ -63,7 +65,11 @@ namespace Cascade.Core.Synthetic
         public string Narrative { get; set; } = string.Empty;
         /// <summary>Full issue body: fence + mirror + narrative.</summary>
         public string Description { get { return Descriptions.Compose(Meta, Narrative); } }
+        /// <summary>Injected defect kinds (see <see cref="SyntheticCatalog.DefectKinds"/>). Empty for a complete item.</summary>
         public List<string> Defects { get; set; } = new List<string>();
+        /// <summary>Deficiency / topology codes the audit is expected to raise for this item.</summary>
+        public List<string> ExpectedCodes { get; set; } = new List<string>();
+        public bool NeedsHumanReview { get { return Defects.Count > 0; } }
     }
 
     /// <summary>
@@ -202,7 +208,7 @@ namespace Cascade.Core.Synthetic
                 items.Add(task);
             }
 
-            if (options.IncludeDefects) InjectDefects(items, rng);
+            if (options.IncludeDefects) InjectDefects(items, rng, options.DefectRate);
             return items;
         }
 
@@ -217,35 +223,163 @@ namespace Cascade.Core.Synthetic
             return 4;
         }
 
-        private static void InjectDefects(List<SyntheticWorkItem> items, SeededRandom rng)
+        /// <summary>
+        /// The kinds of gap the generator can inject. Each maps to deficiency or topology codes the audit must
+        /// surface and to the proposal path that repairs it (sizes, parents, refinement, metadata repair).
+        /// </summary>
+        public static readonly string[] DefectKinds =
         {
-            var stories = items.Where(i => i.Type == WorkItemType.Story).ToList();
-            var features = items.Where(i => i.Type == WorkItemType.Feature).ToList();
-            if (stories.Count > 3)
+            "story_no_acceptance_criteria",   // refinement
+            "story_no_user_need",             // refinement
+            "story_no_tasks",                 // refinement
+            "story_no_points",                // size proposal
+            "story_points_tbd",               // size proposal
+            "story_points_13",                // size proposal (clamp/split)
+            "story_no_parent",                // parent proposal
+            "story_parent_unknown",           // parent proposal (declared id does not exist)
+            "story_parent_wrong_level",       // topology finding
+            "story_no_sprint",                // metadata repair
+            "story_effort_band",              // metadata repair
+            "story_no_meta",                  // metadata repair (labels only)
+            "feature_no_effort",              // effort proposal
+            "feature_effort_tbd",             // effort proposal
+            "feature_has_points",             // metadata repair
+            "feature_no_done_when",           // refinement
+            "feature_no_parent",              // parent proposal
+            "epic_no_success_picture",        // refinement
+            "epic_no_outcome",                // refinement
+            "task_no_parent",                 // parent proposal
+            "theme_no_scope",                 // refinement
+        };
+
+        private static void InjectDefects(List<SyntheticWorkItem> items, SeededRandom rng, double rate)
+        {
+            if (rate <= 0) return;
+            if (rate > 0.5) rate = 0.5;
+            var target = Math.Max(1, (int)Math.Round(items.Count * rate));
+            // Quotas keep the review queue representative: mostly stories, some features and tasks, one or two
+            // containers. Within each type the picks are a deterministic shuffle.
+            var chosen = new List<SyntheticWorkItem>();
+            var quotas = new List<KeyValuePair<WorkItemType, int>>
             {
-                var s1 = stories[rng.Next(stories.Count)];
-                s1.Meta.Remove("parent");
-                s1.Defects.Add(Deficiencies.StoryMissingParent);
-                var s2 = stories[rng.Next(stories.Count)];
-                if (s2 != s1)
-                {
-                    s2.Meta.Set("points", "13");
-                    s2.Defects.Add(Deficiencies.StoryInvalidPoints);
-                }
-                var s3 = stories[rng.Next(stories.Count)];
-                if (s3 != s1 && s3 != s2)
-                {
-                    s3.Narrative = s3.Narrative.Replace("## Acceptance criteria", "## Notes");
-                    s3.Defects.Add(Deficiencies.StoryMissingAcceptanceCriteria);
-                }
-            }
-            if (features.Count > 1)
+                new KeyValuePair<WorkItemType, int>(WorkItemType.Theme, target >= 10 ? 1 : 0),
+                new KeyValuePair<WorkItemType, int>(WorkItemType.Epic, target >= 5 ? 1 : 0),
+                new KeyValuePair<WorkItemType, int>(WorkItemType.Feature, (int)Math.Round(target * 0.2)),
+                new KeyValuePair<WorkItemType, int>(WorkItemType.Task, (int)Math.Round(target * 0.1)),
+            };
+            foreach (var q in quotas) chosen.AddRange(Pick(items.Where(i => i.Type == q.Key).ToList(), q.Value, rng));
+            chosen.AddRange(Pick(items.Where(i => i.Type == WorkItemType.Story).ToList(), Math.Max(0, target - chosen.Count), rng));
+            if (chosen.Count < target) chosen.AddRange(Pick(items.Where(i => !chosen.Contains(i) && i.Type != WorkItemType.Theme).ToList(), target - chosen.Count, rng));
+            var kindIndex = new Dictionary<WorkItemType, int>();
+            foreach (var item in chosen)
             {
-                var f1 = features[rng.Next(features.Count)];
-                f1.Meta.Set("effort", "TBD");
-                f1.Meta.Set("points", "5");
-                f1.Defects.Add(Deficiencies.FeatureHasPoints);
+                var kinds = DefectKinds.Where(k => k.StartsWith(WorkItemTypes.ToToken(item.Type).ToLowerInvariant() + "_")).ToArray();
+                if (kinds.Length == 0) continue;
+                int idx;
+                kindIndex.TryGetValue(item.Type, out idx);
+                var kind = kinds[idx % kinds.Length];
+                kindIndex[item.Type] = idx + 1;
+                Apply(item, kind, items, rng);
+                // Every fifth defective story also loses its points, so some items need two kinds of help.
+                if (item.Type == WorkItemType.Story && idx % 5 == 4 && item.Meta.Has("points") && !item.Defects.Contains("story_no_points"))
+                    Apply(item, "story_no_points", items, rng);
             }
+        }
+
+        private static List<SyntheticWorkItem> Pick(List<SyntheticWorkItem> pool, int count, SeededRandom rng)
+        {
+            for (var i = pool.Count - 1; i > 0; i--)
+            {
+                var j = rng.Next(i + 1);
+                var tmp = pool[i]; pool[i] = pool[j]; pool[j] = tmp;
+            }
+            return pool.Take(Math.Max(0, count)).ToList();
+        }
+
+        private static void Apply(SyntheticWorkItem item, string kind, List<SyntheticWorkItem> all, SeededRandom rng)
+        {
+            switch (kind)
+            {
+                case "story_no_acceptance_criteria":
+                    item.Narrative = RemoveSection(item.Narrative, "Acceptance criteria");
+                    item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.StoryMissingAcceptanceCriteria); break;
+                case "story_no_user_need":
+                    item.Narrative = RemoveSection(item.Narrative, "User need");
+                    item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.StoryMissingUserNeed); break;
+                case "story_no_tasks":
+                    // No task checklist anywhere: the acceptance criteria become plain bullets, as hand-written tickets usually are.
+                    item.Narrative = RemoveSection(item.Narrative, "Tasks").Replace("- [ ] ", "- ");
+                    item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.StoryMissingTasks); break;
+                case "story_no_points":
+                    item.Meta.Remove("points"); item.Narrative = RemoveSection(item.Narrative, "Sizing");
+                    item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.StoryMissingPoints); break;
+                case "story_points_tbd":
+                    item.Meta.Set("points", Sizing.Tbd); item.Narrative = ReplaceSizing(item.Narrative, "- **Story points:** TBD");
+                    item.Defects.Add(kind); break; // valid but unsized: an estimate candidate, not a deficiency
+                case "story_points_13":
+                    item.Meta.Set("points", "13"); item.Narrative = ReplaceSizing(item.Narrative, "- **Story points:** 13");
+                    item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.StoryInvalidPoints); break;
+                case "story_no_parent":
+                case "feature_no_parent":
+                case "task_no_parent":
+                    item.Meta.Remove("parent"); item.ParentId = null;
+                    item.Narrative = RemoveSection(item.Narrative, item.Type == WorkItemType.Task ? "Parent Story" : item.Type == WorkItemType.Story ? "Parent Feature" : "Parent Epic");
+                    item.Defects.Add(kind);
+                    item.ExpectedCodes.Add(item.Type == WorkItemType.Task ? Deficiencies.TaskMissingParent : item.Type == WorkItemType.Story ? Deficiencies.StoryMissingParent : Deficiencies.FeatureMissingParent);
+                    break;
+                case "story_parent_unknown":
+                    item.Meta.Set("parent", "FEATURE-retired-capability"); item.ParentId = null;
+                    item.Defects.Add(kind); item.ExpectedCodes.Add("PARENT_UNRESOLVED"); break;
+                case "story_parent_wrong_level":
+                    {
+                        var epic = all.Where(i => i.Type == WorkItemType.Epic).ToList();
+                        if (epic.Count == 0) return;
+                        var e = epic[rng.Next(epic.Count)];
+                        item.Meta.Set("parent", e.Id); item.ParentId = e.Id;
+                        item.Defects.Add(kind); item.ExpectedCodes.Add("PARENT_TYPE_MISMATCH"); break;
+                    }
+                case "story_no_sprint":
+                    item.Meta.Remove("sprint"); item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.StoryMissingSprint); break;
+                case "story_effort_band":
+                    item.Meta.Set("effort", "Medium"); item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.StoryHasEffort); break;
+                case "story_no_meta":
+                    item.Meta = new CascadeMeta(); // no fence at all; type:: and theme:: labels still classify it
+                    item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.MissingMeta); break;
+                case "feature_no_effort":
+                    item.Meta.Remove("effort"); item.Narrative = RemoveSection(item.Narrative, "Sizing");
+                    item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.FeatureMissingEffort); break;
+                case "feature_effort_tbd":
+                    item.Meta.Set("effort", Sizing.Tbd); item.Narrative = ReplaceSizing(item.Narrative, "- **Effort:** TBD");
+                    item.Defects.Add(kind); break;
+                case "feature_has_points":
+                    item.Meta.Set("points", "5"); item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.FeatureHasPoints); break;
+                case "feature_no_done_when":
+                    item.Narrative = RemoveSection(item.Narrative, "Definition of done");
+                    item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.FeatureMissingDoneWhen); break;
+                case "epic_no_success_picture":
+                    item.Narrative = RemoveSection(item.Narrative, "Success picture");
+                    item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.EpicMissingSuccessPicture); break;
+                case "epic_no_outcome":
+                    item.Narrative = RemoveSection(item.Narrative, "Outcome").Replace("Outcome", "Result");
+                    item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.EpicMissingOutcome); break;
+                case "theme_no_scope":
+                    item.Narrative = RemoveSection(RemoveSection(item.Narrative, "In scope"), "Out of scope");
+                    item.Defects.Add(kind); item.ExpectedCodes.Add(Deficiencies.ThemeMissingScope); break;
+            }
+        }
+
+        /// <summary>Removes a <c>## Heading</c> section (heading and body up to the next heading).</summary>
+        public static string RemoveSection(string narrative, string heading)
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(narrative, @"(?im)^[ \t]*##[ \t]*" + System.Text.RegularExpressions.Regex.Escape(heading) + @"[ \t]*\r?\n(?:(?!^#).*\r?\n?)*");
+            if (!m.Success) return narrative;
+            return (narrative.Substring(0, m.Index) + narrative.Substring(m.Index + m.Length)).Trim();
+        }
+
+        private static string ReplaceSizing(string narrative, string line)
+        {
+            var without = RemoveSection(narrative, "Sizing");
+            return without + "\n\n## Sizing\n" + line + "\n";
         }
 
         private static List<string> BaseLabels(SyntheticWorkItem item, string area)
@@ -367,6 +501,7 @@ namespace Cascade.Core.Synthetic
         {
             var list = items.ToList();
             var counts = list.GroupBy(i => WorkItemTypes.ToToken(i.Type)).ToDictionary(g => g.Key, g => g.Count());
+            var review = list.Count(i => i.NeedsHumanReview);
             var root = new JObject
             {
                 ["version"] = Version,
@@ -374,6 +509,8 @@ namespace Cascade.Core.Synthetic
                 ["warning"] = "SYNTHETIC DATA. No real ticket, person, date, credential or commitment is described.",
                 ["generated_with"] = JObject.FromObject(options),
                 ["counts"] = JObject.FromObject(counts),
+                ["complete"] = list.Count - review,
+                ["needs_review"] = review,
                 ["items"] = new JArray(list.Select(i => new JObject
                 {
                     ["id"] = i.Id,
@@ -386,6 +523,7 @@ namespace Cascade.Core.Synthetic
                     ["meta"] = JObject.FromObject(i.Meta.ToDictionary()),
                     ["narrative"] = i.Narrative,
                     ["defects"] = new JArray(i.Defects),
+                    ["expected_codes"] = new JArray(i.ExpectedCodes),
                 })),
             };
             return root.ToString(Formatting.Indented);
@@ -410,6 +548,7 @@ namespace Cascade.Core.Synthetic
                 var meta = j["meta"] as JObject;
                 if (meta != null) foreach (var p in meta.Properties()) item.Meta.Set(p.Name, (string?)p.Value);
                 item.Defects = (j["defects"] as JArray ?? new JArray()).Select(d => (string?)d ?? string.Empty).ToList();
+                item.ExpectedCodes = (j["expected_codes"] as JArray ?? new JArray()).Select(d => (string?)d ?? string.Empty).ToList();
                 list.Add(item);
             }
             return list;
@@ -434,7 +573,7 @@ namespace Cascade.Core.Synthetic
             long n = 1;
             foreach (var s in items)
             {
-                var w = new WorkItem(repository, n++) { Title = s.Title, Body = s.Description, Url = "synthetic://" + s.Id };
+                var w = new WorkItem(repository, n++) { Title = s.Title, Body = s.Meta.Count == 0 ? s.Narrative : s.Description, Url = "synthetic://" + s.Id };
                 w.Labels.AddRange(s.Labels);
                 list.Add(w);
             }
