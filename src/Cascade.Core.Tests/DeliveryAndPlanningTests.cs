@@ -438,6 +438,27 @@ namespace Cascade.Core.Tests
         }
 
         [Fact]
+        public void SandboxIssuesWithoutMetaOrCascadeLabelsCountAsRawTickets()
+        {
+            var snap = Snapshot();
+            var structured = snap.First(i => i.Repository.Equals(Sandbox));
+            Assert.False(Intake.IsRawTicket(structured, Sandbox));
+            Assert.True(Intake.IsRawTicket(snap.First(i => i.Repository.Equals(Source)), Sandbox));
+
+            var filedStraightIn = new WorkItem(Sandbox, 9001) { Title = "login page slow on mobile", Body = "Users on phones say it takes forever." };
+            Assert.True(Intake.IsRawTicket(filedStraightIn, Sandbox));
+            filedStraightIn.Labels.Add(Cascade.Core.Safety.Labels.Managed);
+            Assert.False(Intake.IsRawTicket(filedStraightIn, Sandbox));
+
+            var raw = new WorkItem(Sandbox, 9002) { Title = "update the readme", Body = "Still mentions the old server." };
+            snap.Add(raw);
+            var drafts = Intake.Prepare(snap, Sandbox, new IntakeOptions { Keys = new HashSet<string>(new[] { raw.Key, structured.Key }, StringComparer.OrdinalIgnoreCase) }, Schema.Taxonomy.Default());
+            Assert.Single(drafts);
+            Assert.Equal(raw.Key, drafts[0].SourceKey);
+            Assert.Equal(Sandbox.Identifier, drafts[0].SourceRepository);
+        }
+
+        [Fact]
         public void PreparesDraftsWithGuessedTypesSourceLinksAndGaps()
         {
             var snap = Snapshot();
