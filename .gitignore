@@ -1,11 +1,6 @@
-# Runtime outputs and secrets
-output/*
-!output/.gitkeep
+# Runtime outputs (snapshots, proposals, seed manifests, LLM transcripts) and logs
+output/
 logs/
-agent_runs/
-sessions/
-cascade-session-*.json
-cascade-support-*.json
 *.log
 *.tmp
 *.bak
@@ -14,56 +9,42 @@ cascade-support-*.json
 
 # Local secrets and environment (NEVER commit real values)
 config/cascade.env
-config/browser-settings.json
-config/*.tmp
 .env
 .env.*
-!.env.example
 !**/*.env.example
-*.env.local
-*.env.production
-*.env.development
-
-# Credentials, keys, certificates
 *.pem
 *.key
 *.p12
 *.pfx
 *.crt
-*credentials*
-*secrets*
-!*secrets*.md
-!*secret*.example*
-id_rsa
-id_rsa.pub
-id_ed25519
-id_ed25519.pub
+id_rsa*
+id_ed25519*
 *.keystore
 
-# Session / vault / token artifacts
-*token*.json
-*session*.json
-!tests/**/*session*
-!docs/**/*session*
-vault/
-.arc/
-*.vault
+# .NET build output
+bin/
+obj/
+*.user
+*.suo
+TestResults/
+.vs/
 
-# Development intermediates
+# Web build output and dependencies
+web/node_modules/
+web/dist/
 node_modules/
+
+# Assembled release bundle (produced by build/Build-Cascade.ps1)
+dist/
+
+# Tooling caches
 .cache/
 __pycache__/
 .pytest_cache/
+coverage/
 .DS_Store
 Thumbs.db
-*.pyc
-dist/
-build/
-coverage/
-.nyc_output/
 
 # Editor / IDE
 .vscode/
 .idea/
-*.user
-*.suo
