@@ -15,6 +15,7 @@ if (-not $node) { throw 'node is required for the fake GitHub server and the loo
 
 $work = Join-Path ([IO.Path]::GetTempPath()) ('cascade-e2e-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $work | Out-Null
+Copy-Item (Join-Path $root 'config') (Join-Path $work 'config') -Recurse   # team.json, skills.json, synapse cards
 $fake = Start-Process -FilePath $node.Source -ArgumentList @(('"' + (Join-Path $root 'tests\fakes\fake-github.mjs') + '"'), $FakePort) -PassThru -NoNewWindow
 $hostObj = $null
 try {
@@ -27,7 +28,7 @@ try {
 
     $vars = @{
         CASCADE_PROVIDER = 'github'; GITHUB_API_URL = "http://127.0.0.1:$FakePort"; GITHUB_TOKEN = 'fake'
-        CASCADE_SANDBOX_REPO = 'sun-of-anton/cascade-sandbox'; CASCADE_SOURCE_REPO = 'sun-of-anton/cascade-sandbox'
+        CASCADE_SANDBOX_REPO = 'sun-of-anton/cascade-sandbox'; CASCADE_SOURCE_REPO = 'sun-of-anton/raw-backlog'
         CASCADE_WRITE_DELAY_MS = '0'; CASCADE_WRITE_MODE = 'sandbox'
         CASCADE_LLM_PROFILE = 'openai'; LLM_URL = "http://127.0.0.1:$FakePort/v1/chat/completions"; LLM_TOKEN = 'fake'; LLM_MODEL = 'fake-model'
     }
@@ -38,7 +39,7 @@ try {
     $settings = [Cascade.Core.Facade]::SettingsFromEnvironment($work)
     $hostObj = [Cascade.Core.Facade]::CreateHost($settings, $null, $Port, $null)
     $info = $hostObj.Start()
-    & $node.Source (Join-Path $root 'tests\e2e\sandbox-loop.mjs') ('http://127.0.0.1:' + $info.Port) $info.SessionToken $Total
+    & $node.Source (Join-Path $root 'tests\e2e\sandbox-loop.mjs') ('http://127.0.0.1:' + $info.Port) $info.SessionToken $Total '--fake' ("http://127.0.0.1:$FakePort")
     if ($LASTEXITCODE -ne 0) { throw "end-to-end loop failed ($LASTEXITCODE)" }
 } finally {
     if ($hostObj) { $hostObj.Dispose() }

@@ -52,6 +52,10 @@ namespace Cascade.Core.Host
             Router.Post("/api/intelligence/refine", StartRefine);
             Router.Post("/api/intelligence/metadata", MetadataProposals);
             Router.Post("/api/intelligence/skills", StartSkills);
+            Router.Get("/api/intake/sources", r => Task.FromResult(Json.Ok(IntakeSources())));
+            Router.Post("/api/intake/preview", r => IntakeRoute(r, false));
+            Router.Post("/api/intake/run", r => IntakeRoute(r, true));
+            Router.Get("/api/intake/runs", r => Task.FromResult(Json.Ok(Intake.ReadManifests(Settings.IntakesDirectory))));
             Router.Get("/api/vision", r => Task.FromResult(Json.Ok(Visions.LoadAll().Select(VisionSummary))));
             Router.Get("/api/vision/{id}", r => { var v = Visions.Load(r.RouteValues["id"]); if (v == null) throw new NotFoundException("No such vision draft."); return Task.FromResult(Json.Ok(v)); });
             Router.Post("/api/vision/draft", StartVision);
@@ -638,6 +642,65 @@ namespace Cascade.Core.Host
             var batch = Refiner.MetadataProposals(items, report, Taxonomy, target, ReadNumbers(body));
             Proposals.Save(batch);
             return Task.FromResult(Json.Ok(batch));
+        }
+
+        /// <summary>Source-repository items in the snapshot (the raw tickets) with whether the sandbox already holds a copy.</summary>
+        private object IntakeSources()
+        {
+            var snap = Snapshots.Current;
+            if (snap == null) throw new BadRequestException("Synchronize the source repositories (and the sandbox) first.");
+            var sandbox = Settings.Provider.Sandbox;
+            var sandboxItems = sandbox == null ? new List<WorkItem>() : snap.Items.Where(i => i.Repository.Equals(sandbox)).ToList();
+            var copied = new Dictionary<string, WorkItem>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in sandboxItems) if (s.Meta != null && !string.IsNullOrWhiteSpace(s.Meta.SourceProject) && !string.IsNullOrWhiteSpace(s.Meta.SourceRef)) copied[s.Meta.SourceProject + "#" + s.Meta.SourceRef] = s;
+            var sources = snap.Items.Where(i => sandbox == null || !i.Repository.Equals(sandbox)).ToList();
+            return new
+            {
+                sandbox = sandbox == null ? null : sandbox.Identifier,
+                repositories = snap.Repositories.Where(r => sandbox == null || !string.Equals(r, sandbox.Identifier, StringComparison.OrdinalIgnoreCase)).ToList(),
+                items = sources.Select(i =>
+                {
+                    string reason; var type = Intake.GuessType(i, out reason);
+                    WorkItem? copy; copied.TryGetValue(i.Repository.Identifier + "#" + i.Number, out copy);
+                    return new { key = i.Key, number = i.Number, repository = i.Repository.Identifier, title = i.Title, state = i.State, labels = i.Labels, url = i.Url, updatedAt = i.UpdatedAt, hasMeta = i.HasMeta, guessedType = WorkItemTypes.ToToken(type), guessReason = reason, copiedAs = copy == null ? null : copy.Key, bodyLength = (i.Body ?? string.Empty).Length };
+                }),
+            };
+        }
+
+        private Task<HttpResponse> IntakeRoute(HttpRequest r, bool run)
+        {
+            var body = Json.Body(r);
+            var keys = Json.Read<List<string>>(body, "keys") ?? new List<string>();
+            if (keys.Count == 0) throw new BadRequestException("keys is required: the source items to copy.");
+            if (keys.Count > 200) throw new BadRequestException("Intake at most 200 items at a time.");
+            var options = new IntakeOptions { Keys = new HashSet<string>(keys, StringComparer.OrdinalIgnoreCase), Area = Json.Read<string>(body, "area"), AddReviewLabel = Json.Read<bool?>(body, "addReviewLabel") ?? true, ManifestDirectory = Settings.IntakesDirectory };
+            var useModel = Json.Read<bool?>(body, "useModel") ?? false;
+            var snap = Snapshots.Current;
+            if (snap == null) throw new BadRequestException("Synchronize first.");
+            var sandbox = SandboxOrThrow();
+            var drafts = Intake.Prepare(snap.Items, sandbox, options, Taxonomy);
+            if (drafts.Count == 0) throw new BadRequestException("None of the selected keys are source items in the snapshot.");
+            ILlmClient? llm = useModel ? CreateLlm(Json.Read<string>(body, "profile")) : null;
+            if (!run && llm == null) return Task.FromResult(Json.Ok(new { drafts, count = drafts.Count, alreadyCopied = drafts.Count(d => d.ExistingKey != null) }));
+            IWorkItemProvider? provider = run ? GetProvider() : null;
+            if (run) Gateway.Policy.Assert(sandbox, new WriteIntent("intake", "preflight", null));
+            var items = snap.Items;
+            var job = Jobs.Start(run ? "intake" : "intake-preview", async ctx =>
+            {
+                var prepared = drafts;
+                if (llm != null)
+                {
+                    ctx.Report(0, 0, "Classifying " + drafts.Count + " tickets with " + llm.Model);
+                    prepared = await Intake.ClassifyAsync(drafts, items, sandbox, llm, options, Taxonomy, ctx.Cancellation).ConfigureAwait(false);
+                }
+                if (!run) return (object?)new { drafts = prepared, count = prepared.Count, alreadyCopied = prepared.Count(d => d.ExistingKey != null) };
+                var progress = new Progress<string>(m => ctx.Report(0, 0, m));
+                var manifest = await Intake.RunAsync(prepared, provider!, Gateway, sandbox, options, progress, ctx.Cancellation).ConfigureAwait(false);
+                manifest.Source = llm == null ? "deterministic" : "llm:" + llm.Model;
+                ctx.Report(manifest.Items.Count, manifest.Requested, manifest.Items.Count + " of " + manifest.Requested + " copied into " + sandbox.Identifier);
+                return (object?)manifest;
+            });
+            return Task.FromResult(Json.Accepted(new { job, count = drafts.Count, target = sandbox.Key }));
         }
 
         private static object VisionSummary(VisionDraft v)
