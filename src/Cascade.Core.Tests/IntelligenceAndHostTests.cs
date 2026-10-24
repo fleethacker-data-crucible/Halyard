@@ -100,6 +100,42 @@ namespace Cascade.Core.Tests
         }
 
         [Fact]
+        public async Task RetriesWithTheParametersTheEndpointAccepts()
+        {
+            // A reasoning model rejects the temperature; an older gateway rejects max_completion_tokens. Both are
+            // answered by dropping or renaming the named parameter and retrying.
+            var http = new FakeTransport().On("POST", "chat/completions", call =>
+            {
+                var body = JObject.Parse(call.JsonBody!);
+                if (body["temperature"] != null)
+                    return new HttpReply(400, "{\"error\":{\"message\":\"Unsupported value: 'temperature' does not support 0.2 with this model. Only the default (1) value is supported.\",\"type\":\"invalid_request_error\",\"param\":\"temperature\",\"code\":\"unsupported_value\"}}", new Dictionary<string, string>());
+                if (body["max_completion_tokens"] != null)
+                    return new HttpReply(400, "{\"error\":{\"message\":\"Unrecognized request argument supplied: max_completion_tokens\",\"type\":\"invalid_request_error\",\"param\":null}}", new Dictionary<string, string>());
+                return new HttpReply(200, "{\"choices\":[{\"message\":{\"content\":\"OK\"}}]}", new Dictionary<string, string>());
+            });
+            var client = new LlmClient(new LlmSettings { Profile = LlmProfile.OpenAi, OpenAiToken = "sk-test-0123456789abcdef", OpenAiModel = "gpt-5-mini" }, http);
+            var r = await client.TestAsync(CancellationToken.None);
+            Assert.Equal("OK", r.Text);
+            Assert.Equal(3, http.Calls.Count);
+            var last = JObject.Parse(http.Calls.Last().JsonBody!);
+            Assert.Null(last["temperature"]);
+            Assert.Null(last["max_completion_tokens"]);
+            Assert.Equal(4000, (int)last["max_tokens"]!);
+            // The first request already used max_completion_tokens, the current OpenAI name.
+            Assert.NotNull(JObject.Parse(http.Calls.First().JsonBody!)["max_completion_tokens"]);
+        }
+
+        [Fact]
+        public async Task GenuineBadRequestsAreNotRetried()
+        {
+            var http = new FakeTransport().On("POST", "chat/completions", 400, "{\"error\":{\"message\":\"The model `gpt-9` does not exist or you do not have access to it.\",\"param\":null,\"code\":\"model_not_found\"}}");
+            var client = new LlmClient(new LlmSettings { Profile = LlmProfile.OpenAi, OpenAiToken = "sk-test-0123456789abcdef", OpenAiModel = "gpt-9" }, http);
+            var ex = await Assert.ThrowsAsync<ProviderHttpException>(() => client.TestAsync(CancellationToken.None));
+            Assert.Contains("does not exist", ex.Message);
+            Assert.Single(http.Calls);
+        }
+
+        [Fact]
         public void DatabricksWithoutUrlIsNotConfigured()
         {
             var s = new LlmSettings { DatabricksToken = "dapi0123456789abcdef0123456789" };
