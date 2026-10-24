@@ -1,0 +1,24 @@
+{
+  "version": "1",
+  "note": "Demo team made of the fictional Synapse example personas (config/synapse/*.json). Replace with your own teams and people; skills and confidence are merged from Synapse peer cards when a person's synapseCard (or name) matches.",
+  "sprint": {
+    "prefix": "2026-S",
+    "lengthDays": 14,
+    "firstNumber": 21,
+    "firstStart": "2026-09-21"
+  },
+  "teams": [
+    {
+      "id": "platform",
+      "name": "Platform",
+      "pointsPerSprint": 22,
+      "allocation": { "committed": 0.75, "allocated": 0.15, "experiment": 0.10 }
+    }
+  ],
+  "people": [
+    { "id": "jordan-brooks", "name": "Jordan Brooks", "team": "platform", "pointsPerSprint": 8, "synapseCard": "jordan-brooks-peer-card.json" },
+    { "id": "riley-chen", "name": "Riley Chen", "team": "platform", "pointsPerSprint": 6, "synapseCard": "riley-chen-peer-card.json" },
+    { "id": "casey-rivera", "name": "Casey Rivera", "team": "platform", "pointsPerSprint": 4, "synapseCard": "casey-rivera-peer-card.json" },
+    { "id": "morgan-vale", "name": "Morgan Vale", "team": "platform", "pointsPerSprint": 4, "synapseCard": "morgan-vale-peer-card.json" }
+  ]
+}

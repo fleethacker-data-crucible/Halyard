@@ -147,6 +147,12 @@ namespace Cascade.Core.Synthetic
                 try
                 {
                     var item = await writer.CreateAsync(draft, cancellation).ConfigureAwait(false);
+                    if (entry.Closed)
+                    {
+                        // Finished work from past sprints: closed on the provider so velocity and progress have history.
+                        try { item = await writer.UpdateAsync(item, new WorkItemPatch { State = WorkItemState.Closed }, cancellation).ConfigureAwait(false); }
+                        catch (ProviderHttpException ex) { manifest.Errors.Add(entry.Id + ": could not close: " + ex.Message); }
+                    }
                     created[entry.Id] = item;
                     var seeded = new SeededItem { Id = entry.Id, Type = WorkItemTypes.ToToken(entry.Type), ParentId = entry.ParentId, Number = item.Number, Key = item.Key, Url = item.Url, Defects = entry.Defects.ToList(), ExpectedCodes = entry.ExpectedCodes.ToList() };
                     if (options.NativeLinks && parent != null && provider.Capabilities.NativeParentLinks)

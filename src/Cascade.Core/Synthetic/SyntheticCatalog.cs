@@ -22,6 +22,12 @@ namespace Cascade.Core.Synthetic
         public string SprintPrefix { get; set; } = "2026-S";
         public int FirstSprint { get; set; } = 21;
         public int SprintCount { get; set; } = 4;
+        /// <summary>Calendar date of the first sprint (ISO date). Sprints are two weeks.</summary>
+        public string SprintStart { get; set; } = "2026-09-21";
+        /// <summary>Which sprint (offset from the first) is "now": earlier sprints are history, later ones are plan.</summary>
+        public int CurrentSprintOffset { get; set; } = 2;
+        /// <summary>People ids used as owners; the defaults are the fictional Synapse example personas.</summary>
+        public string[] People { get; set; } = { "jordan-brooks", "riley-chen", "casey-rivera", "morgan-vale" };
         /// <summary>When true, <see cref="DefectRate"/> of the items get deliberate gaps so the human review workflow has real work.</summary>
         public bool IncludeDefects { get; set; }
         /// <summary>Share of items given a defect when <see cref="IncludeDefects"/> is set. Default 0.2: 80% complete, 20% needing review.</summary>
@@ -63,6 +69,8 @@ namespace Cascade.Core.Synthetic
         public CascadeMeta Meta { get; set; } = new CascadeMeta();
         /// <summary>Narrative markdown without fence or mirror.</summary>
         public string Narrative { get; set; } = string.Empty;
+        /// <summary>True for work finished in a past sprint (created closed on the provider).</summary>
+        public bool Closed { get; set; }
         /// <summary>Full issue body: fence + mirror + narrative.</summary>
         public string Description { get { return Descriptions.Compose(Meta, Narrative); } }
         /// <summary>Injected defect kinds (see <see cref="SyntheticCatalog.DefectKinds"/>). Empty for a complete item.</summary>
@@ -95,6 +103,7 @@ namespace Cascade.Core.Synthetic
 
             var features = new List<SyntheticWorkItem>();
             var featureSeeds = new Dictionary<SyntheticWorkItem, FeatureSeed>();
+            var currentSprint = options.FirstSprint + Math.Max(0, Math.Min(options.SprintCount - 1, options.CurrentSprintOffset));
             var usedIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var theme in themes)
             {
@@ -144,6 +153,10 @@ namespace Cascade.Core.Synthetic
                         featItem.Meta.Set("type", "FEATURE").Set("id", featItem.Id).Set("theme", themeItem.Id).Set("parent", epicItem.Id).Set("state", "open").Set("area", options.Area)
                             .Set("effort", effort).Set("artifact_level", "Proposal for Work");
                         if (rng.Next(2) == 0) featItem.Meta.Set("milestone", epicItem.Meta.Milestone);
+                        featItem.Meta.Set("target", Vocabulary.TargetMonths[rng.Next(Vocabulary.TargetMonths.Length)]);
+                        featItem.Meta.Set("owner", options.People.Length == 0 ? "unassigned" : options.People[rng.Next(options.People.Length)]);
+                        var featureSkills = Vocabulary.SkillPool[features.Count % Vocabulary.SkillPool.Length];
+                        featItem.Meta.Set("skills", string.Join(", ", featureSkills));
                         featItem.Narrative = FeatureBody(feat, epic, effort);
                         featItem.Labels = BaseLabels(featItem, options.Area);
                         items.Add(featItem);
@@ -176,10 +189,18 @@ namespace Cascade.Core.Synthetic
                         Id = Unique(usedIds, Descriptions.MakeId(WorkItemType.Story, storyName)),
                     };
                     var points = Sizing.StoryPointScale[WeightedPointIndex(rng)];
-                    var sprint = options.SprintPrefix + (options.FirstSprint + (sprintIndex++ % Math.Max(1, options.SprintCount))).ToString("00");
+                    var sprintNumber = options.FirstSprint + (sprintIndex++ % Math.Max(1, options.SprintCount));
+                    var sprint = options.SprintPrefix + sprintNumber.ToString("00");
                     story.Meta.Set("type", "STORY").Set("id", story.Id).Set("theme", featItem.ThemeId).Set("parent", featItem.Id).Set("state", "open").Set("area", options.Area)
                         .Set("points", points.ToString()).Set("sprint", sprint);
                     if (featItem.Meta.Has("milestone") && rng.Next(3) == 0) story.Meta.Set("milestone", featItem.Meta.Milestone);
+                    // Delivery history: past sprints are done (one in five carried over), the current sprint is partly done.
+                    var done = sprintNumber < currentSprint ? rng.Next(5) != 0 : sprintNumber == currentSprint && rng.Next(5) < 2;
+                    if (sprintNumber < currentSprint && !done) story.Meta.Set("sprint", options.SprintPrefix + currentSprint.ToString("00"));
+                    if (done) { story.Closed = true; story.Meta.Set("state", "closed").Set("status", "done"); }
+                    if (sprintNumber <= currentSprint && options.People.Length > 0) story.Meta.Set("owner", options.People[rng.Next(options.People.Length)]);
+                    var pool = (featItem.Meta.Get("skills") ?? string.Empty).Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToArray();
+                    if (pool.Length > 0) story.Meta.Set("skills", rng.Next(3) == 0 && pool.Length > 1 ? pool[0] + ", " + pool[1] : pool[rng.Next(pool.Length)]);
                     story.Narrative = StoryBody(seed, featItem, points);
                     story.Labels = BaseLabels(story, options.Area);
                     items.Add(story);
@@ -202,14 +223,36 @@ namespace Cascade.Core.Synthetic
                     ThemeId = story.ThemeId,
                     Id = Unique(usedIds, Descriptions.MakeId(WorkItemType.Task, taskName)),
                 };
-                task.Meta.Set("type", "TASK").Set("id", task.Id).Set("theme", story.ThemeId).Set("parent", story.Id).Set("state", "open").Set("area", options.Area);
+                task.Meta.Set("type", "TASK").Set("id", task.Id).Set("theme", story.ThemeId).Set("parent", story.Id).Set("state", story.Closed ? "closed" : "open").Set("area", options.Area);
+                task.Closed = story.Closed;
                 task.Narrative = TaskBody(verb, story);
                 task.Labels = BaseLabels(task, options.Area);
                 items.Add(task);
             }
 
+            InjectBlockers(items, rng, options, currentSprint);
             if (options.IncludeDefects) InjectDefects(items, rng, options.DefectRate);
             return items;
+        }
+
+        /// <summary>A few open stories in the current or next sprint are blocked (ops or dependency), with an age.</summary>
+        private static void InjectBlockers(List<SyntheticWorkItem> items, SeededRandom rng, SyntheticOptions options, int currentSprint)
+        {
+            var open = items.Where(i => i.Type == WorkItemType.Story && !i.Closed && i.Meta.Has("sprint")).ToList();
+            if (open.Count < 6) return;
+            var count = Math.Max(2, Math.Min(4, open.Count / 12));
+            DateTimeOffset start;
+            if (!DateTimeOffset.TryParse(options.SprintStart, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.AssumeUniversal, out start)) start = new DateTimeOffset(2026, 9, 21, 0, 0, 0, TimeSpan.Zero);
+            var currentStart = start.AddDays((currentSprint - options.FirstSprint) * 14.0);
+            for (var k = 0; k < count; k++)
+            {
+                var story = open[rng.Next(open.Count)];
+                if (story.Labels.Any(l => l.StartsWith("blocked::"))) continue;
+                var kind = k % 2 == 0 ? "ops" : "dependency";
+                story.Labels.Add("blocked::" + kind);
+                story.Meta.Set("blocked_since", currentStart.AddDays(-(2 + k * 5)).ToString("yyyy-MM-dd"));
+                story.Meta.Set("blocked_reason", kind == "ops" ? Vocabulary.OpsBlockers[k % Vocabulary.OpsBlockers.Length] : Vocabulary.DependencyBlockers[k % Vocabulary.DependencyBlockers.Length]);
+            }
         }
 
         private static int WeightedPointIndex(SeededRandom rng)
@@ -520,6 +563,7 @@ namespace Cascade.Core.Synthetic
                     ["name"] = i.Name,
                     ["title"] = i.Title,
                     ["labels"] = new JArray(i.Labels),
+                    ["closed"] = i.Closed,
                     ["meta"] = JObject.FromObject(i.Meta.ToDictionary()),
                     ["narrative"] = i.Narrative,
                     ["defects"] = new JArray(i.Defects),
@@ -545,6 +589,7 @@ namespace Cascade.Core.Synthetic
                     Narrative = (string?)j["narrative"] ?? string.Empty,
                 };
                 item.Labels = (j["labels"] as JArray ?? new JArray()).Select(l => (string?)l ?? string.Empty).Where(l => l.Length > 0).ToList();
+                item.Closed = (bool?)j["closed"] ?? false;
                 var meta = j["meta"] as JObject;
                 if (meta != null) foreach (var p in meta.Properties()) item.Meta.Set(p.Name, (string?)p.Value);
                 item.Defects = (j["defects"] as JArray ?? new JArray()).Select(d => (string?)d ?? string.Empty).ToList();
@@ -573,7 +618,7 @@ namespace Cascade.Core.Synthetic
             long n = 1;
             foreach (var s in items)
             {
-                var w = new WorkItem(repository, n++) { Title = s.Title, Body = s.Meta.Count == 0 ? s.Narrative : s.Description, Url = "synthetic://" + s.Id };
+                var w = new WorkItem(repository, n++) { Title = s.Title, Body = s.Meta.Count == 0 ? s.Narrative : s.Description, Url = "synthetic://" + s.Id, State = s.Closed ? WorkItemState.Closed : WorkItemState.Open };
                 w.Labels.AddRange(s.Labels);
                 list.Add(w);
             }
