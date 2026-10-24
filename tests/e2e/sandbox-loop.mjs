@@ -4,9 +4,11 @@
 //   node tests/e2e/sandbox-loop.mjs http://127.0.0.1:8773 <session-token> [total]
 //
 // Point the host at tests/fakes/fake_github.py for an offline run, or at a real sandbox repo.
-const [base, token, totalArg] = process.argv.slice(2);
+const [base, token, totalArg, ...flags] = process.argv.slice(2);
+const keep = flags.includes('--keep'); // leave the seeded items in place (skips teardown)
+const existing = flags.includes('--existing'); // reuse an already-seeded run (E2E_RUN_ID) instead of seeding
 if (!base || !token) {
-  console.error('usage: node tests/e2e/sandbox-loop.mjs <base-url> <session-token> [total]');
+  console.error('usage: node tests/e2e/sandbox-loop.mjs <base-url> <session-token> [total] [--keep] [--existing]');
   process.exit(2);
 }
 const total = Number(totalArg ?? 30);
@@ -22,7 +24,9 @@ async function call(method, path, body) {
 
 async function waitJob(started, label) {
   const id = started.job?.id ?? started.id;
-  for (let i = 0; i < 600; i++) {
+  // Real GitHub creates take ~3-4 s each (paced for rate limits), so allow time in proportion to the run.
+  const polls = Math.max(600, total * 20);
+  for (let i = 0; i < polls; i++) {
     const j = await call('GET', `/api/jobs/${id}`);
     if (j.state === 'succeeded') return j.result;
     if (j.state === 'failed' || j.state === 'cancelled') throw new Error(`${label} ${j.state}: ${j.error}`);
@@ -36,17 +40,29 @@ function assert(cond, message) {
   console.log('  ok  ' + message);
 }
 
-const runId = 'e2e-' + Date.now().toString(36);
+const runId = process.env.E2E_RUN_ID || 'e2e-' + Date.now().toString(36);
 console.log(`sandbox loop against ${base}, ${total} items, run ${runId}`);
 
 const conn = await call('POST', '/api/provider/test');
 assert(conn.connected === true, `connected as ${conn.identity?.login}`);
 
-const seed = await waitJob(await call('POST', '/api/sandbox/seed', { total, runId, includeDefects: true }), 'seed');
-assert(seed.items.length === total, `seeded ${seed.items.length}/${total} items`);
-assert(seed.errors.length === 0, 'seed reported no errors');
+if (!existing) {
+  const seed = await waitJob(await call('POST', '/api/sandbox/seed', { total, runId, includeDefects: true }), 'seed');
+  assert(seed.items.length === total, `seeded ${seed.items.length}/${total} items`);
+  assert(seed.errors.length === 0, 'seed reported no errors');
+}
 
-const sync = await waitJob(await call('POST', '/api/sync', { repository: 'sandbox', labels: [`cascade-run::${runId}`] }), 'sync');
+// GitHub's issue listing can lag a few seconds behind creation; retry until every seeded item is visible.
+async function syncRun() {
+  let result;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    result = await waitJob(await call('POST', '/api/sync', { repository: 'sandbox', labels: [`cascade-run::${runId}`] }), 'sync');
+    if (result.count >= total) return result;
+    await new Promise((r) => setTimeout(r, 3000));
+  }
+  return result;
+}
+const sync = await syncRun();
 assert(sync.count === total, `snapshot holds ${sync.count} items`);
 
 const review = await call('GET', '/api/review');
@@ -65,7 +81,7 @@ assert(decided.count === batch.proposals.length, `approved ${decided.count}`);
 const applied = await waitJob(await call('POST', `/api/proposals/${est.id}/apply`), 'apply');
 assert(applied.failed === 0, `applied ${applied.applied}, skipped ${applied.skipped}, failed ${applied.failed}`);
 
-await waitJob(await call('POST', '/api/sync', { repository: 'sandbox', labels: [`cascade-run::${runId}`] }), 'resync');
+await syncRun();
 const after = await call('GET', '/api/review');
 const target = batch.proposals[0];
 const item = after.items.find((i) => i.key === target.itemKey);
@@ -76,6 +92,11 @@ assert(detail.body.includes(`- **Story points:** ${target.proposedValue}`), 'mir
 const writes = await call('GET', '/api/writes');
 assert(writes.entries.length > 0 && writes.entries.every((w) => w.target.endsWith('cascade-sandbox')), `${writes.entries.length} audited writes, all to the sandbox`);
 
+if (keep) {
+  console.log(`kept run ${runId}; delete it later with: Invoke-SandboxTeardown.ps1 -RunId ${runId}`);
+  console.log('sandbox loop passed (teardown skipped)');
+  process.exit(0);
+}
 const dry = await waitJob(await call('POST', '/api/sandbox/teardown', { scope: 'run', runId, dryRun: true }), 'dry-run');
 assert(dry.matched === total && dry.deleted === 0, `dry run lists ${dry.matched} and deletes nothing`);
 const td = await waitJob(await call('POST', '/api/sandbox/teardown', { scope: 'run', runId }), 'teardown');

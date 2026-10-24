@@ -19,7 +19,7 @@ Sandbox first, human-gated, provider-agnostic. Last updated 2026-10-24 with the 
 
 | # | Item | Notes |
 |---|---|---|
-| 1 | Run the loop against `sun-of-anton/cascade-sandbox` | `tests/e2e/sandbox-loop.mjs` with a real token |
+| 1 | ~~Run the loop against `sun-of-anton/cascade-sandbox`~~ | Done 2026-10-24: 100 seeded, 98 sub-issue links, synced, audited, 6 sizes applied. Teardown still to be run from a normal machine |
 | 2 | Run on the workstation against 52999 | Confirms DLL load under application control, ARC unlock, GitLab paging |
 | 3 | Feature effort proposals end to end on real data | Already implemented; needs real-data tuning |
 | 4 | Diff preview before apply | Show the before/after body per proposal |
