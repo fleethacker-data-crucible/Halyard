@@ -30,10 +30,14 @@ function Step([string]$m) { Write-Host ''; Write-Host ('== ' + $m) -ForegroundCo
 function Run([string]$exe, [string[]]$arguments, [string]$cwd = $root) {
     Write-Host ('> ' + $exe + ' ' + ($arguments -join ' ')) -ForegroundColor DarkGray
     Push-Location $cwd
+    # Native tools (npm especially) write warnings to stderr; Windows PowerShell turns those into
+    # terminating errors under 'Stop'. Judge the tool by its exit code only.
+    $previous = $ErrorActionPreference
+    $ErrorActionPreference = 'Continue'
     try {
-        & $exe @arguments
+        & $exe @arguments 2>&1 | ForEach-Object { if ($_ -is [System.Management.Automation.ErrorRecord]) { Write-Host $_.Exception.Message -ForegroundColor DarkYellow } else { Write-Host $_ } }
         if ($LASTEXITCODE -ne 0) { throw ($exe + ' exited with ' + $LASTEXITCODE) }
-    } finally { Pop-Location }
+    } finally { $ErrorActionPreference = $previous; Pop-Location }
 }
 
 foreach ($tool in @('dotnet', 'node', 'npm')) {
