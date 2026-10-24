@@ -653,11 +653,11 @@ namespace Cascade.Core.Host
             var sandboxItems = sandbox == null ? new List<WorkItem>() : snap.Items.Where(i => i.Repository.Equals(sandbox)).ToList();
             var copied = new Dictionary<string, WorkItem>(StringComparer.OrdinalIgnoreCase);
             foreach (var s in sandboxItems) if (s.Meta != null && !string.IsNullOrWhiteSpace(s.Meta.SourceProject) && !string.IsNullOrWhiteSpace(s.Meta.SourceRef)) copied[s.Meta.SourceProject + "#" + s.Meta.SourceRef] = s;
-            var sources = snap.Items.Where(i => sandbox == null || !i.Repository.Equals(sandbox)).ToList();
+            var sources = snap.Items.Where(i => Intake.IsRawTicket(i, sandbox)).ToList();
             return new
             {
                 sandbox = sandbox == null ? null : sandbox.Identifier,
-                repositories = snap.Repositories.Where(r => sandbox == null || !string.Equals(r, sandbox.Identifier, StringComparison.OrdinalIgnoreCase)).ToList(),
+                repositories = sources.Select(i => i.Repository.Identifier).Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(x => x, StringComparer.OrdinalIgnoreCase).ToList(),
                 items = sources.Select(i =>
                 {
                     string reason; var type = Intake.GuessType(i, out reason);

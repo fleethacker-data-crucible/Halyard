@@ -116,6 +116,16 @@ namespace Cascade.Core.Intelligence
             return WorkItemType.Story;
         }
 
+        /// <summary>
+        /// A raw ticket: anything outside the sandbox, or a sandbox issue that carries no cascade-meta and no Cascade
+        /// labels (the single-repository setup, where people file tickets straight into the sandbox).
+        /// </summary>
+        public static bool IsRawTicket(WorkItem item, RepositoryRef? sandbox)
+        {
+            if (sandbox == null || !item.Repository.Equals(sandbox)) return true;
+            return !item.HasMeta && !item.HasLabel(Labels.Managed) && !item.HasLabel(Labels.Synthetic) && !item.HasLabel(Label);
+        }
+
         /// <summary>Prepares drafts for the selected source items; already-copied items are marked, not duplicated.</summary>
         public static List<IntakeDraft> Prepare(IReadOnlyList<WorkItem> snapshot, RepositoryRef sandbox, IntakeOptions options, Taxonomy taxonomy)
         {
@@ -131,7 +141,7 @@ namespace Cascade.Core.Intelligence
             var themes = sandboxItems.Where(i => i.Type == WorkItemType.Theme).ToList();
             foreach (var item in snapshot.Where(i => options.Keys.Contains(i.Key)))
             {
-                if (item.Repository.Equals(sandbox)) continue; // already structured work, not a source ticket
+                if (!IsRawTicket(item, sandbox)) continue; // already structured work, not a source ticket
                 string reason;
                 var type = GuessType(item, out reason);
                 var title = Regex.Replace(Descriptions.ShortName(item.Title), @"^(?i)(theme|epic|feature|story|task|bug)\s*[:\-–]\s*", string.Empty).Trim();
