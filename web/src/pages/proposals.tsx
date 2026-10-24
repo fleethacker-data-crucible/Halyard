@@ -19,13 +19,16 @@ function levelOf(p: Proposal): string {
   return isLevel(prefix) ? prefix : 'UNCLASSIFIED';
 }
 
-export const KIND_LABEL: Record<ProposalKind, string> = { storyPoints: 'Story points', featureEffort: 'Feature effort', parentLink: 'Parent links', refinement: 'Drafted sections', metadata: 'Metadata repair' };
+export const KIND_LABEL: Record<ProposalKind, string> = { storyPoints: 'Story points', featureEffort: 'Feature effort', parentLink: 'Parent links', refinement: 'Drafted sections', metadata: 'Metadata repair', skills: 'Skills', sprintPlan: 'Sprint plan', themeLink: 'Theme membership' };
 const KIND_LEDE: Record<ProposalKind, string> = {
   storyPoints: 'Sizes suggested by the model for stories; values above 8 are clamped to policy.',
   featureEffort: 'Effort bands suggested by the model for features.',
   parentLink: 'Parents inferred from title words, theme, area, labels and body references.',
   refinement: 'Missing playbook sections drafted by the model; existing text is kept. Read the diff before approving.',
   metadata: 'cascade-meta blocks built or completed from labels, titles and TBD placeholders. No model involved.',
+  skills: 'Skills (shared taxonomy ids) each item needs, so work can be matched to people. From the parent and the text, or from the model.',
+  sprintPlan: 'Sprint placement and owner for ready stories, within the committed share of team capacity, matched on skills. Approve to set sprint and owner.',
+  themeLink: 'Which theme each epic belongs to, from the vision draft.',
 };
 
 export function ProposalsPage({ params, status }: { params: URLSearchParams; status: Status | undefined }) {
@@ -114,6 +117,7 @@ function NewAnalysis({ status, onBatch }: { status: Status | undefined; onBatch:
   };
   const sizeJob = useJob(onModelJob('size proposals'));
   const refineJob = useJob(onModelJob('drafts'));
+  const skillsJob = useJob(onModelJob('skill tags'));
   const [busy, setBusy] = useState<string | null>(null);
   const noSnapshot = status ? !status.snapshot : true;
   const hasModel = !!status?.config.hasLlmToken;
@@ -141,6 +145,8 @@ function NewAnalysis({ status, onBatch }: { status: Status | undefined; onBatch:
           <div className="flex flex-wrap gap-2">
             <Button onClick={() => void runDeterministic('/api/intelligence/metadata', 'metadata repairs')} busy={busy === '/api/intelligence/metadata'} disabled={noSnapshot}>Repair metadata</Button>
             <Button onClick={() => void runDeterministic('/api/intelligence/parents', 'parent proposals from evidence')} busy={busy === '/api/intelligence/parents'} disabled={noSnapshot}><LuArrowRight size={14} />Propose parents</Button>
+            <Button onClick={() => void runDeterministic('/api/intelligence/skills', 'skill tags from parents and names')} busy={busy === '/api/intelligence/skills'} disabled={noSnapshot}>Tag skills</Button>
+            <Button onClick={() => navigate('plan')} disabled={noSnapshot}>Plan sprints…</Button>
           </div>
         </div>
         <div className="px-4 py-3">
@@ -159,6 +165,13 @@ function NewAnalysis({ status, onBatch }: { status: Status | undefined; onBatch:
             </div>
             {refineJob.job ? <div className="mt-3"><Progress done={refineJob.job.progressDone} total={refineJob.job.progressTotal} label={refineJob.job.message ?? refineJob.job.state} />{refineJob.job.error ? <p className="mt-1 text-err">{refineJob.job.error}</p> : null}</div> : null}
             {refineJob.error ? <p className="mt-2 text-err">{refineJob.error}</p> : null}
+          </div>
+          <div className="mt-3 rounded-ctl border border-line-2 p-3">
+            <div className="mb-1 font-medium">Tag skills</div>
+            <p className="mb-2 text-[12.5px] text-ink-2">The model picks 1–3 skills per story or feature from the shared taxonomy (the ids Synapse uses); answers outside it are dropped.</p>
+            <Button variant="primary" busy={skillsJob.running} disabled={noSnapshot || !hasModel} onClick={() => void skillsJob.start('/api/intelligence/skills', { useModel: true, maxItems: 60, profile })}><LuSparkles size={14} />Tag with the model</Button>
+            {skillsJob.job ? <div className="mt-3"><Progress done={skillsJob.job.progressDone} total={skillsJob.job.progressTotal} label={skillsJob.job.message ?? skillsJob.job.state} />{skillsJob.job.error ? <p className="mt-1 text-err">{skillsJob.job.error}</p> : null}</div> : null}
+            {skillsJob.error ? <p className="mt-2 text-err">{skillsJob.error}</p> : null}
           </div>
           <div className="mt-3 rounded-ctl border border-line-2 p-3">
             <div className="mb-1 font-medium">Propose sizes</div>

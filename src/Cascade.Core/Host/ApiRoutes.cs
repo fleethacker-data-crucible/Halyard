@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using Cascade.Core.Analysis;
 using Cascade.Core.Intelligence;
 using Cascade.Core.Model;
+using Cascade.Core.Planning;
 using Cascade.Core.Providers;
 using Cascade.Core.Safety;
 using Cascade.Core.Schema;
@@ -50,6 +51,8 @@ namespace Cascade.Core.Host
             Router.Post("/api/intelligence/refine", StartRefine);
             Router.Post("/api/intelligence/metadata", MetadataProposals);
             Router.Post("/api/intelligence/skills", StartSkills);
+            Router.Post("/api/plan/preview", r => PlanRoute(r, false));
+            Router.Post("/api/plan/propose", r => PlanRoute(r, true));
             Router.Get("/api/proposals", r => Task.FromResult(Json.Ok(Proposals.LoadAll().Select(BatchSummary))));
             Router.Post("/api/proposals/manual", ManualProposal);
             Router.Get("/api/proposals/{batchId}", GetBatch);
@@ -631,6 +634,38 @@ namespace Cascade.Core.Host
             var batch = Refiner.MetadataProposals(items, report, Taxonomy, target, ReadNumbers(body));
             Proposals.Save(batch);
             return Task.FromResult(Json.Ok(batch));
+        }
+
+        private Task<HttpResponse> PlanRoute(HttpRequest r, bool save)
+        {
+            var body = Json.Body(r);
+            var options = new PlanOptions
+            {
+                SprintsAhead = Math.Min(Math.Max(Json.Read<int?>(body, "sprintsAhead") ?? 2, 1), 6),
+                IncludeCurrent = Json.Read<bool?>(body, "includeCurrent") ?? true,
+                CommitShare = Json.Read<double?>(body, "commitShare"),
+                RequireReady = Json.Read<bool?>(body, "requireReady") ?? true,
+                OnlyNumbers = ReadNumbers(body),
+            };
+            if (options.CommitShare != null && (options.CommitShare < 0.1 || options.CommitShare > 1.0)) throw new BadRequestException("commitShare must be between 0.1 and 1.");
+            var label = Json.Read<string>(body, "label") ?? Settings.LabelFilter;
+            var snap = Snapshots.Current;
+            if (snap == null) throw new BadRequestException("Synchronize a repository first.");
+            List<WorkItem> all;
+            var visible = VisibleItems(label, out all);
+            List<WorkItem> items;
+            var target = ProposalTarget(visible, out items);
+            options.OnlyKeys = new HashSet<string>(items.Select(i => i.Key), StringComparer.OrdinalIgnoreCase);
+            var report = Review.Run(visible, Taxonomy, label, all);
+            var plan = SprintPlanner.Plan(visible, report, Team, DateTimeOffset.UtcNow, options);
+            ProposalBatch? batch = null;
+            if (save)
+            {
+                batch = SprintPlanner.ToProposals(plan, target);
+                Proposals.Save(batch);
+                Log.Info("PLAN_PROPOSED", batch.Proposals.Count + " stories placed in batch " + batch.Id);
+            }
+            return Task.FromResult(Json.Ok(new { plan, batch = batch == null ? null : BatchSummary(batch) }));
         }
 
         private Task<HttpResponse> StartSkills(HttpRequest r)

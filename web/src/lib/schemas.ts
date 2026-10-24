@@ -235,7 +235,7 @@ export const ItemDetail = z.object({
 });
 export type ItemDetail = z.infer<typeof ItemDetail>;
 
-export const ProposalKind = z.enum(['storyPoints', 'featureEffort', 'parentLink', 'refinement', 'metadata']);
+export const ProposalKind = z.enum(['storyPoints', 'featureEffort', 'parentLink', 'refinement', 'metadata', 'skills', 'sprintPlan', 'themeLink']);
 export type ProposalKind = z.infer<typeof ProposalKind>;
 
 export const Proposal = z.object({
@@ -405,6 +405,30 @@ export const TeamInfo = z.object({
   synapseDirectory: z.string(),
 });
 export type TeamInfo = z.infer<typeof TeamInfo>;
+
+const PlannedStory = z.object({
+  key: z.string(), number: z.number(), title: z.string(), canonicalId: z.string(), points: z.number(), sprint: z.string(), owner: Nullable(z.string()), feature: Nullable(z.string()), target: Nullable(z.string()),
+  skills: z.array(z.string()), missingSkills: z.array(z.string()), matchScore: z.number(), priority: z.number(), reason: z.string(), alreadyPlanned: z.boolean(),
+});
+export type PlannedStory = z.infer<typeof PlannedStory>;
+export const PlanResult = z.object({
+  plan: z.object({
+    generatedAt: z.string(),
+    sprints: z.array(z.object({
+      sprint: z.string(), number: z.number(), start: z.string(), end: z.string(), isCurrent: z.boolean(), capacity: z.number(), commitCapacity: z.number(), existing: z.number(), proposed: z.number(), remaining: z.number(),
+      stories: z.array(PlannedStory),
+      people: z.array(z.object({ id: z.string(), name: z.string(), capacity: z.number(), existing: z.number(), proposed: z.number(), remaining: z.number(), availability: z.string() })),
+    })),
+    unplaced: z.array(PlannedStory),
+    skipReasons: z.array(z.string()),
+    skillGaps: z.record(z.number()),
+    candidates: z.number(),
+    placed: z.number(),
+    notes: z.array(z.string()),
+  }),
+  batch: Nullable(BatchSummary),
+});
+export type PlanResult = z.infer<typeof PlanResult>;
 
 export const Repositories = z.array(z.object({ identifier: z.string(), displayName: z.string(), url: Nullable(z.string()), key: z.string() }));
 export const Labels = z.object({ repository: z.string(), labels: z.array(z.string()) });
