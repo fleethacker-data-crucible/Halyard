@@ -56,7 +56,8 @@ export function useResource<T>(path: string | null, schema: ZodType<T>, options:
 
   useEffect(() => {
     alive.current = true;
-    const listener = () => bump((n) => n + 1);
+    // When another caller invalidates this key, reload instead of showing a skeleton forever.
+    const listener = () => { bump((n) => n + 1); if (enabled && !cache.has(key)) void load(); };
     if (!listeners.has(key)) listeners.set(key, new Set());
     listeners.get(key)!.add(listener);
     if (enabled && !cache.has(key)) void load();

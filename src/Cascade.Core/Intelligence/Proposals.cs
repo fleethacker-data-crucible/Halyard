@@ -192,6 +192,18 @@ namespace Cascade.Core.Intelligence
             }
         }
 
+        /// <summary>Removes a batch file. Returns false when there is no such batch.</summary>
+        public bool Delete(string batchId)
+        {
+            lock (_lock)
+            {
+                var path = PathFor(batchId);
+                if (!File.Exists(path)) return false;
+                File.Delete(path);
+                return true;
+            }
+        }
+
         private string PathFor(string batchId)
         {
             foreach (var c in Path.GetInvalidFileNameChars()) batchId = batchId.Replace(c, '_');
