@@ -28,7 +28,7 @@ type Row = { node: HierarchyNode; depth: number; parent: HierarchyNode | null };
  * Keyboard-navigable tree (roving tabindex): ↑/↓ move, →/← expand/collapse or jump to parent, Home/End,
  * Enter/Space select, type-ahead by first letters. Collapsed state is remembered per repository.
  */
-export function Tree({ roots, selectedKey, onSelect, query, expandAllSignal, storageKey }: { roots: HierarchyNode[]; selectedKey: string | null; onSelect: (n: HierarchyNode) => void; query: string; expandAllSignal?: { expanded: boolean; tick: number }; storageKey?: string }) {
+export function Tree({ roots, selectedKey, onSelect, query, expandAllSignal, storageKey, showRepository }: { roots: HierarchyNode[]; selectedKey: string | null; onSelect: (n: HierarchyNode) => void; query: string; expandAllSignal?: { expanded: boolean; tick: number }; storageKey?: string; showRepository?: boolean }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => (storageKey ? readLocal<Record<string, boolean>>('tree.' + storageKey, {}) : {}));
   const [lastSignal, setLastSignal] = useState(0);
   const [focusKey, setFocusKey] = useState<string | null>(null);
@@ -135,7 +135,7 @@ export function Tree({ roots, selectedKey, onSelect, query, expandAllSignal, sto
                 <LevelChip type={n.type} compact />
                 <span className={cn('truncate', matches(n, query) && query ? 'font-medium' : '')}>{n.title}</span>
                 {n.state === 'closed' ? <span className="text-[11px] text-ink-3">closed</span> : null}
-                <span className="mono ml-auto shrink-0 text-[11.5px] text-ink-3">#{n.number}</span>
+                <span className="mono ml-auto shrink-0 text-[11.5px] text-ink-3">{showRepository ? n.repository.split('/').pop() + ' ' : ''}#{n.number}</span>
                 {n.type === 'STORY' && n.points ? <span className="num w-6 shrink-0 text-right text-[11.5px] text-ink-2" title="Story points">{n.points}</span>
                   : n.type === 'FEATURE' && n.effort ? <span className="w-6 shrink-0 text-right text-[11px] text-ink-2" title={`Effort ${n.effort}`}>{n.effort.slice(0, 1)}</span>
                   : n.descendantCount > 0 && n.rolledUpPoints > 0 ? <span className="num w-6 shrink-0 text-right text-[11.5px] text-ink-3" title="Rolled-up story points">{n.rolledUpPoints}</span>

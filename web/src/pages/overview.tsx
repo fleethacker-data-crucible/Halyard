@@ -139,7 +139,7 @@ export function OverviewPage({ status }: { status: Status | undefined }) {
             <thead><tr><th className="w-24">Level</th><th>Work item</th><th>What is missing</th></tr></thead>
             <tbody>
               {needsReview.map((i) => (
-                <tr key={i.key} className="cursor-pointer" onClick={() => navigate('hierarchy', { item: String(i.number) })}>
+                <tr key={i.key} className="cursor-pointer" onClick={() => navigate('hierarchy', { item: i.key })}>
                   <td><LevelChip type={i.type} /></td>
                   <td><span className="font-medium">{i.title}</span> <span className="mono text-ink-3">#{i.number}</span></td>
                   <td className="text-ink-2">

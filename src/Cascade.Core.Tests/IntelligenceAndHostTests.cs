@@ -359,6 +359,46 @@ namespace Cascade.Core.Tests
         }
     }
 
+    public class MultiRepositoryTests
+    {
+        [Fact]
+        public void SourceListIsParsedAndEverySourceIsProtected()
+        {
+            var s = new CascadeSettings();
+            s.Provider.Kind = ProviderKind.GitHub;
+            s.Provider.SourceRepository = "acme/platform, acme/data ;acme/platform";
+            s.Provider.SandboxRepository = "acme/sandbox";
+            Assert.Equal(new[] { "acme/platform", "acme/data" }, s.Provider.SourceRepositories.ToArray());
+            var policy = s.BuildWritePolicy();
+            Assert.True(policy.IsProtected(new RepositoryRef(ProviderKind.GitHub, "acme/platform")));
+            Assert.True(policy.IsProtected(new RepositoryRef(ProviderKind.GitHub, "acme/data")));
+            Assert.True(policy.IsSandbox(new RepositoryRef(ProviderKind.GitHub, "acme/sandbox")));
+            Assert.Throws<Safety.WriteBlockedException>(() => policy.Assert(new RepositoryRef(ProviderKind.GitHub, "acme/data"), new Safety.WriteIntent("x", "y")));
+        }
+
+        [Fact]
+        public void SnapshotKeepsEachItemsRepositoryAcrossSaveAndLoad()
+        {
+            var dir = Path.Combine(Path.GetTempPath(), "cascade-tests-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                var store = new Snapshots.SnapshotStore(dir);
+                var a = new RepositoryRef(ProviderKind.GitHub, "acme/platform");
+                var b = new RepositoryRef(ProviderKind.GitHub, "acme/data");
+                var items = new List<WorkItem> { new WorkItem(a, 1) { Title = "one" }, new WorkItem(b, 1) { Title = "other one" }, new WorkItem(b, 2) { Title = "two" } };
+                var saved = store.Save(new[] { a, b }, items, null);
+                Assert.Equal("acme/platform, acme/data", saved.Repository);
+                var loaded = store.Load(saved.Id)!;
+                Assert.Equal(2, loaded.Repositories.Count);
+                Assert.Equal(3, loaded.Items.Count);
+                Assert.Equal("github:acme/platform:1", loaded.Items[0].Key);
+                Assert.Equal("github:acme/data:1", loaded.Items[1].Key);
+                Assert.Equal(3, loaded.Items.Select(i => i.Key).Distinct().Count());
+            }
+            finally { try { System.IO.Directory.Delete(dir, true); } catch (IOException) { } }
+        }
+    }
+
     public class ProposalStoreTests
     {
         [Fact]
@@ -542,6 +582,34 @@ namespace Cascade.Core.Tests
             var meta = await _client.PostAsync(_info.Url + "api/intelligence/metadata", new StringContent("{}"));
             Assert.Equal(200, (int)meta.StatusCode);
             Assert.Equal("metadata", (string)JObject.Parse(await meta.Content.ReadAsStringAsync())["kind"]!);
+        }
+
+        [Fact]
+        public async Task ItemsAreFoundByKeyAndProposalsStayInTheSandbox()
+        {
+            var snap = JObject.Parse(await _client.GetStringAsync(_info.Url + "api/snapshot"));
+            var first = snap["items"]![0]!;
+            var key = (string)first["key"]!;
+            var byKey = JObject.Parse(await _client.GetStringAsync(_info.Url + "api/item?key=" + Uri.EscapeDataString(key)));
+            Assert.Equal(key, (string)byKey["key"]!);
+            Assert.True((bool)byKey["inSandbox"]!);
+            Assert.Equal("sun-of-anton/cascade-sandbox", (string)byKey["repository"]!);
+            // A snapshot of a source repository only: every proposal path refuses, with a message that names the sandbox.
+            var source = new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/other-backlog");
+            var sourceItems = SyntheticCatalog.ToWorkItems(SyntheticCatalog.Generate(SyntheticOptions.ForTotal(20)), source);
+            _host.Snapshots.Save(source, sourceItems, null);
+            try
+            {
+                var refused = await _client.PostAsync(_info.Url + "api/intelligence/metadata", new StringContent("{}"));
+                Assert.Equal(400, (int)refused.StatusCode);
+                Assert.Contains("sandbox", (string)JObject.Parse(await refused.Content.ReadAsStringAsync())["error"]!);
+                var manual = await _client.PostAsync(_info.Url + "api/proposals/manual", new StringContent("{\"key\":\"" + sourceItems[5].Key + "\",\"kind\":\"points\",\"value\":\"3\"}"));
+                Assert.Equal(403, (int)manual.StatusCode);
+            }
+            finally
+            {
+                _host.Snapshots.Save(Items.Repo, SyntheticCatalog.ToWorkItems(SyntheticCatalog.Generate(SyntheticOptions.ForTotal(30)), Items.Repo), null);
+            }
         }
 
         [Fact]

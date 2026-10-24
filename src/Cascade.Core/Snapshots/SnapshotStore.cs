@@ -13,7 +13,10 @@ namespace Cascade.Core.Snapshots
     public sealed class Snapshot
     {
         public string Id { get; set; } = string.Empty;
+        /// <summary>Display form of the repositories in this snapshot: one identifier, or several joined with ", ".</summary>
         public string Repository { get; set; } = string.Empty;
+        /// <summary>Every repository the items came from.</summary>
+        public List<string> Repositories { get; set; } = new List<string>();
         public ProviderKind Provider { get; set; }
         public DateTimeOffset TakenAt { get; set; }
         public string? LabelFilter { get; set; }
@@ -51,11 +54,19 @@ namespace Cascade.Core.Snapshots
 
         public Snapshot Save(RepositoryRef repository, IEnumerable<WorkItem> items, string? labelFilter)
         {
+            return Save(new[] { repository }, items, labelFilter);
+        }
+
+        /// <summary>One snapshot across several repositories of the same provider (a backlog that spans repos).</summary>
+        public Snapshot Save(IReadOnlyList<RepositoryRef> repositories, IEnumerable<WorkItem> items, string? labelFilter)
+        {
+            if (repositories == null || repositories.Count == 0) throw new ArgumentException("At least one repository is required.", "repositories");
             var snap = new Snapshot
             {
                 Id = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 4),
-                Repository = repository.Identifier,
-                Provider = repository.Provider,
+                Repository = string.Join(", ", repositories.Select(r => r.Identifier)),
+                Repositories = repositories.Select(r => r.Identifier).ToList(),
+                Provider = repositories[0].Provider,
                 TakenAt = DateTimeOffset.UtcNow,
                 LabelFilter = labelFilter,
                 Items = items.ToList(),
@@ -115,6 +126,7 @@ namespace Cascade.Core.Snapshots
             {
                 ["id"] = snap.Id,
                 ["repository"] = snap.Repository,
+                ["repositories"] = new JArray(snap.Repositories.Count == 0 ? new[] { snap.Repository } : snap.Repositories.ToArray()),
                 ["provider"] = snap.Provider.ToString().ToLowerInvariant(),
                 ["takenAt"] = snap.TakenAt.ToString("o"),
                 ["labelFilter"] = snap.LabelFilter,
@@ -128,6 +140,7 @@ namespace Cascade.Core.Snapshots
         {
             return new JObject
             {
+                ["repository"] = w.Repository.Identifier,
                 ["number"] = w.Number,
                 ["providerId"] = w.ProviderId,
                 ["providerNumericId"] = w.ProviderNumericId,
@@ -155,11 +168,16 @@ namespace Cascade.Core.Snapshots
                 TakenAt = DateTimeOffset.Parse((string?)root["takenAt"] ?? DateTimeOffset.UtcNow.ToString("o")),
                 LabelFilter = (string?)root["labelFilter"],
             };
+            snap.Repositories = (root["repositories"] as JArray ?? new JArray()).Select(r => (string?)r ?? string.Empty).Where(r => r.Length > 0).ToList();
+            if (snap.Repositories.Count == 0 && snap.Repository.Length > 0) snap.Repositories.Add(snap.Repository);
             snap.ItemCount = (int?)root["count"] ?? 0;
             if (!includeItems) return snap;
-            var repo = new RepositoryRef(provider, snap.Repository);
+            var repos = new Dictionary<string, RepositoryRef>(StringComparer.OrdinalIgnoreCase);
             foreach (var j in root["items"] as JArray ?? new JArray())
             {
+                var repoId = (string?)j["repository"] ?? snap.Repositories.FirstOrDefault() ?? snap.Repository;
+                RepositoryRef? repo;
+                if (!repos.TryGetValue(repoId, out repo) || repo == null) { repo = new RepositoryRef(provider, repoId); repos[repoId] = repo; }
                 var w = new WorkItem(repo, (long?)j["number"] ?? 0)
                 {
                     ProviderId = (string?)j["providerId"],

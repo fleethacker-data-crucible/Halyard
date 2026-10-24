@@ -103,7 +103,7 @@ export function ReviewPage({ params, status }: { params: URLSearchParams; status
               <div className="scroll-y max-h-[calc(100vh-300px)]">
                 <table className="table-dense w-full">
                   <thead><tr><th className="w-8"><input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all shown" /></th><th className="w-24">Level</th><th>Work item</th><th className="w-40">Parent</th><th className="w-20">Size</th><th>Gaps and findings</th><th className="w-36">Fix with</th></tr></thead>
-                  <tbody>{items.map((i) => <ItemRow key={i.key} item={i} selected={selected.has(i.number)} onToggle={() => toggle(i.number)} />)}</tbody>
+                  <tbody>{items.map((i) => <ItemRow key={i.key} item={i} selected={selected.has(i.number)} onToggle={() => toggle(i.number)} showRepo={(r?.snapshot?.repositories.length ?? 1) > 1} />)}</tbody>
                 </table>
               </div>
             )}
@@ -119,13 +119,13 @@ export function ReviewPage({ params, status }: { params: URLSearchParams; status
 
 const REMEDY_LABEL = { refine: 'Draft sections', metadata: 'Repair meta', parents: 'Find parent', sizes: 'Size' } as const;
 
-function ItemRow({ item: i, selected, onToggle }: { item: ReviewItem; selected: boolean; onToggle: () => void }) {
+function ItemRow({ item: i, selected, onToggle, showRepo }: { item: ReviewItem; selected: boolean; onToggle: () => void; showRepo: boolean }) {
   const fixes = remedies(i);
   return (
-    <tr className={cn('cursor-pointer', selected && 'bg-surface-2')} onClick={() => navigate('hierarchy', { item: String(i.number) })}>
+    <tr className={cn('cursor-pointer', selected && 'bg-surface-2')} onClick={() => navigate('hierarchy', { item: i.key })}>
       <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selected} onChange={onToggle} aria-label={`Select #${i.number}`} /></td>
       <td><LevelChip type={i.type} /></td>
-      <td><div className="font-medium">{i.title}</div><div className="mono text-[11.5px] text-ink-3">#{i.number} · {i.canonicalId}</div></td>
+      <td><div className="font-medium">{i.title}</div><div className="mono text-[11.5px] text-ink-3">{showRepo ? i.repository + ' ' : ''}#{i.number} · {i.canonicalId}</div></td>
       <td className="text-ink-2">{i.resolvedParentKey ? <span className="text-ok">resolved</span> : i.parentId ? <span className="text-warn" title={i.parentId}>declared, unresolved</span> : <span className="text-ink-3">none</span>}</td>
       <td className="num text-ink-2">{i.points ?? i.effort ?? <span className="text-ink-3">—</span>}</td>
       <td>
@@ -267,7 +267,7 @@ function FindingsTable({ review }: { review: Review }) {
             <thead><tr><th className="w-8" /><th className="w-24">Level</th><th>Work item</th><th className="w-56">Finding</th><th>Explanation</th></tr></thead>
             <tbody>
               {rows.map((f, idx) => (
-                <tr key={f.key + f.code + idx} className="cursor-pointer" onClick={() => navigate('hierarchy', { item: String(f.number) })}>
+                <tr key={f.key + f.code + idx} className="cursor-pointer" onClick={() => navigate('hierarchy', { item: f.key })}>
                   <td><SeverityIcon severity={f.severity} /></td>
                   <td><LevelChip type={f.type} /></td>
                   <td><span className="font-medium">{f.title}</span> <span className="mono text-ink-3">#{f.number}</span></td>
