@@ -194,10 +194,60 @@ namespace Cascade.Core.Host
 
         public RepositoryRef ResolveRepository(string? which)
         {
-            var w = (which ?? "source").Trim().ToLowerInvariant();
-            RepositoryRef? repo = w == "sandbox" ? Settings.Provider.Sandbox : (Settings.Provider.Source ?? Settings.Provider.Sandbox);
-            if (repo == null) throw new BadRequestException("The " + w + " repository is not configured.");
-            return repo;
+            return ResolveRepositories(which)[0];
+        }
+
+        /// <summary>
+        /// "source" = every configured source repository, "sandbox" = the sandbox, "all" = both, or one exact
+        /// identifier that is among the configured repositories (never an arbitrary repo from the browser).
+        /// </summary>
+        public List<RepositoryRef> ResolveRepositories(string? which)
+        {
+            var w = (which ?? "source").Trim();
+            var lower = w.ToLowerInvariant();
+            var sources = Settings.Provider.Sources;
+            var sandbox = Settings.Provider.Sandbox;
+            List<RepositoryRef> list;
+            if (lower == "sandbox") list = sandbox == null ? new List<RepositoryRef>() : new List<RepositoryRef> { sandbox };
+            else if (lower == "source") list = sources.Count > 0 ? sources : (sandbox == null ? new List<RepositoryRef>() : new List<RepositoryRef> { sandbox });
+            else if (lower == "all")
+            {
+                list = new List<RepositoryRef>(sources);
+                if (sandbox != null && !list.Any(r => r.Equals(sandbox))) list.Add(sandbox);
+            }
+            else
+            {
+                var known = new List<RepositoryRef>(sources);
+                if (sandbox != null) known.Add(sandbox);
+                list = known.Where(r => string.Equals(r.Identifier, w, StringComparison.OrdinalIgnoreCase)).Take(1).ToList();
+                if (list.Count == 0) throw new BadRequestException("'" + w + "' is not a configured repository. Use source, sandbox, all, or one of the identifiers in config/cascade.env.");
+            }
+            if (list.Count == 0) throw new BadRequestException("The " + lower + " repository is not configured.");
+            return list;
+        }
+
+        /// <summary>Items of the current snapshot that live in the sandbox: the only ones proposals can be written for.</summary>
+        public List<WorkItem> SandboxItems(List<WorkItem> visible)
+        {
+            var sandbox = Settings.Provider.Sandbox;
+            if (sandbox == null) return new List<WorkItem>();
+            return visible.Where(i => i.Repository.Equals(sandbox)).ToList();
+        }
+
+        /// <summary>Finds a snapshot item by key (<c>github:owner/repo:12</c>) or, within the sandbox, by number.</summary>
+        public WorkItem? FindItem(string? keyOrNumber)
+        {
+            var snap = Snapshots.Current;
+            if (snap == null || string.IsNullOrWhiteSpace(keyOrNumber)) return null;
+            var text = keyOrNumber!.Trim().TrimStart('#');
+            var byKey = snap.Items.FirstOrDefault(i => string.Equals(i.Key, text, StringComparison.OrdinalIgnoreCase));
+            if (byKey != null) return byKey;
+            long number;
+            if (!long.TryParse(text, out number)) return null;
+            var sandbox = Settings.Provider.Sandbox;
+            var matches = snap.Items.Where(i => i.Number == number).ToList();
+            if (matches.Count == 1) return matches[0];
+            return matches.FirstOrDefault(i => sandbox != null && i.Repository.Equals(sandbox)) ?? matches.FirstOrDefault();
         }
 
         public RepositoryRef SandboxOrThrow()

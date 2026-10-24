@@ -15,10 +15,10 @@ export function ConnectionPage({ status, refreshStatus }: { status: Status | und
   const toast = useToast();
   const [testing, setTesting] = useState(false);
   const [test, setTest] = useState<z.infer<typeof TestResult> | null>(null);
-  const [which, setWhich] = useState<'source' | 'sandbox'>('source');
+  const [which, setWhich] = useState<'source' | 'sandbox' | 'all'>('source');
   const [labelFilter, setLabelFilter] = useState<string>('');
   const [includeClosed, setIncludeClosed] = useState(true);
-  const labels = useResource(status?.provider.identity ? `/api/provider/labels?repository=${which}` : null, Labels);
+  const labels = useResource(status?.provider.identity ? `/api/provider/labels?repository=${which === 'all' ? 'source' : which}` : null, Labels);
   const repos = useResource(status?.provider.identity ? '/api/provider/repositories' : null, Repositories);
   const snapshot = useResource(status?.snapshot ? '/api/snapshot' : null, Snapshot);
   const sync = useJob((j) => {
@@ -45,7 +45,9 @@ export function ConnectionPage({ status, refreshStatus }: { status: Status | und
   };
 
   const providerName = status?.config.provider === 'gitlab' ? 'GitLab' : 'GitHub';
-  const repo = which === 'sandbox' ? status?.config.sandboxRepository : status?.config.sourceRepository || status?.config.sandboxRepository;
+  const sources = status?.config.sourceRepositories ?? [];
+  const sourceLabel = sources.length > 1 ? `${sources.length} repositories` : sources[0] ?? status?.config.sandboxRepository ?? '';
+  const repo = which === 'sandbox' ? status?.config.sandboxRepository : which === 'all' ? `${sourceLabel} + sandbox` : sourceLabel;
 
   return (
     <Page title="Connection" lede={<>Test the {providerName} token, then take a snapshot of a repository. Reads only; the engine never writes while synchronizing.</>}>
@@ -83,8 +85,9 @@ export function ConnectionPage({ status, refreshStatus }: { status: Status | und
             <div className="grid grid-cols-2 gap-3">
               <Field label="Repository to read">
                 <Select value={which} onChange={(e) => setWhich(e.target.value as typeof which)}>
-                  <option value="source">Source · {status?.config.sourceRepository || '(not set)'}</option>
+                  <option value="source">Source · {sources.length > 1 ? sources.join(', ') : sources[0] || '(not set)'}</option>
                   <option value="sandbox">Sandbox · {status?.config.sandboxRepository || '(not set)'}</option>
+                  {sources.length > 0 && status?.config.sandboxRepository && !sources.includes(status.config.sandboxRepository) ? <option value="all">Sources and sandbox together</option> : null}
                 </Select>
               </Field>
               <Field label="Only items with label" hint="Optional; fetched server-side. Leave empty to take everything.">

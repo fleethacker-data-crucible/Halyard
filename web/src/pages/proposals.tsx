@@ -376,7 +376,7 @@ function ProposalDetail({ p, batchId }: { p: Proposal; batchId: string }) {
             {d.current.deficiencies.length > d.proposed.deficiencies.length ? <div className="mt-1 text-ink-3">{d.current.deficiencies.length - d.proposed.deficiencies.length} gap{d.current.deficiencies.length - d.proposed.deficiencies.length === 1 ? '' : 's'} closed.</div> : null}
           </Facts>
         ) : null}
-        <Facts label="Open the item"><button type="button" className="underline hover:text-accent" onClick={() => navigate('hierarchy', { item: String(p.itemNumber) })}>#{p.itemNumber} in the hierarchy</button></Facts>
+        <Facts label="Open the item"><button type="button" className="underline hover:text-accent" onClick={() => navigate('hierarchy', { item: p.itemKey })}>#{p.itemNumber} in the hierarchy</button></Facts>
         {p.decisionNote ? <Facts label="Note">{p.decisionNote}</Facts> : null}
       </div>
     </div>

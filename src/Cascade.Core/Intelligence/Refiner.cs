@@ -18,6 +18,8 @@ namespace Cascade.Core.Intelligence
         public int MaxItems { get; set; } = 10;
         /// <summary>Restrict to these item numbers (bulk action from the Review page). Null = every eligible item.</summary>
         public HashSet<long>? OnlyNumbers { get; set; }
+        /// <summary>Restrict to these item keys (the sandbox items of a multi-repository snapshot). Null = no restriction.</summary>
+        public HashSet<string>? OnlyKeys { get; set; }
     }
 
     /// <summary>One parsed model reply for a refinement.</summary>
@@ -103,6 +105,7 @@ namespace Cascade.Core.Intelligence
             return report.Items
                 .Where(i => i.Type != WorkItemType.Unclassified && i.Deficiencies.Any(IsContentGap))
                 .Where(i => options.OnlyNumbers == null || options.OnlyNumbers.Contains(i.Number))
+                .Where(i => options.OnlyKeys == null || options.OnlyKeys.Contains(i.Key))
                 .ToList();
         }
 

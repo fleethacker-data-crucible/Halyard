@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using Cascade.Core.Model;
 
 namespace Cascade.Core.Providers
@@ -8,8 +10,26 @@ namespace Cascade.Core.Providers
         public ProviderKind Kind { get; set; } = ProviderKind.GitHub;
         /// <summary>GitHub: https://api.github.com by default. GitLab: the instance URL (GITLAB_URL, required; /api/v4 is added).</summary>
         public string BaseUrl { get; set; } = string.Empty;
-        /// <summary>Repository to read from (the production backlog / source of truth). Never written in sandbox mode.</summary>
+        /// <summary>
+        /// Repositories to read from (the production backlog / source of truth), comma-separated when the
+        /// backlog spans several. Never written in sandbox mode.
+        /// </summary>
         public string SourceRepository { get; set; } = string.Empty;
+
+        /// <summary>Every configured source repository, in order, de-duplicated.</summary>
+        public List<string> SourceRepositories
+        {
+            get
+            {
+                var list = new List<string>();
+                foreach (var part in (SourceRepository ?? string.Empty).Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var id = part.Trim();
+                    if (id.Length > 0 && !list.Contains(id, StringComparer.OrdinalIgnoreCase)) list.Add(id);
+                }
+                return list;
+            }
+        }
         /// <summary>Repository that may be written to (sandbox).</summary>
         public string SandboxRepository { get; set; } = string.Empty;
         /// <summary>Held in memory only. Never persisted by the core.</summary>
@@ -25,7 +45,10 @@ namespace Cascade.Core.Providers
             }
         }
 
-        public RepositoryRef? Source { get { return string.IsNullOrWhiteSpace(SourceRepository) ? null : new RepositoryRef(Kind, SourceRepository); } }
+        /// <summary>The first source repository (most callers), or null.</summary>
+        public RepositoryRef? Source { get { var all = Sources; return all.Count == 0 ? null : all[0]; } }
+        /// <summary>All source repositories as references.</summary>
+        public List<RepositoryRef> Sources { get { return SourceRepositories.Select(id => new RepositoryRef(Kind, id)).ToList(); } }
         public RepositoryRef? Sandbox { get { return string.IsNullOrWhiteSpace(SandboxRepository) ? null : new RepositoryRef(Kind, SandboxRepository); } }
         public bool HasToken { get { return !string.IsNullOrWhiteSpace(Token); } }
 

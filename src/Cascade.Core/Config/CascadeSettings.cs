@@ -44,11 +44,12 @@ namespace Cascade.Core.Config
             var policy = new WritePolicy { Mode = WriteMode, AllowProduction = AllowProduction };
             var sandbox = Provider.Sandbox;
             if (sandbox != null) policy.SandboxTargets.Add(sandbox);
-            var source = Provider.Source;
-            if (source != null)
+            var sources = Provider.Sources;
+            if (sources.Count > 0 && WriteMode == WriteMode.Production) policy.ProductionTarget = sources[0];
+            foreach (var source in sources)
             {
-                if (WriteMode == WriteMode.Production) policy.ProductionTarget = source;
-                else if (sandbox == null || !sandbox.Equals(source)) policy.ProtectedTargets.Add(source);
+                if (WriteMode == WriteMode.Production && source.Equals(policy.ProductionTarget)) continue;
+                if (sandbox == null || !sandbox.Equals(source)) policy.ProtectedTargets.Add(source);
             }
             foreach (var id in ProtectedRepositories)
             {
@@ -173,6 +174,7 @@ namespace Cascade.Core.Config
                 { "provider", Provider.Kind.ToString().ToLowerInvariant() },
                 { "baseUrl", Provider.EffectiveBaseUrl },
                 { "sourceRepository", Provider.SourceRepository },
+                { "sourceRepositories", Provider.SourceRepositories },
                 { "sandboxRepository", Provider.SandboxRepository },
                 { "hasProviderToken", Provider.HasToken },
                 { "writeMode", WriteMode.ToString().ToLowerInvariant() },
