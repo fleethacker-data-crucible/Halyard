@@ -203,33 +203,42 @@ namespace Cascade.Core.Llm
             var payload = new JObject
             {
                 ["messages"] = new JArray(messages.Select(m => new JObject { ["role"] = m.Role, ["content"] = m.Content })),
-                ["max_tokens"] = _settings.MaxTokens,
                 ["model"] = Model,
                 ["temperature"] = _settings.Temperature,
             };
+            // OpenAI's current chat models take max_completion_tokens; Databricks and older gateways take max_tokens.
+            payload[Profile == LlmProfile.Databricks ? "max_tokens" : "max_completion_tokens"] = _settings.MaxTokens;
             if (Profile != LlmProfile.Databricks) payload["stream"] = false;
 
-            var call = new HttpCall("POST", Url) { JsonBody = payload.ToString(Formatting.None), Timeout = TimeSpan.FromSeconds(_settings.TimeoutSeconds) };
-            call.Headers["Authorization"] = "Bearer " + token;
-            call.Headers["Accept"] = "application/json";
-            call.Headers["User-Agent"] = "Cascade/1.0";
-
             var started = DateTimeOffset.UtcNow;
-            var transcript = BeginTranscript(payload);
+            string? transcript = null;
             HttpReply reply;
-            try
+            // Endpoints disagree about which parameters they accept (max_tokens vs max_completion_tokens, temperature
+            // on reasoning models). When the endpoint names the parameter it rejected, drop or rename it and retry.
+            for (var attempt = 0; ; attempt++)
             {
-                reply = await _http.SendAsync(call, cancellation).ConfigureAwait(false);
-            }
-            catch (ProviderHttpException ex)
-            {
-                EndTranscript(transcript, null, ex.Message);
-                throw;
-            }
-            if (!reply.IsSuccess)
-            {
+                var call = new HttpCall("POST", Url) { JsonBody = payload.ToString(Formatting.None), Timeout = TimeSpan.FromSeconds(_settings.TimeoutSeconds) };
+                call.Headers["Authorization"] = "Bearer " + token;
+                call.Headers["Accept"] = "application/json";
+                call.Headers["User-Agent"] = "Cascade/1.0";
+                transcript = BeginTranscript(payload);
+                try
+                {
+                    reply = await _http.SendAsync(call, cancellation).ConfigureAwait(false);
+                }
+                catch (ProviderHttpException ex)
+                {
+                    EndTranscript(transcript, null, ex.Message);
+                    throw;
+                }
+                if (reply.IsSuccess) break;
                 EndTranscript(transcript, reply.Body, "HTTP " + reply.Status);
-                throw new ProviderHttpException(reply.Status, "LLM endpoint " + HttpClientTransport.SafeUrl(Url) + " returned HTTP " + reply.Status + ": " + Summarize(reply.Body), reply.Body);
+                var rejected = attempt < 3 && reply.Status == 400 ? RejectedParameter(reply.Body, payload) : null;
+                if (rejected == null)
+                    throw new ProviderHttpException(reply.Status, "LLM endpoint " + HttpClientTransport.SafeUrl(Url) + " returned HTTP " + reply.Status + ": " + Summarize(reply.Body), reply.Body);
+                if (rejected == "max_completion_tokens") { payload.Remove("max_completion_tokens"); payload["max_tokens"] = _settings.MaxTokens; }
+                else if (rejected == "max_tokens") { payload.Remove("max_tokens"); payload["max_completion_tokens"] = _settings.MaxTokens; }
+                else payload.Remove(rejected);
             }
             var json = JToken.Parse(string.IsNullOrWhiteSpace(reply.Body) ? "{}" : reply.Body);
             var text = ExtractText(json);
@@ -245,6 +254,33 @@ namespace Cascade.Core.Llm
                 Elapsed = DateTimeOffset.UtcNow - started,
                 TranscriptPath = transcript,
             };
+        }
+
+        /// <summary>
+        /// The request parameter an OpenAI-style 400 complains about, when it is one we sent and can live without.
+        /// Reads the error's <c>param</c> field first, then the message text.
+        /// </summary>
+        public static string? RejectedParameter(string? body, JObject payload)
+        {
+            if (string.IsNullOrWhiteSpace(body)) return null;
+            var candidates = new[] { "max_tokens", "max_completion_tokens", "temperature", "stream" };
+            string? param = null;
+            string message = body!;
+            try
+            {
+                var err = JObject.Parse(body!)["error"];
+                if (err != null)
+                {
+                    param = (string?)err["param"];
+                    message = (string?)err["message"] ?? body!;
+                }
+            }
+            catch (Newtonsoft.Json.JsonException) { }
+            if (param != null && Array.IndexOf(candidates, param) >= 0 && payload[param] != null) return param;
+            if (!Regex.IsMatch(message, @"(?i)unsupported|not supported|does not support|unknown parameter|unrecognized")) return null;
+            foreach (var c in candidates)
+                if (payload[c] != null && Regex.IsMatch(message, @"\b" + Regex.Escape(c) + @"\b")) return c;
+            return null;
         }
 
         public Task<LlmResponse> TestAsync(CancellationToken cancellation)
