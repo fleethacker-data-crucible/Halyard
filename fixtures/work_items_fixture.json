@@ -1,0 +1,1157 @@
+{
+  "_comment": "Synthetic fixture for offline tests. Every item is made up; no real work items.",
+  "issues": [
+    {
+      "id": 90001,
+      "iid": 1,
+      "project_id": 1001,
+      "title": "Epic: Batch ingestion improvements",
+      "description": "Synthetic sample work item 1 for offline tests. It describes batch ingestion work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::batch-ingestion",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/1",
+      "created_at": "2026-01-06T09:00:00Z",
+      "updated_at": "2026-01-09T09:00:00Z"
+    },
+    {
+      "id": 90002,
+      "iid": 2,
+      "project_id": 1001,
+      "title": "Batch ingestion - validation rules",
+      "description": "Synthetic sample work item 2 for offline tests. It describes batch ingestion work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::batch-ingestion",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/2",
+      "created_at": "2026-01-07T09:00:00Z",
+      "updated_at": "2026-01-10T09:00:00Z"
+    },
+    {
+      "id": 90003,
+      "iid": 3,
+      "project_id": 1001,
+      "title": "Spike Batch ingestion options",
+      "description": "Synthetic sample work item 3 for offline tests. It describes batch ingestion work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::batch-ingestion",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/3",
+      "created_at": "2026-01-08T09:00:00Z",
+      "updated_at": "2026-01-11T09:00:00Z"
+    },
+    {
+      "id": 90004,
+      "iid": 4,
+      "project_id": 1001,
+      "title": "Fix Batch ingestion timeout handling",
+      "description": "Synthetic sample work item 4 for offline tests. It describes batch ingestion work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::batch-ingestion",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/4",
+      "created_at": "2026-01-09T09:00:00Z",
+      "updated_at": "2026-01-12T09:00:00Z"
+    },
+    {
+      "id": 90005,
+      "iid": 5,
+      "project_id": 1001,
+      "title": "Epic: Schema registry improvements",
+      "description": "Synthetic sample work item 5 for offline tests. It describes schema registry work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::schema-registry",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/5",
+      "created_at": "2026-01-10T09:00:00Z",
+      "updated_at": "2026-01-13T09:00:00Z"
+    },
+    {
+      "id": 90006,
+      "iid": 6,
+      "project_id": 1001,
+      "title": "Schema registry - validation rules",
+      "description": "Synthetic sample work item 6 for offline tests. It describes schema registry work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::schema-registry",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/6",
+      "created_at": "2026-01-11T09:00:00Z",
+      "updated_at": "2026-01-14T09:00:00Z"
+    },
+    {
+      "id": 90007,
+      "iid": 7,
+      "project_id": 1001,
+      "title": "Spike Schema registry options",
+      "description": "Synthetic sample work item 7 for offline tests. It describes schema registry work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::schema-registry",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/7",
+      "created_at": "2026-01-12T09:00:00Z",
+      "updated_at": "2026-01-15T09:00:00Z"
+    },
+    {
+      "id": 90008,
+      "iid": 8,
+      "project_id": 1001,
+      "title": "Fix Schema registry timeout handling",
+      "description": "Synthetic sample work item 8 for offline tests. It describes schema registry work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::schema-registry",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/8",
+      "created_at": "2026-01-13T09:00:00Z",
+      "updated_at": "2026-01-16T09:00:00Z"
+    },
+    {
+      "id": 90009,
+      "iid": 9,
+      "project_id": 1001,
+      "title": "Epic: Data quality checks improvements",
+      "description": "Synthetic sample work item 9 for offline tests. It describes data quality checks work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::data-quality-checks",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/9",
+      "created_at": "2026-01-14T09:00:00Z",
+      "updated_at": "2026-01-17T09:00:00Z"
+    },
+    {
+      "id": 90010,
+      "iid": 10,
+      "project_id": 1001,
+      "title": "Data quality checks - validation rules",
+      "description": "Synthetic sample work item 10 for offline tests. It describes data quality checks work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::data-quality-checks",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/10",
+      "created_at": "2026-01-15T09:00:00Z",
+      "updated_at": "2026-01-18T09:00:00Z"
+    },
+    {
+      "id": 90011,
+      "iid": 11,
+      "project_id": 1001,
+      "title": "Spike Data quality checks options",
+      "description": "Synthetic sample work item 11 for offline tests. It describes data quality checks work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::data-quality-checks",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/11",
+      "created_at": "2026-01-16T09:00:00Z",
+      "updated_at": "2026-01-19T09:00:00Z"
+    },
+    {
+      "id": 90012,
+      "iid": 12,
+      "project_id": 1001,
+      "title": "Fix Data quality checks timeout handling",
+      "description": "Synthetic sample work item 12 for offline tests. It describes data quality checks work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::data-quality-checks",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/12",
+      "created_at": "2026-01-17T09:00:00Z",
+      "updated_at": "2026-01-20T09:00:00Z"
+    },
+    {
+      "id": 90013,
+      "iid": 13,
+      "project_id": 1001,
+      "title": "Epic: Report scheduler improvements",
+      "description": "Synthetic sample work item 13 for offline tests. It describes report scheduler work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::report-scheduler",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/13",
+      "created_at": "2026-01-18T09:00:00Z",
+      "updated_at": "2026-01-21T09:00:00Z"
+    },
+    {
+      "id": 90014,
+      "iid": 14,
+      "project_id": 1001,
+      "title": "Report scheduler - validation rules",
+      "description": "Synthetic sample work item 14 for offline tests. It describes report scheduler work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::report-scheduler",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/14",
+      "created_at": "2026-01-19T09:00:00Z",
+      "updated_at": "2026-01-22T09:00:00Z"
+    },
+    {
+      "id": 90015,
+      "iid": 15,
+      "project_id": 1001,
+      "title": "Spike Report scheduler options",
+      "description": "Synthetic sample work item 15 for offline tests. It describes report scheduler work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::report-scheduler",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/15",
+      "created_at": "2026-01-20T09:00:00Z",
+      "updated_at": "2026-01-23T09:00:00Z"
+    },
+    {
+      "id": 90016,
+      "iid": 16,
+      "project_id": 1001,
+      "title": "Fix Report scheduler timeout handling",
+      "description": "Synthetic sample work item 16 for offline tests. It describes report scheduler work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::report-scheduler",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/16",
+      "created_at": "2026-01-21T09:00:00Z",
+      "updated_at": "2026-01-24T09:00:00Z"
+    },
+    {
+      "id": 90017,
+      "iid": 17,
+      "project_id": 1001,
+      "title": "Epic: Access requests improvements",
+      "description": "Synthetic sample work item 17 for offline tests. It describes access requests work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::access-requests",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/17",
+      "created_at": "2026-01-22T09:00:00Z",
+      "updated_at": "2026-01-25T09:00:00Z"
+    },
+    {
+      "id": 90018,
+      "iid": 18,
+      "project_id": 1001,
+      "title": "Access requests - validation rules",
+      "description": "Synthetic sample work item 18 for offline tests. It describes access requests work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::access-requests",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/18",
+      "created_at": "2026-01-23T09:00:00Z",
+      "updated_at": "2026-01-26T09:00:00Z"
+    },
+    {
+      "id": 90019,
+      "iid": 19,
+      "project_id": 1001,
+      "title": "Spike Access requests options",
+      "description": "Synthetic sample work item 19 for offline tests. It describes access requests work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::access-requests",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/19",
+      "created_at": "2026-01-24T09:00:00Z",
+      "updated_at": "2026-01-27T09:00:00Z"
+    },
+    {
+      "id": 90020,
+      "iid": 20,
+      "project_id": 1001,
+      "title": "Fix Access requests timeout handling",
+      "description": "Synthetic sample work item 20 for offline tests. It describes access requests work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::access-requests",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/20",
+      "created_at": "2026-01-25T09:00:00Z",
+      "updated_at": "2026-01-28T09:00:00Z"
+    },
+    {
+      "id": 90021,
+      "iid": 21,
+      "project_id": 1001,
+      "title": "Epic: Audit log export improvements",
+      "description": "Synthetic sample work item 21 for offline tests. It describes audit log export work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::audit-log-export",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/21",
+      "created_at": "2026-01-26T09:00:00Z",
+      "updated_at": "2026-01-29T09:00:00Z"
+    },
+    {
+      "id": 90022,
+      "iid": 22,
+      "project_id": 1001,
+      "title": "Audit log export - validation rules",
+      "description": "Synthetic sample work item 22 for offline tests. It describes audit log export work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::audit-log-export",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/22",
+      "created_at": "2026-01-27T09:00:00Z",
+      "updated_at": "2026-01-30T09:00:00Z"
+    },
+    {
+      "id": 90023,
+      "iid": 23,
+      "project_id": 1001,
+      "title": "Spike Audit log export options",
+      "description": "Synthetic sample work item 23 for offline tests. It describes audit log export work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::audit-log-export",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/23",
+      "created_at": "2026-01-28T09:00:00Z",
+      "updated_at": "2026-01-31T09:00:00Z"
+    },
+    {
+      "id": 90024,
+      "iid": 24,
+      "project_id": 1001,
+      "title": "Fix Audit log export timeout handling",
+      "description": "Synthetic sample work item 24 for offline tests. It describes audit log export work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::audit-log-export",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/24",
+      "created_at": "2026-01-29T09:00:00Z",
+      "updated_at": "2026-02-01T09:00:00Z"
+    },
+    {
+      "id": 90025,
+      "iid": 25,
+      "project_id": 1001,
+      "title": "Epic: Dashboard filters improvements",
+      "description": "Synthetic sample work item 25 for offline tests. It describes dashboard filters work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::dashboard-filters",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/25",
+      "created_at": "2026-01-30T09:00:00Z",
+      "updated_at": "2026-02-02T09:00:00Z"
+    },
+    {
+      "id": 90026,
+      "iid": 26,
+      "project_id": 1001,
+      "title": "Dashboard filters - validation rules",
+      "description": "Synthetic sample work item 26 for offline tests. It describes dashboard filters work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::dashboard-filters",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/26",
+      "created_at": "2026-01-31T09:00:00Z",
+      "updated_at": "2026-02-03T09:00:00Z"
+    },
+    {
+      "id": 90027,
+      "iid": 27,
+      "project_id": 1001,
+      "title": "Spike Dashboard filters options",
+      "description": "Synthetic sample work item 27 for offline tests. It describes dashboard filters work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::dashboard-filters",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/27",
+      "created_at": "2026-02-01T09:00:00Z",
+      "updated_at": "2026-02-04T09:00:00Z"
+    },
+    {
+      "id": 90028,
+      "iid": 28,
+      "project_id": 1001,
+      "title": "Fix Dashboard filters timeout handling",
+      "description": "Synthetic sample work item 28 for offline tests. It describes dashboard filters work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::dashboard-filters",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/28",
+      "created_at": "2026-02-02T09:00:00Z",
+      "updated_at": "2026-02-05T09:00:00Z"
+    },
+    {
+      "id": 90029,
+      "iid": 29,
+      "project_id": 1001,
+      "title": "Epic: Retention policy improvements",
+      "description": "Synthetic sample work item 29 for offline tests. It describes retention policy work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::retention-policy",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/29",
+      "created_at": "2026-02-03T09:00:00Z",
+      "updated_at": "2026-02-06T09:00:00Z"
+    },
+    {
+      "id": 90030,
+      "iid": 30,
+      "project_id": 1001,
+      "title": "Retention policy - validation rules",
+      "description": "Synthetic sample work item 30 for offline tests. It describes retention policy work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::retention-policy",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/30",
+      "created_at": "2026-02-04T09:00:00Z",
+      "updated_at": "2026-02-07T09:00:00Z"
+    },
+    {
+      "id": 90031,
+      "iid": 31,
+      "project_id": 1001,
+      "title": "Spike Retention policy options",
+      "description": "Synthetic sample work item 31 for offline tests. It describes retention policy work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::retention-policy",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/31",
+      "created_at": "2026-02-05T09:00:00Z",
+      "updated_at": "2026-02-08T09:00:00Z"
+    },
+    {
+      "id": 90032,
+      "iid": 32,
+      "project_id": 1001,
+      "title": "Fix Retention policy timeout handling",
+      "description": "Synthetic sample work item 32 for offline tests. It describes retention policy work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::retention-policy",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/32",
+      "created_at": "2026-02-06T09:00:00Z",
+      "updated_at": "2026-02-09T09:00:00Z"
+    },
+    {
+      "id": 90033,
+      "iid": 33,
+      "project_id": 1001,
+      "title": "Epic: Search indexing improvements",
+      "description": "Synthetic sample work item 33 for offline tests. It describes search indexing work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::search-indexing",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/33",
+      "created_at": "2026-02-07T09:00:00Z",
+      "updated_at": "2026-02-10T09:00:00Z"
+    },
+    {
+      "id": 90034,
+      "iid": 34,
+      "project_id": 1001,
+      "title": "Search indexing - validation rules",
+      "description": "Synthetic sample work item 34 for offline tests. It describes search indexing work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::search-indexing",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/34",
+      "created_at": "2026-02-08T09:00:00Z",
+      "updated_at": "2026-02-11T09:00:00Z"
+    },
+    {
+      "id": 90035,
+      "iid": 35,
+      "project_id": 1001,
+      "title": "Spike Search indexing options",
+      "description": "Synthetic sample work item 35 for offline tests. It describes search indexing work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::search-indexing",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/35",
+      "created_at": "2026-02-09T09:00:00Z",
+      "updated_at": "2026-02-12T09:00:00Z"
+    },
+    {
+      "id": 90036,
+      "iid": 36,
+      "project_id": 1001,
+      "title": "Fix Search indexing timeout handling",
+      "description": "Synthetic sample work item 36 for offline tests. It describes search indexing work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::search-indexing",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/36",
+      "created_at": "2026-02-10T09:00:00Z",
+      "updated_at": "2026-02-13T09:00:00Z"
+    },
+    {
+      "id": 90037,
+      "iid": 37,
+      "project_id": 1001,
+      "title": "Epic: Notification rules improvements",
+      "description": "Synthetic sample work item 37 for offline tests. It describes notification rules work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::notification-rules",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/37",
+      "created_at": "2026-02-11T09:00:00Z",
+      "updated_at": "2026-02-14T09:00:00Z"
+    },
+    {
+      "id": 90038,
+      "iid": 38,
+      "project_id": 1001,
+      "title": "Notification rules - validation rules",
+      "description": "Synthetic sample work item 38 for offline tests. It describes notification rules work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::notification-rules",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/38",
+      "created_at": "2026-02-12T09:00:00Z",
+      "updated_at": "2026-02-15T09:00:00Z"
+    },
+    {
+      "id": 90039,
+      "iid": 39,
+      "project_id": 1001,
+      "title": "Spike Notification rules options",
+      "description": "Synthetic sample work item 39 for offline tests. It describes notification rules work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::notification-rules",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/39",
+      "created_at": "2026-02-13T09:00:00Z",
+      "updated_at": "2026-02-16T09:00:00Z"
+    },
+    {
+      "id": 90040,
+      "iid": 40,
+      "project_id": 1001,
+      "title": "Fix Notification rules timeout handling",
+      "description": "Synthetic sample work item 40 for offline tests. It describes notification rules work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::notification-rules",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/40",
+      "created_at": "2026-02-14T09:00:00Z",
+      "updated_at": "2026-02-17T09:00:00Z"
+    },
+    {
+      "id": 90041,
+      "iid": 41,
+      "project_id": 1001,
+      "title": "Epic: Backup verification improvements",
+      "description": "Synthetic sample work item 41 for offline tests. It describes backup verification work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::backup-verification",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/41",
+      "created_at": "2026-02-15T09:00:00Z",
+      "updated_at": "2026-02-18T09:00:00Z"
+    },
+    {
+      "id": 90042,
+      "iid": 42,
+      "project_id": 1001,
+      "title": "Backup verification - validation rules",
+      "description": "Synthetic sample work item 42 for offline tests. It describes backup verification work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::backup-verification",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/42",
+      "created_at": "2026-02-16T09:00:00Z",
+      "updated_at": "2026-02-19T09:00:00Z"
+    },
+    {
+      "id": 90043,
+      "iid": 43,
+      "project_id": 1001,
+      "title": "Spike Backup verification options",
+      "description": "Synthetic sample work item 43 for offline tests. It describes backup verification work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::backup-verification",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/43",
+      "created_at": "2026-02-17T09:00:00Z",
+      "updated_at": "2026-02-20T09:00:00Z"
+    },
+    {
+      "id": 90044,
+      "iid": 44,
+      "project_id": 1001,
+      "title": "Fix Backup verification timeout handling",
+      "description": "Synthetic sample work item 44 for offline tests. It describes backup verification work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::backup-verification",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/44",
+      "created_at": "2026-02-18T09:00:00Z",
+      "updated_at": "2026-02-21T09:00:00Z"
+    },
+    {
+      "id": 90045,
+      "iid": 45,
+      "project_id": 1001,
+      "title": "Epic: Metadata catalog improvements",
+      "description": "Synthetic sample work item 45 for offline tests. It describes metadata catalog work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::metadata-catalog",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/45",
+      "created_at": "2026-02-19T09:00:00Z",
+      "updated_at": "2026-02-22T09:00:00Z"
+    },
+    {
+      "id": 90046,
+      "iid": 46,
+      "project_id": 1001,
+      "title": "Metadata catalog - validation rules",
+      "description": "Synthetic sample work item 46 for offline tests. It describes metadata catalog work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::metadata-catalog",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/46",
+      "created_at": "2026-02-20T09:00:00Z",
+      "updated_at": "2026-02-23T09:00:00Z"
+    },
+    {
+      "id": 90047,
+      "iid": 47,
+      "project_id": 1001,
+      "title": "Spike Metadata catalog options",
+      "description": "Synthetic sample work item 47 for offline tests. It describes metadata catalog work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::metadata-catalog",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/47",
+      "created_at": "2026-02-21T09:00:00Z",
+      "updated_at": "2026-02-24T09:00:00Z"
+    },
+    {
+      "id": 90048,
+      "iid": 48,
+      "project_id": 1001,
+      "title": "Fix Metadata catalog timeout handling",
+      "description": "Synthetic sample work item 48 for offline tests. It describes metadata catalog work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::metadata-catalog",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/48",
+      "created_at": "2026-02-22T09:00:00Z",
+      "updated_at": "2026-02-25T09:00:00Z"
+    },
+    {
+      "id": 90049,
+      "iid": 49,
+      "project_id": 1001,
+      "title": "Epic: Pipeline monitoring improvements",
+      "description": "Synthetic sample work item 49 for offline tests. It describes pipeline monitoring work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::pipeline-monitoring",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/49",
+      "created_at": "2026-02-23T09:00:00Z",
+      "updated_at": "2026-02-26T09:00:00Z"
+    },
+    {
+      "id": 90050,
+      "iid": 50,
+      "project_id": 1001,
+      "title": "Pipeline monitoring - validation rules",
+      "description": "Synthetic sample work item 50 for offline tests. It describes pipeline monitoring work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::pipeline-monitoring",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/50",
+      "created_at": "2026-02-24T09:00:00Z",
+      "updated_at": "2026-02-27T09:00:00Z"
+    },
+    {
+      "id": 90051,
+      "iid": 51,
+      "project_id": 1001,
+      "title": "Spike Pipeline monitoring options",
+      "description": "Synthetic sample work item 51 for offline tests. It describes pipeline monitoring work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::pipeline-monitoring",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/51",
+      "created_at": "2026-02-25T09:00:00Z",
+      "updated_at": "2026-02-28T09:00:00Z"
+    },
+    {
+      "id": 90052,
+      "iid": 52,
+      "project_id": 1001,
+      "title": "Fix Pipeline monitoring timeout handling",
+      "description": "Synthetic sample work item 52 for offline tests. It describes pipeline monitoring work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::pipeline-monitoring",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/52",
+      "created_at": "2026-02-26T09:00:00Z",
+      "updated_at": "2026-03-01T09:00:00Z"
+    },
+    {
+      "id": 90053,
+      "iid": 53,
+      "project_id": 1001,
+      "title": "Epic: Config validation improvements",
+      "description": "Synthetic sample work item 53 for offline tests. It describes config validation work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::config-validation",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/53",
+      "created_at": "2026-02-27T09:00:00Z",
+      "updated_at": "2026-03-02T09:00:00Z"
+    },
+    {
+      "id": 90054,
+      "iid": 54,
+      "project_id": 1001,
+      "title": "Config validation - validation rules",
+      "description": "Synthetic sample work item 54 for offline tests. It describes config validation work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::config-validation",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/54",
+      "created_at": "2026-02-28T09:00:00Z",
+      "updated_at": "2026-03-03T09:00:00Z"
+    },
+    {
+      "id": 90055,
+      "iid": 55,
+      "project_id": 1001,
+      "title": "Spike Config validation options",
+      "description": "Synthetic sample work item 55 for offline tests. It describes config validation work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::config-validation",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/55",
+      "created_at": "2026-03-01T09:00:00Z",
+      "updated_at": "2026-03-04T09:00:00Z"
+    },
+    {
+      "id": 90056,
+      "iid": 56,
+      "project_id": 1001,
+      "title": "Fix Config validation timeout handling",
+      "description": "Synthetic sample work item 56 for offline tests. It describes config validation work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::config-validation",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/56",
+      "created_at": "2026-03-02T09:00:00Z",
+      "updated_at": "2026-03-05T09:00:00Z"
+    },
+    {
+      "id": 90057,
+      "iid": 57,
+      "project_id": 1001,
+      "title": "Epic: Release checklist improvements",
+      "description": "Synthetic sample work item 57 for offline tests. It describes release checklist work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::release-checklist",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/57",
+      "created_at": "2026-03-03T09:00:00Z",
+      "updated_at": "2026-03-06T09:00:00Z"
+    },
+    {
+      "id": 90058,
+      "iid": 58,
+      "project_id": 1001,
+      "title": "Release checklist - validation rules",
+      "description": "Synthetic sample work item 58 for offline tests. It describes release checklist work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::release-checklist",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/58",
+      "created_at": "2026-03-04T09:00:00Z",
+      "updated_at": "2026-03-07T09:00:00Z"
+    },
+    {
+      "id": 90059,
+      "iid": 59,
+      "project_id": 1001,
+      "title": "Spike Release checklist options",
+      "description": "Synthetic sample work item 59 for offline tests. It describes release checklist work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::release-checklist",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/59",
+      "created_at": "2026-03-05T09:00:00Z",
+      "updated_at": "2026-03-08T09:00:00Z"
+    },
+    {
+      "id": 90060,
+      "iid": 60,
+      "project_id": 1001,
+      "title": "Fix Release checklist timeout handling",
+      "description": "Synthetic sample work item 60 for offline tests. It describes release checklist work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::release-checklist",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/60",
+      "created_at": "2026-03-06T09:00:00Z",
+      "updated_at": "2026-03-09T09:00:00Z"
+    },
+    {
+      "id": 90061,
+      "iid": 61,
+      "project_id": 1001,
+      "title": "Epic: Onboarding guide improvements",
+      "description": "Synthetic sample work item 61 for offline tests. It describes onboarding guide work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::onboarding-guide",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/61",
+      "created_at": "2026-03-07T09:00:00Z",
+      "updated_at": "2026-03-10T09:00:00Z"
+    },
+    {
+      "id": 90062,
+      "iid": 62,
+      "project_id": 1001,
+      "title": "Onboarding guide - validation rules",
+      "description": "Synthetic sample work item 62 for offline tests. It describes onboarding guide work and contains no real data.",
+      "state": "closed",
+      "labels": [
+        "area::onboarding-guide",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q1 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/62",
+      "created_at": "2026-03-08T09:00:00Z",
+      "updated_at": "2026-03-11T09:00:00Z"
+    },
+    {
+      "id": 90063,
+      "iid": 63,
+      "project_id": 1001,
+      "title": "Spike Onboarding guide options",
+      "description": "Synthetic sample work item 63 for offline tests. It describes onboarding guide work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::onboarding-guide",
+        "team::Sample-Team"
+      ],
+      "milestone": null,
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/63",
+      "created_at": "2026-03-09T09:00:00Z",
+      "updated_at": "2026-03-12T09:00:00Z"
+    },
+    {
+      "id": 90064,
+      "iid": 64,
+      "project_id": 1001,
+      "title": "Fix Onboarding guide timeout handling",
+      "description": "Synthetic sample work item 64 for offline tests. It describes onboarding guide work and contains no real data.",
+      "state": "opened",
+      "labels": [
+        "area::onboarding-guide",
+        "team::Sample-Team"
+      ],
+      "milestone": {
+        "title": "Q2 Sample Milestone"
+      },
+      "assignees": [],
+      "web_url": "https://gitlab.example.invalid/sample/cascade-fixture/-/issues/64",
+      "created_at": "2026-03-10T09:00:00Z",
+      "updated_at": "2026-03-13T09:00:00Z"
+    }
+  ]
+}
