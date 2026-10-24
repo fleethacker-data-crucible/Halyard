@@ -17,6 +17,12 @@ namespace Cascade.Core.Intelligence
         Refinement = 4,
         /// <summary>Metadata repair: a cascade-meta block built or completed from labels, title and placeholders.</summary>
         Metadata = 5,
+        /// <summary>Skills needed for the item (taxonomy ids), for matching work to people.</summary>
+        Skills = 6,
+        /// <summary>Sprint placement and assignee for a story.</summary>
+        SprintPlan = 7,
+        /// <summary>Theme membership for an epic (from vision drafting).</summary>
+        ThemeLink = 8,
     }
 
     public enum ProposalDecision
@@ -70,6 +76,9 @@ namespace Cascade.Core.Intelligence
                 case ProposalKind.FeatureEffort: return "featureEffort";
                 case ProposalKind.ParentLink: return "parentLink";
                 case ProposalKind.Refinement: return "refinement";
+                case ProposalKind.Skills: return "skills";
+                case ProposalKind.SprintPlan: return "sprintPlan";
+                case ProposalKind.ThemeLink: return "themeLink";
                 default: return "metadata";
             }
         }
@@ -82,6 +91,9 @@ namespace Cascade.Core.Intelligence
                 {
                     case ProposalKind.StoryPoints: return "points";
                     case ProposalKind.FeatureEffort: return "effort";
+                    case ProposalKind.Skills: return "skills";
+                    case ProposalKind.SprintPlan: return "sprint";
+                    case ProposalKind.ThemeLink: return "theme";
                     default: return "parent";
                 }
             }

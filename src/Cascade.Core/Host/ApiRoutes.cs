@@ -49,6 +49,7 @@ namespace Cascade.Core.Host
             Router.Post("/api/intelligence/parents", ParentProposals);
             Router.Post("/api/intelligence/refine", StartRefine);
             Router.Post("/api/intelligence/metadata", MetadataProposals);
+            Router.Post("/api/intelligence/skills", StartSkills);
             Router.Get("/api/proposals", r => Task.FromResult(Json.Ok(Proposals.LoadAll().Select(BatchSummary))));
             Router.Post("/api/proposals/manual", ManualProposal);
             Router.Get("/api/proposals/{batchId}", GetBatch);
@@ -630,6 +631,45 @@ namespace Cascade.Core.Host
             var batch = Refiner.MetadataProposals(items, report, Taxonomy, target, ReadNumbers(body));
             Proposals.Save(batch);
             return Task.FromResult(Json.Ok(batch));
+        }
+
+        private Task<HttpResponse> StartSkills(HttpRequest r)
+        {
+            var body = Json.Body(r);
+            var options = new SkillTagOptions
+            {
+                OnlyUntagged = Json.Read<bool?>(body, "onlyUntagged") ?? true,
+                MaxItems = Math.Min(Math.Max(Json.Read<int?>(body, "maxItems") ?? 40, 1), 300),
+                OnlyNumbers = ReadNumbers(body),
+            };
+            var useModel = Json.Read<bool?>(body, "useModel") ?? false;
+            var label = Json.Read<string>(body, "label") ?? Settings.LabelFilter;
+            var snap = Snapshots.Current;
+            if (snap == null) throw new BadRequestException("Synchronize a repository first.");
+            List<WorkItem> all;
+            var visible = VisibleItems(label, out all);
+            List<WorkItem> items;
+            var target = ProposalTarget(visible, out items);
+            options.OnlyKeys = new HashSet<string>(items.Select(i => i.Key), StringComparer.OrdinalIgnoreCase);
+            var report = Review.Run(visible, Taxonomy, label, all);
+            var taxonomy = Skills;
+            if (taxonomy.Skills.Count == 0) throw new BadRequestException("config/skills.json has no skills.");
+            if (!useModel)
+            {
+                var batch = SkillTagger.Deterministic(visible, report, taxonomy, options, target);
+                Proposals.Save(batch);
+                return Task.FromResult(Json.Ok(batch));
+            }
+            var llm = CreateLlm(Json.Read<string>(body, "profile"));
+            var job = Jobs.Start("skills", async ctx =>
+            {
+                var progress = new Progress<string>(m => ctx.Report(0, 0, m));
+                var batch = await SkillTagger.RunAsync(visible, report, taxonomy, llm, options, target, progress, ctx.Cancellation).ConfigureAwait(false);
+                Proposals.Save(batch);
+                ctx.Report(batch.Proposals.Count, batch.Proposals.Count, batch.Proposals.Count + " skill proposals saved in batch " + batch.Id);
+                return (object?)BatchSummary(batch);
+            });
+            return Task.FromResult(Json.Accepted(new { job, profile = llm.Profile, model = llm.Model, candidates = SkillTagger.Candidates(visible, options).Count }));
         }
 
         private Task<HttpResponse> ManualProposal(HttpRequest r)

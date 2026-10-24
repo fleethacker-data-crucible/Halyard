@@ -1,8 +1,14 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Cascade.Core.Analysis;
+using Cascade.Core.Intelligence;
+using Cascade.Core.Llm;
 using Cascade.Core.Model;
+using Newtonsoft.Json.Linq;
 using Cascade.Core.Planning;
 using Cascade.Core.Synthetic;
 using Xunit;
@@ -164,6 +170,67 @@ namespace Cascade.Core.Tests
             var r = Delivery.Build(items, TeamConfig.Default(), TeamFixture.Now);
             Assert.False(r.Capacity.Configured);
             Assert.Contains(r.Notes, n => n.Contains("team.json"));
+        }
+    }
+
+    public class SkillTaggerTests
+    {
+        private sealed class ScriptedLlm : ILlmClient
+        {
+            private readonly Func<IReadOnlyList<LlmMessage>, string> _reply;
+            public ScriptedLlm(Func<IReadOnlyList<LlmMessage>, string> reply) { _reply = reply; }
+            public LlmProfile Profile { get { return LlmProfile.OpenAi; } }
+            public string Model { get { return "scripted"; } }
+            public Task<LlmResponse> ChatAsync(IReadOnlyList<LlmMessage> messages, CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = _reply(messages) }); }
+            public Task<LlmResponse> TestAsync(CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = "OK" }); }
+        }
+
+        private static (List<WorkItem> items, ReviewReport report, SkillsTaxonomy taxonomy) Untagged()
+        {
+            var catalog = SyntheticCatalog.Generate(SyntheticOptions.ForTotal(60));
+            var items = SyntheticCatalog.ToWorkItems(catalog, Items.Repo);
+            // Strip the generator's skills from stories so there is something to propose; features keep theirs.
+            foreach (var s in items.Where(i => i.Type == WorkItemType.Story)) { var m = s.Meta!.Clone(); m.Remove("skills"); s.Body = Schema.Descriptions.Rewrite(s.Body, m); s.InvalidateMeta(); }
+            var taxonomy = SkillsTaxonomy.Load(Path.Combine(TeamFixture.ConfigDir(), "skills.json"));
+            return (items, Review.Run(items, Schema.Taxonomy.Default()), taxonomy);
+        }
+
+        [Fact]
+        public void DeterministicTaggingInheritsFromTheParentAndMatchesNames()
+        {
+            var (items, report, taxonomy) = Untagged();
+            var batch = SkillTagger.Deterministic(items, report, taxonomy, new SkillTagOptions { MaxItems = 100 }, Items.Repo);
+            Assert.Equal(ProposalKind.Skills, batch.Kind);
+            var stories = items.Count(i => i.Type == WorkItemType.Story && i.State == WorkItemState.Open);
+            Assert.Equal(stories, batch.Considered);
+            Assert.True(batch.Proposals.Count >= stories * 0.9, "almost every story inherits its feature's skills");
+            Assert.All(batch.Proposals, p => Assert.All(p.ProposedMeta!["skills"]!.Split(',').Select(x => x.Trim()), id => Assert.True(taxonomy.Contains(id))));
+            Assert.Contains(batch.Proposals, p => p.Reason.Contains("from parent"));
+            // A story whose text names a skill scores it above the inherited ones.
+            var doc = new WorkItem(Items.Repo, 9999) { Title = "STORY :: Write technical writing guide", Body = "~~~cascade-meta\ntype: STORY\nid: STORY-x\n~~~\n\n## User need\nAs a reader I want technical writing standards and documentation stewardship." };
+            var suggested = SkillTagger.Suggest(doc, null, taxonomy);
+            Assert.Equal("technical-writing", suggested[0].Key);
+            Assert.Contains(suggested, kv => kv.Key == "documentation-stewardship");
+        }
+
+        [Fact]
+        public async Task ModelTaggingValidatesIdsAgainstTheTaxonomy()
+        {
+            var (items, report, taxonomy) = Untagged();
+            var llm = new ScriptedLlm(messages =>
+            {
+                Assert.Contains("sql-pipelines", messages[0].Content);
+                var ids = System.Text.RegularExpressions.Regex.Matches(messages[1].Content, @"### id: (\S+)").Cast<System.Text.RegularExpressions.Match>().Select(m => m.Groups[1].Value).ToList();
+                return new JArray(ids.Select((id, i) => new JObject { ["id"] = id, ["skills"] = new JArray(i == 0 ? new[] { "made-up-skill" } : new[] { "data-quality", "nonsense", "ci-cd-pipelines" }), ["confidence"] = "high", ["reason"] = "r" })).ToString();
+            });
+            var batch = await SkillTagger.RunAsync(items, report, taxonomy, llm, new SkillTagOptions { MaxItems = 6, BatchSize = 6 }, Items.Repo, null, CancellationToken.None);
+            Assert.Equal(5, batch.Proposals.Count);
+            Assert.Equal(1, batch.Skipped);
+            Assert.All(batch.Proposals, p => Assert.Equal("data-quality, ci-cd-pipelines", p.ProposedValue));
+            Assert.All(batch.Proposals, p => Assert.Contains("nonsense", p.Reason));
+            var projected = ProposalApplier.Project(items.First(i => i.Key == batch.Proposals[0].ItemKey), batch.Proposals[0]);
+            Assert.Equal("data-quality, ci-cd-pipelines", projected.Meta.Get("skills"));
+            Assert.Contains("tagged_by", projected.Body);
         }
     }
 }
