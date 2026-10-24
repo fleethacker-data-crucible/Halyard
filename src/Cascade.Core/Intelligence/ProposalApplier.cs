@@ -63,6 +63,13 @@ namespace Cascade.Core.Intelligence
                     ApplyMeta(meta, proposal.ProposedMeta);
                     meta.Set("refined_by", "cascade-proposal " + proposal.Id);
                     return new Projection(meta, Descriptions.Rewrite(item.Body, meta));
+                case ProposalKind.Skills:
+                case ProposalKind.SprintPlan:
+                case ProposalKind.ThemeLink:
+                    ApplyMeta(meta, proposal.ProposedMeta);
+                    if (proposal.ProposedMeta == null || proposal.ProposedMeta.Count == 0) meta.Set(proposal.MetaKey, proposal.ProposedValue);
+                    meta.Set(proposal.Kind == ProposalKind.Skills ? "tagged_by" : proposal.Kind == ProposalKind.SprintPlan ? "planned_by" : "themed_by", "cascade-proposal " + proposal.Id);
+                    return new Projection(meta, Descriptions.Rewrite(item.Body, meta));
                 case ProposalKind.Refinement:
                     {
                         ApplyMeta(meta, proposal.ProposedMeta);
