@@ -13,6 +13,10 @@ namespace Cascade.Core.Intelligence
         StoryPoints = 1,
         FeatureEffort = 2,
         ParentLink = 3,
+        /// <summary>A rewritten narrative (missing sections drafted) and optional meta changes.</summary>
+        Refinement = 4,
+        /// <summary>Metadata repair: a cascade-meta block built or completed from labels, title and placeholders.</summary>
+        Metadata = 5,
     }
 
     public enum ProposalDecision
@@ -50,6 +54,25 @@ namespace Cascade.Core.Intelligence
         public DateTimeOffset? DecidedAt { get; set; }
         public DateTimeOffset? AppliedAt { get; set; }
         public string? Error { get; set; }
+        /// <summary>Refinement / Metadata: meta keys to set (value null removes the key).</summary>
+        public Dictionary<string, string?>? ProposedMeta { get; set; }
+        /// <summary>Deficiency or finding codes this proposal is meant to resolve.</summary>
+        public List<string> Addresses { get; set; } = new List<string>();
+        /// <summary>Refinement: codes still open after the proposal is applied in memory (empty = fully resolves).</summary>
+        public List<string> Remaining { get; set; } = new List<string>();
+
+        /// <summary>Human-readable label for the kind.</summary>
+        public static string KindToken(ProposalKind kind)
+        {
+            switch (kind)
+            {
+                case ProposalKind.StoryPoints: return "storyPoints";
+                case ProposalKind.FeatureEffort: return "featureEffort";
+                case ProposalKind.ParentLink: return "parentLink";
+                case ProposalKind.Refinement: return "refinement";
+                default: return "metadata";
+            }
+        }
 
         public string MetaKey
         {

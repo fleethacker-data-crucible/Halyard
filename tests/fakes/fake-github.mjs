@@ -52,8 +52,32 @@ function readBody(req) {
   });
 }
 
+function refine(user) {
+  // Echo the current narrative and append the sections the gaps ask for, the way a cooperative model would.
+  const start = user.indexOf('Current narrative');
+  let current = start >= 0 ? user.slice(user.indexOf('\n', start) + 1) : '';
+  current = current.replace(/\n\nRespond with the JSON object only\.\s*$/, '').trim();
+  if (current === '(empty)') current = '';
+  let add = '';
+  if (user.includes('story_missing_user_need')) add += '\n\n## User need\nAs a reviewer, I want this gap closed so that the story is ready for a sprint.';
+  if (user.includes('story_missing_acceptance_criteria')) add += '\n\n## Acceptance criteria\n- [ ] One positive case passes end to end\n- [ ] One negative case is rejected with a clear message\n- [ ] Evidence is attached to the story';
+  if (user.includes('story_missing_tasks')) add += '\n\n## Tasks\n- [ ] Implement the slice\n- [ ] Demonstrate both cases\n- [ ] Attach evidence';
+  if (user.includes('feature_missing_done_when')) add += '\n\n## Definition of done\n- [ ] Every child story is accepted\n- [ ] The capability is demonstrated in the sandbox';
+  if (user.includes('feature_missing_short_description')) add += '\n\n## Description\nDelivers the capability named in the title for the parent epic (to confirm).';
+  if (user.includes('epic_missing_outcome_statement')) add += '\n\n## Outcome\nThe capability is live, measured and relied upon by its features.';
+  if (user.includes('epic_missing_success_picture')) add += '\n\n## Success picture\n- Teams can see the outcome\n- Nothing regresses\n- The next epic can start';
+  if (user.includes('theme_missing_purpose')) add += '\n\n## Purpose\nWhy this lane exists (to confirm).';
+  if (user.includes('theme_missing_scope')) add += '\n\n## In scope\n- Platform work\n\n## Out of scope\n- Product-owned reports';
+  return { narrative: current + add, note: 'Added the missing sections; kept the existing text.' };
+}
+
 function chat(data, res) {
-  const prompt = (data.messages ?? []).map((m) => m.content ?? '').join('\n');
+  const messages = data.messages ?? [];
+  const prompt = messages.map((m) => m.content ?? '').join('\n');
+  if (prompt.includes('refinement assistant')) {
+    const user = messages.filter((m) => m.role === 'user').map((m) => m.content ?? '').join('\n');
+    return send(res, 200, { choices: [{ message: { content: JSON.stringify(refine(user)) } }], usage: { prompt_tokens: Math.floor(prompt.length / 4), completion_tokens: 200 } });
+  }
   const ids = [...prompt.matchAll(/### id: (\S+)/g)].map((m) => m[1]);
   const effort = prompt.includes('FEATURE below');
   const out = ids.map((id, i) => effort

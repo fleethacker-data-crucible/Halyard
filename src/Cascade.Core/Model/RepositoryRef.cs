@@ -31,7 +31,7 @@ namespace Cascade.Core.Model
 
         public string ProviderToken { get { return Provider.ToString().ToLowerInvariant(); } }
 
-        /// <summary>Stable key used inside work-item keys: <c>github:owner/repo</c> or <c>gitlab:52999</c>.</summary>
+        /// <summary>Stable key used inside work-item keys: <c>github:owner/repo</c> or <c>gitlab:4242</c>.</summary>
         public string Key { get { return ProviderToken + ":" + Identifier; } }
 
         public static RepositoryRef Parse(ProviderKind provider, string identifier)

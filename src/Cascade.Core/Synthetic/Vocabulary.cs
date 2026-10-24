@@ -60,8 +60,7 @@ namespace Cascade.Core.Synthetic
     }
 
     /// <summary>
-    /// Hand-written, entirely fictional backlog content in the Data-Crucible flavour of the original
-    /// example catalogue. Three Epics per Theme, three Features per Epic, three Story seeds per Feature;
+    /// Hand-written, entirely fictional backlog content for a data-platform team. Three Epics per Theme, three Features per Epic, three Story seeds per Feature;
     /// the generator cycles and suffixes when asked for more.
     /// </summary>
     internal static class Vocabulary

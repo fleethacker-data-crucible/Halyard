@@ -164,7 +164,7 @@ namespace Cascade.Core.Host
             {
                 if (_provider != null) return _provider;
                 if (!Settings.Provider.HasToken)
-                    throw new ProviderNotReadyException("No " + Settings.Provider.Kind + " token is available. " + (Settings.Provider.Kind == ProviderKind.GitLab ? "Unlock the ARC vault or set GITLAB_TOKEN." : "Set GITHUB_TOKEN (or run 'gh auth login')."));
+                    throw new ProviderNotReadyException("No " + Settings.Provider.Kind + " token is available. " + (Settings.Provider.Kind == ProviderKind.GitLab ? "Unlock the vault or set GITLAB_TOKEN." : "Set GITHUB_TOKEN (or run 'gh auth login')."));
                 if (Settings.Provider.Source == null && Settings.Provider.Sandbox == null)
                     throw new ProviderNotReadyException("Configure a source or sandbox repository in Settings.");
                 try
@@ -212,18 +212,14 @@ namespace Cascade.Core.Host
             LlmProfile? profile = null;
             if (!string.IsNullOrWhiteSpace(profileText))
             {
-                switch (profileText!.Trim().ToLowerInvariant())
-                {
-                    case "genai": profile = LlmProfile.GenAi; break;
-                    case "grok": profile = LlmProfile.Grok; break;
-                    case "openai": profile = LlmProfile.OpenAi; break;
-                    case "auto": profile = null; break;
-                    default: throw new BadRequestException("Unknown LLM profile '" + profileText + "'.");
-                }
+                var parsed = LlmSettings.ParseProfile(profileText);
+                if (parsed == null) throw new BadRequestException("Unknown LLM profile '" + profileText + "'. Use auto, openai or databricks.");
+                profile = parsed == LlmProfile.Auto ? (LlmProfile?)null : parsed;
             }
             var client = new LlmClient(Settings.Llm, Options.Transport, profile);
-            if (!Settings.Llm.IsConfigured(client.Profile))
-                throw new ProviderNotReadyException("No token for LLM profile " + client.Profile + ". Unlock the vault or set the token environment variable.");
+            var missing = Settings.Llm.MissingFor(client.Profile);
+            if (missing != null)
+                throw new ProviderNotReadyException("LLM profile " + LlmSettings.ProfileToken(client.Profile) + " is not usable: " + missing);
             return client;
         }
 

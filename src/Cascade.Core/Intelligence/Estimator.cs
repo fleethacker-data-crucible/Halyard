@@ -20,6 +20,8 @@ namespace Cascade.Core.Intelligence
         public int BatchSize { get; set; } = 15;
         /// <summary>Skip Stories without acceptance criteria instead of inventing a size.</summary>
         public bool RequireDefinition { get; set; } = true;
+        /// <summary>Restrict to these item numbers (bulk action from the Review page). Null = every eligible item.</summary>
+        public HashSet<long>? OnlyNumbers { get; set; }
     }
 
     /// <summary>
@@ -72,10 +74,11 @@ namespace Cascade.Core.Intelligence
             options = options ?? new EstimateOptions();
             var kind = options.Kind;
             var wantType = kind == ProposalKind.FeatureEffort ? WorkItemType.Feature : WorkItemType.Story;
-            var batch = new ProposalBatch { Kind = kind, Target = target.Key, Source = "llm:" + llm.Profile.ToString().ToLowerInvariant() + "/" + llm.Model };
+            var batch = new ProposalBatch { Kind = kind, Target = target.Key, Source = "llm:" + LlmSettings.ProfileToken(llm.Profile) + "/" + llm.Model };
             var candidates = new List<WorkItem>();
             foreach (var item in items.Where(i => i.Type == wantType))
             {
+                if (options.OnlyNumbers != null && !options.OnlyNumbers.Contains(item.Number)) continue;
                 batch.Considered++;
                 var current = item.Meta == null ? null : (kind == ProposalKind.FeatureEffort ? item.Meta.Effort : item.Meta.Points);
                 var sized = !string.IsNullOrWhiteSpace(current) && !string.Equals(current, Sizing.Tbd, StringComparison.OrdinalIgnoreCase);
@@ -153,11 +156,16 @@ namespace Cascade.Core.Intelligence
         }
 
         /// <summary>Parent-link proposals from deterministic evidence; the top candidate becomes the proposal when it clearly leads.</summary>
-        public static ProposalBatch ParentProposals(ReviewReport report, RepositoryRef target, double minimumScore = 2.0)
+        public static ProposalBatch ParentProposals(ReviewReport report, RepositoryRef target, double minimumScore = 2.0, HashSet<long>? onlyNumbers = null)
         {
             var batch = new ProposalBatch { Kind = ProposalKind.ParentLink, Target = target.Key, Source = "deterministic" };
             foreach (var review in report.ParentReviews)
             {
+                if (onlyNumbers != null)
+                {
+                    var ir = report.Items.FirstOrDefault(i => i.Key == review.Key);
+                    if (ir == null || !onlyNumbers.Contains(ir.Number)) continue;
+                }
                 batch.Considered++;
                 if (review.Candidates.Count == 0) { batch.Skipped++; batch.SkipReasons.Add(review.CanonicalId + ": no candidate parent with evidence"); continue; }
                 var top = review.Candidates[0];
@@ -180,6 +188,58 @@ namespace Cascade.Core.Intelligence
                     Source = "deterministic",
                 });
             }
+            return batch;
+        }
+
+        /// <summary>
+        /// A human-entered change (points, effort or parent) recorded as an already-approved proposal, so it goes
+        /// through the same preview, audit log and sandbox-only apply path as everything else.
+        /// </summary>
+        public static ProposalBatch Manual(WorkItem item, ProposalKind kind, string value, string? note, RepositoryRef target, IReadOnlyList<WorkItem> all)
+        {
+            if (item == null) throw new ArgumentNullException("item");
+            string proposed;
+            switch (kind)
+            {
+                case ProposalKind.StoryPoints:
+                    if (item.Type != WorkItemType.Story) throw new ArgumentException("Only stories carry points.");
+                    proposed = Sizing.ClampPoints(value);
+                    break;
+                case ProposalKind.FeatureEffort:
+                    if (item.Type != WorkItemType.Feature) throw new ArgumentException("Only features carry an effort band.");
+                    proposed = Sizing.ClampEffort(value);
+                    break;
+                case ProposalKind.ParentLink:
+                    {
+                        var parent = all.FirstOrDefault(p => string.Equals(p.CanonicalId, value, StringComparison.OrdinalIgnoreCase) || p.Number.ToString() == value.TrimStart('#'));
+                        if (parent == null) throw new ArgumentException("No item in the snapshot has id or number '" + value + "'.");
+                        var expected = WorkItemTypes.ExpectedParent(item.Type);
+                        if (expected != null && parent.Type != expected.Value) throw new ArgumentException("A " + WorkItemTypes.ToToken(item.Type) + " belongs under a " + WorkItemTypes.ToToken(expected.Value) + ", not a " + WorkItemTypes.ToToken(parent.Type) + ".");
+                        if (parent.Key == item.Key) throw new ArgumentException("An item cannot be its own parent.");
+                        proposed = parent.CanonicalId;
+                        break;
+                    }
+                default:
+                    throw new ArgumentException("Manual edits support points, effort and parent.");
+            }
+            var batch = new ProposalBatch { Kind = kind, Target = target.Key, Source = "manual", Considered = 1 };
+            batch.Proposals.Add(new Proposal
+            {
+                BatchId = batch.Id,
+                Kind = kind,
+                ItemKey = item.Key,
+                ItemNumber = item.Number,
+                ItemCanonicalId = item.CanonicalId,
+                ItemTitle = item.Title,
+                CurrentValue = item.Meta == null ? null : (kind == ProposalKind.StoryPoints ? item.Meta.Points : kind == ProposalKind.FeatureEffort ? item.Meta.Effort : item.Meta.Parent),
+                ProposedValue = proposed,
+                Confidence = "high",
+                Reason = string.IsNullOrWhiteSpace(note) ? "Entered by hand in the browser." : note!.Trim(),
+                Source = "manual",
+                Decision = ProposalDecision.Approved,
+                DecidedAt = DateTimeOffset.UtcNow,
+                DecisionNote = "approved on entry",
+            });
             return batch;
         }
     }

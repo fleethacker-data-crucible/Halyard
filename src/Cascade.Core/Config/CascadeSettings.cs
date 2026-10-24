@@ -36,6 +36,9 @@ namespace Cascade.Core.Config
         public string SeedsDirectory { get { return Path.Combine(OutputDirectory, "seeds"); } }
         public string TranscriptsDirectory { get { return Path.Combine(OutputDirectory, "llm_transcripts"); } }
 
+        /// <summary>Extra repositories that must never be written, whatever the mode (CASCADE_PROTECTED_REPOS, comma-separated).</summary>
+        public List<string> ProtectedRepositories { get; set; } = new List<string>();
+
         public WritePolicy BuildWritePolicy()
         {
             var policy = new WritePolicy { Mode = WriteMode, AllowProduction = AllowProduction };
@@ -46,6 +49,11 @@ namespace Cascade.Core.Config
             {
                 if (WriteMode == WriteMode.Production) policy.ProductionTarget = source;
                 else if (sandbox == null || !sandbox.Equals(source)) policy.ProtectedTargets.Add(source);
+            }
+            foreach (var id in ProtectedRepositories)
+            {
+                var r = new RepositoryRef(Provider.Kind, id);
+                if (!policy.ProtectedTargets.Any(t => t.Equals(r))) policy.ProtectedTargets.Add(r);
             }
             return policy;
         }
@@ -81,6 +89,9 @@ namespace Cascade.Core.Config
             int delay;
             if (int.TryParse(env("CASCADE_WRITE_DELAY_MS"), out delay)) s.Provider.WriteDelayMs = delay;
 
+            var protectedList = env("CASCADE_PROTECTED_REPOS");
+            if (protectedList != null) s.ProtectedRepositories = protectedList.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).Where(x => x.Length > 0).ToList();
+
             s.WriteMode = string.Equals(env("CASCADE_WRITE_MODE"), "production", StringComparison.OrdinalIgnoreCase) ? WriteMode.Production : WriteMode.Sandbox;
             s.AllowProduction = env("CASCADE_ALLOW_PRODUCTION") == "1" || string.Equals(env("CASCADE_ALLOW_PRODUCTION"), "true", StringComparison.OrdinalIgnoreCase);
             s.LabelFilter = env("CASCADE_LABEL_FILTER");
@@ -90,17 +101,13 @@ namespace Cascade.Core.Config
             if (int.TryParse(env("CASCADE_MAX_SYNC_ITEMS"), out max) && max > 0) s.MaxSyncItems = max;
             s.WebRootDirectory = env("CASCADE_WEBROOT") ?? string.Empty;
 
-            var profile = (env("CASCADE_LLM_PROFILE") ?? "auto").ToLowerInvariant();
-            s.Llm.Profile = profile == "genai" ? LlmProfile.GenAi : profile == "grok" ? LlmProfile.Grok : profile == "openai" ? LlmProfile.OpenAi : LlmProfile.Auto;
-            s.Llm.GenAiUrl = env("GENAI_URL");
-            s.Llm.GenAiModel = env("GENAI_MODEL");
-            s.Llm.GenAiToken = env("GENAI_TOKEN");
-            s.Llm.GrokUrl = env("DATABRICKS_URL") ?? env("ADVANA_URL");
-            s.Llm.GrokModel = env("DATABRICKS_MODEL") ?? env("ADVANA_MODEL");
-            s.Llm.GrokToken = env("DATABRICKS_TOKEN");
+            s.Llm.Profile = LlmSettings.ParseProfile(env("CASCADE_LLM_PROFILE")) ?? LlmProfile.Auto;
             s.Llm.OpenAiUrl = env("LLM_URL") ?? env("OPENAI_BASE_URL");
             s.Llm.OpenAiModel = env("LLM_MODEL") ?? env("OPENAI_MODEL");
             s.Llm.OpenAiToken = env("LLM_TOKEN") ?? env("OPENAI_API_KEY");
+            s.Llm.DatabricksUrl = env("DATABRICKS_URL");
+            s.Llm.DatabricksModel = env("DATABRICKS_MODEL");
+            s.Llm.DatabricksToken = env("DATABRICKS_TOKEN");
             int maxTokens;
             if (int.TryParse(env("CASCADE_LLM_MAX_TOKENS"), out maxTokens) && maxTokens > 0) s.Llm.MaxTokens = maxTokens;
             s.Llm.TranscriptDirectory = env("CASCADE_LLM_TRANSCRIPTS") == "0" ? null : s.TranscriptsDirectory;
@@ -132,6 +139,31 @@ namespace Cascade.Core.Config
             return applied;
         }
 
+        /// <summary>
+        /// Writes or replaces KEY=VALUE lines in an env file (created when missing). Used to remember an API
+        /// key entered in the browser; the file is git-ignored and lives only on this machine.
+        /// </summary>
+        public static void UpsertEnvFile(string path, IDictionary<string, string?> values)
+        {
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir!);
+            var lines = File.Exists(path) ? File.ReadAllLines(path).ToList() : new List<string> { "# Cascade settings (git-ignored). Never commit real tokens." };
+            foreach (var kv in values)
+            {
+                var pattern = new Regex(@"^\s*(?:export\s+)?" + Regex.Escape(kv.Key) + @"\s*=");
+                var index = lines.FindIndex(l => pattern.IsMatch(l));
+                var line = kv.Value == null ? null : kv.Key + "=" + kv.Value;
+                if (index >= 0)
+                {
+                    if (line == null) lines.RemoveAt(index); else lines[index] = line;
+                }
+                else if (line != null) lines.Add(line);
+            }
+            File.WriteAllLines(path, lines);
+        }
+
+        public string EnvFilePath { get { return Path.Combine(ConfigDirectory, "cascade.env"); } }
+
         /// <summary>Non-secret view for the UI and diagnostics.</summary>
         public Dictionary<string, object?> ToPublicDictionary()
         {
@@ -148,12 +180,16 @@ namespace Cascade.Core.Config
                 { "labelFilter", LabelFilter },
                 { "preferredPort", PreferredPort },
                 { "maxSyncItems", MaxSyncItems },
-                { "llmProfile", Llm.Profile.ToString().ToLowerInvariant() },
-                { "llmResolvedProfile", resolved.ToString().ToLowerInvariant() },
+                { "protectedRepositories", ProtectedRepositories },
+                { "llmProfile", LlmSettings.ProfileToken(Llm.Profile) },
+                { "llmResolvedProfile", LlmSettings.ProfileToken(resolved) },
                 { "llmModel", Llm.Model(resolved) },
                 { "llmUrl", Llm.Url(resolved) },
                 { "hasLlmToken", Llm.IsConfigured(resolved) },
-                { "llmProfiles", new[] { LlmProfile.GenAi, LlmProfile.Grok, LlmProfile.OpenAi }.Select(p => new Dictionary<string, object?> { { "profile", p.ToString().ToLowerInvariant() }, { "model", Llm.Model(p) }, { "configured", Llm.IsConfigured(p) } }).ToList() },
+                { "llmMissing", Llm.MissingFor(resolved) },
+                { "llmProfiles", LlmSettings.Concrete.Select(p => new Dictionary<string, object?> { { "profile", LlmSettings.ProfileToken(p) }, { "model", Llm.Model(p) }, { "url", Llm.Url(p) }, { "configured", Llm.IsConfigured(p) }, { "missing", Llm.MissingFor(p) } }).ToList() },
+                { "envFile", EnvFilePath },
+                { "envFileExists", File.Exists(EnvFilePath) },
                 { "rootDirectory", RootDirectory },
                 { "outputDirectory", OutputDirectory },
             };

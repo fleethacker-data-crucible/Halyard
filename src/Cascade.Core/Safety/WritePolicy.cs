@@ -28,7 +28,7 @@ namespace Cascade.Core.Safety
         public bool AllowProduction { get; set; }
         public List<RepositoryRef> SandboxTargets { get; private set; }
         public RepositoryRef? ProductionTarget { get; set; }
-        /// <summary>Never writable, whatever the mode (e.g. the CBR while it is only being read).</summary>
+        /// <summary>Never writable, whatever the mode (e.g. the production backlog while it is only being read).</summary>
         public List<RepositoryRef> ProtectedTargets { get; private set; }
         /// <summary>Deletes are refused unless the item carries one of these labels. Empty list = any item in a sandbox.</summary>
         public List<string> DeleteRequiresAnyLabel { get; set; } = new List<string> { Labels.Synthetic };

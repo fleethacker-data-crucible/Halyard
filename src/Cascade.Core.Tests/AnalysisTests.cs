@@ -155,12 +155,38 @@ namespace Cascade.Core.Tests
             var catalog = SyntheticCatalog.Generate(options);
             var items = SyntheticCatalog.ToWorkItems(catalog, Items.Repo);
             var report = Review.Run(items, Taxonomy.Default());
-            Assert.True(report.Summary.NeedsReview >= 3);
-            var orphan = catalog.Single(c => c.Defects.Contains(Deficiencies.StoryMissingParent));
+            var defective = catalog.Where(c => c.NeedsHumanReview).ToList();
+            // 80/20: a fifth of the catalogue needs a human, the rest is complete.
+            Assert.InRange(defective.Count, 18, 22);
+            // TBD sizes are valid placeholders (estimate candidates), so they alone do not flag an item for review.
+            var expectedReview = defective.Count(d => !d.Defects.All(k => k.EndsWith("_tbd")));
+            Assert.Equal(expectedReview, report.Summary.NeedsReview);
+            Assert.True(defective.Select(d => d.Defects[0]).Distinct().Count() >= 12, "defects should be varied");
+
+            // Every expected code is raised for its item (matched by position: ToWorkItems numbers the catalogue in order).
+            foreach (var d in defective)
+            {
+                var r = report.Items[catalog.IndexOf(d)];
+                var raised = r.Deficiencies.Concat(r.Findings.Select(f => f.Code)).ToList();
+                foreach (var code in d.ExpectedCodes) Assert.Contains(code, raised);
+                Assert.True(r.NeedsReview || d.Defects.All(k => k.EndsWith("_tbd")), d.Id + " should need review");
+            }
+
+            var orphan = catalog.First(c => c.Defects.Contains("story_no_parent"));
             var review = report.ParentReviews.Single(p => p.CanonicalId == orphan.Id);
             Assert.NotEmpty(review.Candidates);
-            // The generator removed the parent from meta but the body still names the feature, so evidence should rank it first.
-            Assert.Equal(orphan.ParentId, review.Candidates[0].CanonicalId);
+            // Only the parent line was removed; title words, theme and area still point at the right feature.
+            var original = SyntheticCatalog.Generate(SyntheticOptions.ForTotal(100)).Single(c => c.Id == orphan.Id);
+            Assert.Equal(original.ParentId, review.Candidates[0].CanonicalId);
+        }
+
+        [Fact]
+        public void CompleteCatalogueHasNoReviewWork()
+        {
+            var catalog = SyntheticCatalog.Generate(SyntheticOptions.ForTotal(100));
+            Assert.All(catalog, c => Assert.False(c.NeedsHumanReview));
+            var report = Review.Run(SyntheticCatalog.ToWorkItems(catalog, Items.Repo), Taxonomy.Default());
+            Assert.Equal(0, report.Summary.NeedsReview);
         }
 
         [Fact]
