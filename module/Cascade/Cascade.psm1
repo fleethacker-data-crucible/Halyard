@@ -48,7 +48,10 @@ function Import-CascadeCore {
     }
     $dir = Split-Path $dll -Parent
     $json = Join-Path $dir 'Newtonsoft.Json.dll'
-    if ((Test-Path -LiteralPath $json) -and -not ('Newtonsoft.Json.JsonConvert' -as [type])) {
+    if (-not ('Newtonsoft.Json.JsonConvert' -as [type])) {
+        if (-not (Test-Path -LiteralPath $json)) {
+            throw ('Newtonsoft.Json.dll must sit next to ' + $dll + '. Rebuild with build\Build-Cascade.ps1 or use a release bundle.')
+        }
         Add-Type -LiteralPath $json -ErrorAction Stop
     }
     try {
