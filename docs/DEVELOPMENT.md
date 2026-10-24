@@ -46,16 +46,19 @@ UI work: `cd web; npm run dev` rebuilds on save; reload the browser.
 node tests/fakes/fake-github.mjs 8790 &
 # config/cascade.env (or environment):
 #   CASCADE_PROVIDER=github  GITHUB_API_URL=http://127.0.0.1:8790  GITHUB_TOKEN=fake
-#   CASCADE_SANDBOX_REPO=sun-of-anton/cascade-sandbox  CASCADE_SOURCE_REPO=sun-of-anton/cascade-sandbox
+#   CASCADE_SANDBOX_REPO=sun-of-anton/cascade-sandbox  CASCADE_SOURCE_REPO=sun-of-anton/raw-backlog
 #   CASCADE_WRITE_DELAY_MS=0
 #   CASCADE_LLM_PROFILE=openai  LLM_URL=http://127.0.0.1:8790/v1/chat/completions  LLM_TOKEN=fake
 .\Launch-Cascade.bat --console --no-browser
-node tests/e2e/sandbox-loop.mjs http://127.0.0.1:8773 <session token from the launch URL> 30
+node tests/e2e/sandbox-loop.mjs http://127.0.0.1:8773 <session token from the launch URL> 30 --fake http://127.0.0.1:8790
 ```
 
 The loop seeds with gaps, checks the audit raises every expected code, repairs metadata, drafts sections
-with the fake model, sizes, applies a manual edit, re-syncs and tears down. The same script against a
-real sandbox repository proves the concept on GitHub.
+with the fake model, sizes, applies a manual edit, re-syncs, renders the leadership report, plans
+sprints, tags skills, drafts a vision, plants raw tickets in the fake source repository (`--fake`) and
+runs intake on them, then tears down. `tests/e2e/Run-E2E.ps1` does all of it on Windows. The same script
+without `--fake` against a real sandbox repository proves the concept on GitHub. The fake GitHub keeps
+state per repository and answers the refine, vision and skills prompts.
 
 ## Conventions
 

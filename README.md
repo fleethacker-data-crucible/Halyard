@@ -1,9 +1,12 @@
 # Cascade
 
-Cascade reads a backlog from GitHub or GitLab, checks every issue against the
-Theme → Epic → Feature → Story → Task model, proposes the fixes (missing sections drafted by a model,
-metadata repaired, parents inferred, sizes estimated), and writes only what you approve to a sandbox
-repository, never anywhere else.
+Cascade is a product owner's assistant that works upward and downward from a backlog. It reads one or
+more repositories on GitHub or GitLab, checks every issue against the Theme → Epic → Feature → Story →
+Task model, and proposes the work a product owner would do: raw tickets triaged into the hierarchy
+(intake), missing sections drafted, metadata repaired, parents inferred, sizes estimated, skills tagged,
+sprints planned against team capacity and skills, a portfolio vision drafted for leadership, and a
+one-page leadership dashboard that can go out by email every week. It writes only what you approve, and
+only to a sandbox repository, never anywhere else.
 
 It runs locally: a PowerShell launcher, one .NET library, and a browser UI on `127.0.0.1`. Nothing is
 installed on the machine and nothing in the browser talks to the internet except through the engine.
@@ -42,16 +45,29 @@ read-only; only the sandbox project can be written.
 | Page | Purpose |
 |---|---|
 | Overview | The cascade of levels, items needing review, sizing coverage, points by theme and sprint, next actions |
+| Leadership | Feature % complete, velocity, ready backlog, capacity used, open blockers; downloadable HTML report |
+| Vision | Portfolio vision drafted from the backlog (deterministic or model): themes, priorities, risks, next quarter; theme proposals |
+| Intake | Raw tickets from the source repositories copied into the sandbox as classified work items with a source link |
 | Hierarchy | Keyboard-navigable tree and graph of the declared chain; each item's definition, meta and findings; in-place edits queued as proposals |
 | Review | Every item against its definition of ready and the topology; bulk actions on selected rows; Markdown or CSV review pack |
-| Proposals | Drafted sections, metadata repairs, parent links and sizes with a diff per row; approve, reject, apply to the sandbox |
+| Proposals | Drafted sections, metadata repairs, parent links, sizes, skills, sprint plans and theme links with a diff per row; approve, reject, apply to the sandbox |
+| Plan | The next sprints filled from ready stories within committed capacity, owners by skill match, skill gaps; becomes proposals |
 | Sandbox | Seed a deterministic synthetic hierarchy with a chosen share of gaps; delete it by run |
 | Connection | Test the token; take a snapshot of the source or sandbox |
 | Diagnostics | Engine log, every write attempt, background jobs |
 | Settings | Model API key and model name; profile; label filter; the configured repositories (read-only) |
 
-PowerShell equivalents: `Invoke-SandboxSeed.ps1`, `Invoke-SandboxTeardown.ps1`, and the `Cascade`
-module (`Get-CascadeWorkItem`, `Test-CascadeConnection`, `New-CascadeSyntheticCatalog`).
+PowerShell equivalents: `Invoke-SandboxSeed.ps1`, `Invoke-SandboxTeardown.ps1`, `Send-CascadeReport.ps1`
+(leadership dashboard by Outlook or SMTP), `Register-CascadeReportSchedule.ps1` (weekly task), and the
+`Cascade` module (`Get-CascadeWorkItem`, `Test-CascadeConnection`, `New-CascadeSyntheticCatalog`).
+
+## Team, skills and Synapse
+
+`config/team.json` holds teams, people, points per sprint and the sprint calendar. `config/skills.json`
+is the shared skill taxonomy, using the same ids as [Synapse](https://github.com/sun-of-anton/synapse),
+so exported Synapse peer cards dropped into `config/synapse/` give each person their consented skills and
+confidence without any translation. Cascade only reads those cards; Synapse stays the owner of people,
+skills and consent.
 
 ## Documentation
 
