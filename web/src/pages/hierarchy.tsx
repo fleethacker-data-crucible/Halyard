@@ -264,7 +264,9 @@ export function Markdownish({ text }: { text: string }) {
     const line = raw.trimEnd();
     const h = /^(#{1,4})\s+(.*)$/.exec(line);
     const li = /^\s*[-*]\s+(?:\[([ xX])\]\s+)?(.*)$/.exec(line);
+    const ol = /^\s*(\d+)[.)]\s+(.*)$/.exec(line);
     if (h) { flush(); blocks.push(<h3 key={i} className={cn('mt-3 mb-1 first:mt-0', h[1]!.length <= 2 ? 'text-[13.5px]' : 'text-[12.5px] text-ink-2')}>{inline(h[2]!)}</h3>); return; }
+    if (ol) { list.push(<li key={i} className="flex items-start gap-2"><span className="num w-5 shrink-0 text-right text-ink-3">{ol[1]}.</span><span>{inline(ol[2]!)}</span></li>); return; }
     if (li) { list.push(<li key={i} className="flex items-start gap-2">{li[1] !== undefined ? <input type="checkbox" readOnly checked={li[1] !== ' '} className="mt-[3px]" aria-label="checklist item" /> : <span className="mt-[7px] inline-block h-1 w-1 shrink-0 rounded-full bg-ink-3" aria-hidden />}<span>{inline(li[2]!)}</span></li>); return; }
     flush();
     if (line.startsWith('>')) { blocks.push(<p key={i} className="my-1 border-l-2 border-line pl-2 text-ink-3">{inline(line.replace(/^>\s?/, ''))}</p>); return; }
@@ -276,10 +278,12 @@ export function Markdownish({ text }: { text: string }) {
 }
 
 function inline(text: string): ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`|(?:^|(?<=\s))_[^_]+_(?=\s|[.,;:]|$))/g);
   return parts.map((p, i) => {
+    if (!p) return null;
     if (p.startsWith('**') && p.endsWith('**')) return <strong key={i} className="font-semibold text-ink">{p.slice(2, -2)}</strong>;
     if (p.startsWith('`') && p.endsWith('`')) return <code key={i} className="rounded bg-surface-2 px-1">{p.slice(1, -1)}</code>;
+    if (p.length > 2 && p.startsWith('_') && p.endsWith('_')) return <em key={i} className="text-ink-2">{p.slice(1, -1)}</em>;
     return p;
   });
 }
