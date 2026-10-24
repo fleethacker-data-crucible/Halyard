@@ -314,4 +314,99 @@ namespace Cascade.Core.Tests
             Assert.Contains(plan.Notes, n => n.Contains("team.json"));
         }
     }
+
+    public class VisionaryTests
+    {
+        private sealed class ScriptedLlm : ILlmClient
+        {
+            private readonly Func<IReadOnlyList<LlmMessage>, string> _reply;
+            public ScriptedLlm(Func<IReadOnlyList<LlmMessage>, string> reply) { _reply = reply; }
+            public LlmProfile Profile { get { return LlmProfile.OpenAi; } }
+            public string Model { get { return "scripted"; } }
+            public Task<LlmResponse> ChatAsync(IReadOnlyList<LlmMessage> messages, CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = _reply(messages) }); }
+            public Task<LlmResponse> TestAsync(CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = "OK" }); }
+        }
+
+        private static (List<WorkItem> items, DeliveryReport delivery, Dictionary<string, int> gaps) Facts()
+        {
+            var items = SyntheticCatalog.ToWorkItems(SyntheticCatalog.Generate(SyntheticOptions.ForTotal(100)), Items.Repo);
+            var team = TeamFixture.Load();
+            var report = Review.Run(items, Schema.Taxonomy.Default());
+            var delivery = Delivery.Build(items, team, TeamFixture.Now, "test");
+            var plan = SprintPlanner.Plan(items, report, team, TeamFixture.Now, new PlanOptions());
+            return (items, delivery, plan.SkillGaps);
+        }
+
+        [Fact]
+        public void DeterministicSummaryCoversThemesPrioritiesRisksAndNextQuarter()
+        {
+            var (items, delivery, gaps) = Facts();
+            var draft = Visionary.Summarize(items, delivery, gaps, "test");
+            Assert.Equal(2, draft.Themes.Count);
+            Assert.All(draft.Themes, t => Assert.Equal(3, t.Epics.Count));
+            Assert.Equal(6, draft.Priorities.Count);
+            Assert.NotEmpty(draft.Risks);
+            Assert.NotEmpty(draft.NextQuarter);
+            Assert.Contains("## Vision", draft.Markdown);
+            Assert.Contains("## Risks", draft.Markdown);
+            Assert.Contains("Facts this draft rests on", draft.Markdown);
+            Assert.Empty(draft.Warnings);
+        }
+
+        [Fact]
+        public async Task ModelDraftIsValidatedAgainstTheBacklogAndYieldsThemeProposals()
+        {
+            var (items, delivery, gaps) = Facts();
+            var themes = items.Where(i => i.Type == WorkItemType.Theme).Select(i => i.CanonicalId).ToList();
+            var epics = items.Where(i => i.Type == WorkItemType.Epic).Select(i => i.CanonicalId).ToList();
+            var llm = new ScriptedLlm(messages =>
+            {
+                Assert.Contains("THEMES", messages[1].Content);
+                Assert.Contains(epics[0], messages[1].Content);
+                // Move the first epic to the second theme, invent a theme, name an unknown epic.
+                var reply = new JObject
+                {
+                    ["vision"] = "A platform people can trust.",
+                    ["themes"] = new JArray(
+                        new JObject { ["id"] = themes[0], ["title"] = "T1", ["purpose"] = "p", ["epics"] = new JArray(epics[1], epics[2]) },
+                        new JObject { ["id"] = themes[1], ["title"] = "T2", ["purpose"] = "p", ["epics"] = new JArray(epics[0], epics[3], epics[4], epics[5]) },
+                        new JObject { ["id"] = "NEW", ["title"] = "Brand new lane", ["purpose"] = "p", ["epics"] = new JArray("EPIC-does-not-exist") }),
+                    ["priorities"] = new JArray(new JObject { ["rank"] = 1, ["epic"] = epics[2], ["why"] = "earliest target" }, new JObject { ["rank"] = 2, ["epic"] = "EPIC-nope", ["why"] = "x" }),
+                    ["risks"] = new JArray("A risk"),
+                    ["nextQuarter"] = new JArray("Ship it"),
+                    ["narrative"] = "## Vision\nA platform people can trust.\n\n## Priorities\n1. Something",
+                };
+                return "```json\n" + reply.ToString() + "\n```";
+            });
+            var draft = await Visionary.DraftAsync(items, delivery, gaps, llm, "test", CancellationToken.None);
+            Assert.StartsWith("llm:", draft.Source);
+            Assert.Equal("A platform people can trust.", draft.Vision);
+            Assert.Equal(3, draft.Themes.Count);
+            Assert.True(draft.Themes[2].IsNew);
+            Assert.Empty(draft.Themes[2].Epics); // unknown epic dropped
+            Assert.Single(draft.Priorities); // unknown epic dropped
+            Assert.Contains("## Vision", draft.Markdown);
+            Assert.Contains("Facts this draft rests on", draft.Markdown);
+
+            var batch = Visionary.ThemeProposals(draft, items, Items.Repo);
+            Assert.Equal(ProposalKind.ThemeLink, batch.Kind);
+            Assert.Single(batch.Proposals); // only epics[0] moved
+            Assert.Equal(epics[0], batch.Proposals[0].ItemCanonicalId);
+            Assert.Equal(themes[1], batch.Proposals[0].ProposedValue);
+            Assert.Contains(batch.Warnings, w => w.Contains("Brand new lane"));
+            var projected = ProposalApplier.Project(items.First(i => i.CanonicalId == epics[0]), batch.Proposals[0]);
+            Assert.Equal(themes[1], projected.Meta.Theme);
+            Assert.Equal(themes[1], projected.Meta.Parent);
+        }
+
+        [Fact]
+        public async Task UnparsableModelReplyFallsBackToTheSummary()
+        {
+            var (items, delivery, gaps) = Facts();
+            var draft = await Visionary.DraftAsync(items, delivery, gaps, new ScriptedLlm(_ => "I cannot do that."), "test", CancellationToken.None);
+            Assert.Contains("deterministic", draft.Source);
+            Assert.NotEmpty(draft.Warnings);
+            Assert.Equal(2, draft.Themes.Count);
+        }
+    }
 }
