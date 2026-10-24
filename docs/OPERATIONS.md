@@ -148,6 +148,14 @@ each team's committed share of `pointsPerSprint`. An owner is suggested where so
 story's skills with room left; stories nobody on the team can cover are listed as skill gaps. *Propose*
 turns the plan into sprint-plan proposals, reviewed and applied like any other.
 
+## Stopping Cascade
+
+The engine stops itself when its browser tab closes (heartbeat; about 20 seconds, never during a running
+job), or at once from **End session** at the bottom of the navigation. `scripts\Stop-Cascade.ps1` stops
+every engine on the machine. Launching while one is running asks whether to replace it; `--stay` keeps an
+engine alive after the tab closes. The pattern is written up as a standard in
+[LOCAL_APP_LIFECYCLE.md](LOCAL_APP_LIFECYCLE.md).
+
 ## Review workflow
 
 1. **Connection** → Test connection → Synchronize (source or sandbox, optionally one label).
@@ -195,6 +203,9 @@ each marked with the review label, and the seed manifest records which codes the
 | "Windows blocked Cascade.Core.dll" | Application control rejects the unsigned DLL. Ask IT to sign or allow it. |
 | Script will not run at all | Execution policy enforced by Group Policy. `-ExecutionPolicy Bypass` cannot override that; use the IT-approved signed-script route. |
 | Console stays open after launch | ARC did not unlock; read the message in the console. |
+| "Cascade is already running" at launch | An engine from an earlier session is still up. Answer Y to replace it, or `--stay` was used earlier; `scripts\Stop-Cascade.ps1` stops everything. |
+| Build fails: `Cascade.Core.dll` "being used by another process" | An engine is running. The build script now stops it first; if it could not (started from an elevated window), run `scripts\Stop-Cascade.ps1` from such a window. |
+| Engine stopped while I was away | By design: it stops itself about 20 s after its browser tab closes (never during a job). Launch with `--stay` or set `CASCADE_AUTO_STOP=0` to keep it running. |
 | `PROVIDER_NOT_READY` in the UI | No token for the configured provider. See Configurations above. |
 | `AUTH_REJECTED` / `FORBIDDEN` | Token expired or lacks access to the repository. |
 | `WRITE_BLOCKED` | The write policy refused the target. Check `CASCADE_SANDBOX_REPO`. |

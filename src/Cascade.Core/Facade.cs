@@ -35,12 +35,18 @@ namespace Cascade.Core
 
         public static CascadeHost CreateHost(CascadeSettings settings, string? webRoot, int preferredPort, Dictionary<string, object?>? launcherState)
         {
+            return CreateHost(settings, webRoot, preferredPort, launcherState, settings.AutoStop);
+        }
+
+        public static CascadeHost CreateHost(CascadeSettings settings, string? webRoot, int preferredPort, Dictionary<string, object?>? launcherState, bool autoStop)
+        {
             return new CascadeHost(new HostOptions
             {
                 Settings = settings,
                 WebRoot = webRoot,
                 PreferredPort = preferredPort,
                 LauncherState = launcherState ?? new Dictionary<string, object?>(),
+                AutoStop = autoStop,
             });
         }
 
