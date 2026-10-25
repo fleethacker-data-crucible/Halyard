@@ -108,8 +108,7 @@ namespace Halyard.Core.Planning
 
     /// <summary>
     /// Teams, people and the sprint calendar, from <c>config/team.json</c>, with skills and confidence merged
-    /// from Shellback peer cards in <c>config/shellback/</c> (and the former <c>config/synapse/</c>). Shellback owns
-    /// people and consent; Halyard only reads
+    /// from Shellback peer cards in <c>config/shellback/</c>. Shellback owns people and consent; Halyard only reads
     /// exported cards and never writes them.
     /// </summary>
     public sealed class TeamConfig
@@ -150,8 +149,8 @@ namespace Halyard.Core.Planning
         }
 
         /// <summary>
-        /// Loads team.json, then peer cards from each folder in order (normally <c>config/shellback/</c>, then the
-        /// former <c>config/synapse/</c>). A card file name already imported from an earlier folder is skipped.
+        /// Loads team.json, then peer cards from each folder in order (normally just <c>config/shellback/</c>). A card file
+        /// name already imported from an earlier folder is skipped.
         /// </summary>
         public static TeamConfig Load(string path, IEnumerable<string> cardDirectories)
         {
@@ -206,8 +205,7 @@ namespace Halyard.Core.Planning
                     Name = (string?)p["name"] ?? (string?)p["id"] ?? string.Empty,
                     Team = (string?)p["team"] ?? string.Empty,
                     PointsPerSprint = (int?)p["pointsPerSprint"] ?? 0,
-                    // "shellbackCard"; "synapseCard" is the former key and still read.
-                    ShellbackCard = (string?)p["shellbackCard"] ?? (string?)p["synapseCard"],
+                    ShellbackCard = (string?)p["shellbackCard"],
                     Availability = (string?)p["availability"] ?? "unknown",
                 };
                 var skills = p["skills"];

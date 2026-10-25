@@ -6,7 +6,7 @@
 2. Copy `config\halyard.env.example` to `config\halyard.env` and set the provider and repositories.
 3. Double-click `Launch-Halyard.bat`.
 
-The launcher loads settings, unlocks the vault bridge (Lazarette, formerly ARC) in its console when the provider is GitLab
+The launcher loads settings, unlocks the vault bridge (Lazarette) in its console when the provider is GitLab
 and it is configured, starts the engine
 on `127.0.0.1` (port 8773, or a free one if taken), opens the browser with a one-time session link and
 hides the console. **End session** in the sidebar stops everything.
@@ -14,8 +14,8 @@ hides the console. **End session** in the sidebar stops everything.
 | Option | Effect |
 |---|---|
 | `Launch-Halyard.bat --console` | Keep the console visible (diagnosing startup or Lazarette). |
-| `--no-lazarette` (or `--no-arc`) | Never load Lazarette; use tokens from `halyard.env` (local development only). |
-| `--lazarette` (or `--arc`) | Load Lazarette even for GitHub (reads `HALYARD_LAZARETTE_ITEM_GitHub`). |
+| `--no-lazarette` | Never load Lazarette; use tokens from `halyard.env` (local development only). |
+| `--lazarette` | Load Lazarette even for GitHub (reads `HALYARD_LAZARETTE_ITEM_GitHub`). |
 | `--no-browser` | Start the engine without opening a browser. |
 
 If you close the browser tab, relaunch Halyard. The session link is opened once and not shown again, so
@@ -76,7 +76,7 @@ GITLAB_URL=https://gitlab.example.com
 HALYARD_SOURCE_REPO=1234            # read-only source backlog
 HALYARD_SANDBOX_REPO=5678           # the only writable project
 HALYARD_PROTECTED_REPOS=            # optional extra never-write list
-LAZARETTE_PATH=C:\path\to\Lazarette  # optional vault bridge (former name ARC_PATH still read)
+LAZARETTE_PATH=C:\path\to\Lazarette  # optional vault bridge (ARC_PATH also works)
 HALYARD_LAZARETTE_ITEM_GitLab=<vault item>  # -> GITLAB_TOKEN
 HALYARD_LAZARETTE_ITEM_Llm=<vault item>     # -> LLM_TOKEN
 ```
@@ -130,11 +130,11 @@ launcher does.
 
 ## Intake: source tickets into the hierarchy
 
-**Intake** lists raw issues from the source repositories that have no cascade-meta and are not yet
+**Intake** lists raw issues from the source repositories that have no halyard-meta and are not yet
 copied (a copy records `source_project`, `source_iid` and `source_url`, and the page de-duplicates on
 them). *Preview* classifies each ticket as theme / epic / feature / story / task, deterministically or
-with the model, and shows the structured draft (title, body sections, labels `cascade`,
-`cascade-intake`, `type::…`, `refine::sandbox-review`). *Run* creates the chosen copies in the sandbox
+with the model, and shows the structured draft (title, body sections, labels `halyard`,
+`halyard-intake`, `type::…`, `refine::sandbox-review`). *Run* creates the chosen copies in the sandbox
 through the write gateway; the source is never touched. Manifests are kept in `output\intakes\`.
 
 ## Vision and planning
@@ -159,23 +159,28 @@ holder because it was opened as administrator, it names the PID and asks you to 
 
 ### Upgrading from Cascade
 
-Halyard was called Cascade. An existing checkout or bundle upgrades in place; nothing has to be edited first:
+Halyard was called Cascade. What an installed copy needs on its first launch after the rename still works:
 
-- `Update-Cascade.bat` still works: it pulls, then runs `build\Build-Cascade.ps1` and `Launch-Cascade.bat`, which are
-  now small forwarders to the Halyard names. Use `Update-Halyard.bat` from then on.
-- `config\cascade.env` is still read when there is no `config\halyard.env`, and every `CASCADE_*` variable still
-  works when its `HALYARD_*` name is not set (`CASCADE_ARC_ITEM_*` and `CASCADE_USE_ARC` included). Rename the file
-  and the variables when convenient; the new names win when both are present.
-- A config that names `sun-of-anton/cascade-sandbox` is read as `sun-of-anton/Halyard-Ballast`, the sandbox's new
-  name, so writes keep going to the sandbox and nowhere else.
-- Peer cards in `config\synapse\` are still read; new ones go in `config\shellback\`. `team.json` may use
-  `shellbackCard` or the former `synapseCard`.
-- Labels already on issues (`cascade`, `cascade-synthetic`, `cascade-run::*`, `cascade-intake`), the
-  `~~~cascade-meta` block and the `### Cascade` mirror heading keep their names, so teardown and parsing work
-  on everything created before the rename.
-- A weekly report task registered before the rename runs `Send-CascadeReport.ps1`, which forwards to
-  `Send-HalyardReport.ps1`. To move it to the new name, run `Register-HalyardReportSchedule.ps1` with your
-  usual options, then `Register-HalyardReportSchedule.ps1 -Remove -TaskName 'Cascade leadership report'`.
+- `Update-Cascade.bat` and `Launch-Cascade.bat` keep their names so existing shortcuts and checkouts work: after
+  `git pull`, `Update-Cascade.bat` builds with `build\Build-Halyard.ps1` and starts `Launch-Halyard.bat`. Use
+  `Update-Halyard.bat` and `Launch-Halyard.bat` from then on.
+- On the first launch, `config\cascade.env` is copied once to `config\halyard.env` with the variable names updated
+  (`CASCADE_*` to `HALYARD_*`, `CASCADE_ARC_ITEM_*` to `HALYARD_LAZARETTE_ITEM_*`, `CASCADE_USE_ARC` to
+  `HALYARD_USE_LAZARETTE`, and `sun-of-anton/cascade-sandbox` to `sun-of-anton/Halyard-Ballast`). The old file is
+  left untouched and is not read again.
+- `CASCADE_*` environment variables set outside the env file still work for this release when their
+  `HALYARD_*` name is not set. The fallback will be removed in the next release.
+- Settings the browser remembered (tree state, last view) are copied from the old `cascade.` keys to `halyard.`
+  once; the old keys are left in place.
+- Stop any engine started before the update first (End session in its tab, or close its console): the stop
+  script and the build only look for Halyard engines.
+- Issue labels, the meta block and the mirror heading use the Halyard names (`halyard`, `halyard-synthetic`,
+  `halyard-run::*`, `halyard-intake`, `~~~halyard-meta`, `### Halyard`). Items created by Cascade are not
+  recognised; empty the sandbox with the Cascade build before upgrading, or delete those items by hand.
+- Peer cards go in `config\shellback\`, and `team.json` names them with `shellbackCard`.
+- A weekly report task registered before the rename runs `scripts\Send-CascadeReport.ps1`, which no longer exists.
+  Re-register it with `Register-HalyardReportSchedule.ps1` and remove the old task with
+  `Register-HalyardReportSchedule.ps1 -Remove -TaskName 'Cascade leadership report'`.
 
 ## Stopping Halyard
 
@@ -192,7 +197,7 @@ engine alive after the tab closes. The pattern is written up as a standard in
    them (*Repair meta*, *Find parent*, *Draft sections*, *Size*). Nothing is written.
 3. Make proposals, either for selected rows from the bulk bar on **Review**, or for everything from
    **Proposals** → *New analysis*:
-   - **Repair metadata** (deterministic): builds or completes the cascade-meta block from labels, the
+   - **Repair metadata** (deterministic): builds or completes the halyard-meta block from labels, the
      title and TBD placeholders; invalid points become TBD; wrong-level sizing keys are removed.
    - **Propose parents** (deterministic): evidence-ranked candidates.
    - **Draft missing sections** (model): acceptance criteria, user need, tasks, done-when, outcome,

@@ -11,7 +11,7 @@ namespace Halyard.Core.Providers
     /// <summary>
     /// GitLab REST v4 adapter (gitlab.com or any self-hosted instance). Project identifier is a numeric id or a
     /// URL-encodable <c>group/project</c> path. Pagination follows the <c>X-Next-Page</c> header.
-    /// Native parent links are not used: cascade-meta is the hierarchy source of truth.
+    /// Native parent links are not used: halyard-meta is the hierarchy source of truth.
     /// </summary>
     public sealed class GitLabProvider : RestProviderBase, IWorkItemProvider
     {

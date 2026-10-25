@@ -15,7 +15,7 @@ export function SandboxPage({ status, refreshStatus }: { status: Status | undefi
   return (
     <Page
       title="Sandbox"
-      lede={sandbox ? <>Synthetic work items in <Mono>{status?.config.provider}:{sandbox}</Mono>. Seed a full Theme → Task hierarchy to prove the workflow, then delete it by run. Only items labelled <Mono>cascade-synthetic</Mono> can be removed.</> : 'No sandbox repository is configured. Set one in Settings before seeding.'}
+      lede={sandbox ? <>Synthetic work items in <Mono>{status?.config.provider}:{sandbox}</Mono>. Seed a full Theme → Task hierarchy to prove the workflow, then delete it by run. Only items labelled <Mono>halyard-synthetic</Mono> can be removed.</> : 'No sandbox repository is configured. Set one in Settings before seeding.'}
     >
       {status && status.policy.mode === 'production' ? <Notice tone="warn">Production write mode is on in the environment. Seeding still targets only the sandbox allow-list.</Notice> : null}
       <div className="grid gap-5 xl:grid-cols-2">
@@ -49,7 +49,7 @@ function Seeder({ status, onDone }: { status: Status | undefined; onDone: () => 
       <div className="grid grid-cols-2 gap-3 px-4 py-3">
         <Field label="Total work items" hint="Split across themes, epics, features, stories and tasks in the playbook's proportions."><Input type="number" min={5} max={2000} value={total} onChange={(e) => setTotal(Math.max(5, Math.min(2000, Number(e.target.value) || 5)))} /></Field>
         <Field label="Seed" hint="Same seed, same catalogue, every time."><Input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value) || 0)} /></Field>
-        <Field label="Run id" hint="Optional. Defaults to a timestamp; it becomes the cascade-run:: label."><Input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="e.g. demo-1" /></Field>
+        <Field label="Run id" hint="Optional. Defaults to a timestamp; it becomes the halyard-run:: label."><Input value={runId} onChange={(e) => setRunId(e.target.value)} placeholder="e.g. demo-1" /></Field>
         <div className="flex flex-col justify-end gap-1.5 pb-5">
           <Checkbox label="Seed a share of items with deliberate gaps (the human review workload)" checked={defects} onChange={(e) => setDefects(e.target.checked)} />
           <Checkbox label={`Native parent links${status?.provider.capabilities && !status.provider.capabilities.nativeParentLinks ? ' (not supported here)' : ''}`} checked={nativeLinks} onChange={(e) => setNativeLinks(e.target.checked)} />
@@ -174,8 +174,8 @@ function Runs({ runs, error, status, onChanged }: { runs: SeedManifest[] | undef
         onConfirm={() => start(false)}
         confirmDisabled={confirm?.scope === 'everything' && phrase !== wipePhrase}
       >
-        {confirm?.scope === 'run' ? <p>Every item in <Mono>{sandboxId}</Mono> carrying both <Mono>cascade-synthetic</Mono> and <Mono>cascade-run::{confirm.runId}</Mono> is deleted. Items without the synthetic label are skipped and listed.</p> : null}
-        {confirm?.scope === 'allSynthetic' ? <p>Every item in <Mono>{sandboxId}</Mono> carrying <Mono>cascade-synthetic</Mono> is deleted, whichever run created it. Nothing else is touched.</p> : null}
+        {confirm?.scope === 'run' ? <p>Every item in <Mono>{sandboxId}</Mono> carrying both <Mono>halyard-synthetic</Mono> and <Mono>halyard-run::{confirm.runId}</Mono> is deleted. Items without the synthetic label are skipped and listed.</p> : null}
+        {confirm?.scope === 'allSynthetic' ? <p>Every item in <Mono>{sandboxId}</Mono> carrying <Mono>halyard-synthetic</Mono> is deleted, whichever run created it. Nothing else is touched.</p> : null}
         {confirm?.scope === 'everything' ? (
           <div className="flex flex-col gap-2">
             <p>This deletes <strong className="text-err">every issue</strong> in <Mono>{sandboxId}</Mono>, synthetic or not. There is no undo on GitHub or GitLab.</p>

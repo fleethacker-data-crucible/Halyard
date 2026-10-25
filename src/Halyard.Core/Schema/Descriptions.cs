@@ -12,10 +12,9 @@ namespace Halyard.Core.Schema
     /// </summary>
     public static class Descriptions
     {
-        private static readonly Regex MirrorRegex = new Regex(@"^[ \t]*###[ \t]*(?:Cascade|Halyard)[ \t]*\r?\n(?:[ \t]*-[ \t]*\*\*[^\r\n]*\r?\n?)+", RegexOptions.Multiline | RegexOptions.Compiled);
+        private static readonly Regex MirrorRegex = new Regex(@"^[ \t]*###[ \t]*Halyard[ \t]*\r?\n(?:[ \t]*-[ \t]*\*\*[^\r\n]*\r?\n?)+", RegexOptions.Multiline | RegexOptions.Compiled);
 
-        // Kept as "### Cascade": existing issue bodies carry this heading (on-disk format). The regex above accepts both.
-        public const string MirrorHeading = "### Cascade";
+        public const string MirrorHeading = "### Halyard";
 
         /// <summary>Human-visible mirror of the key meta fields.</summary>
         public static string BuildMirror(HalyardMeta meta)

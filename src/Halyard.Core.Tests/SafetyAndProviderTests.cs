@@ -66,13 +66,13 @@ namespace Halyard.Core.Tests
     public class WriteGatewayTests
     {
         private static readonly RepositoryRef Sandbox = new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/Halyard-Ballast");
-        private static readonly RepositoryRef Other = new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/cascade");
+        private static readonly RepositoryRef Other = new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/Halyard");
 
         private static (GitHubProvider provider, FakeTransport http) Provider()
         {
             var http = new FakeTransport();
-            http.On("POST", "/issues", 201, Issue(42, "created", new[] { "cascade" }));
-            http.On("PATCH", "/issues/", 200, Issue(42, "updated", new[] { "cascade" }));
+            http.On("POST", "/issues", 201, Issue(42, "created", new[] { "halyard" }));
+            http.On("PATCH", "/issues/", 200, Issue(42, "updated", new[] { "halyard" }));
             http.On("POST", "/graphql", 200, "{\"data\":{\"deleteIssue\":{\"clientMutationId\":null}}}");
             http.On("POST", "/labels", 201, "{}");
             return (new GitHubProvider(http, "https://api.github.com", "tok", Sandbox, 0), http);
@@ -105,7 +105,7 @@ namespace Halyard.Core.Tests
             var created = await writer.CreateAsync(new WorkItemDraft { Title = "x", Labels = new List<string> { "type::story" } }, CancellationToken.None);
             Assert.Equal(42, created.Number);
             var sent = JObject.Parse(http.Writes().Single(c => c.Url.EndsWith("/issues")).JsonBody!);
-            Assert.Contains("cascade", sent["labels"]!.Select(l => (string)l!));
+            Assert.Contains("halyard", sent["labels"]!.Select(l => (string)l!));
             var entry = Assert.Single(gateway.Audit);
             Assert.Equal("create", entry.Operation);
             Assert.True(entry.Succeeded);
@@ -124,7 +124,7 @@ namespace Halyard.Core.Tests
         public async Task DeleteRequiresSyntheticLabelOnTheLiveItemUnlessWipe()
         {
             var gh = new FakeGitHubRepo("sun-of-anton/Halyard-Ballast");
-            gh.Add(5, "someone's real issue", "cascade");
+            gh.Add(5, "someone's real issue", "halyard");
             gh.Add(6, "synthetic", Labels.Synthetic);
             var provider = new GitHubProvider(gh.Http, "https://api.github.com", "tok", Sandbox, 0);
             var gateway = Gateway();
@@ -150,7 +150,7 @@ namespace Halyard.Core.Tests
         {
             var gh = new FakeGitHubRepo("sun-of-anton/Halyard-Ballast");
             gh.Add(7, "transferred away", Labels.Synthetic);
-            gh.NodeRepositoryOverride = "sun-of-anton/cascade"; // GraphQL says the node now lives elsewhere
+            gh.NodeRepositoryOverride = "sun-of-anton/Halyard"; // GraphQL says the node now lives elsewhere
             var provider = new GitHubProvider(gh.Http, "https://api.github.com", "tok", Sandbox, 0);
             var writer = Gateway().Open(provider, Sandbox, new WriteIntent("teardown", "r"));
             var ex = await Assert.ThrowsAsync<ProviderHttpException>(() => writer.DeleteAsync(new WorkItem(Sandbox, 7), CancellationToken.None));
@@ -213,7 +213,7 @@ namespace Halyard.Core.Tests
         public async Task ListsIssuesAcrossPagesAndSkipsPullRequests()
         {
             var page1 = new JArray(
-                new JObject { ["number"] = 1, ["id"] = 11, ["node_id"] = "a", ["title"] = "one", ["body"] = "~~~cascade-meta\ntype: STORY\nid: STORY-one\n~~~", ["state"] = "open", ["labels"] = new JArray(new JObject { ["name"] = "type::story" }) },
+                new JObject { ["number"] = 1, ["id"] = 11, ["node_id"] = "a", ["title"] = "one", ["body"] = "~~~halyard-meta\ntype: STORY\nid: STORY-one\n~~~", ["state"] = "open", ["labels"] = new JArray(new JObject { ["name"] = "type::story" }) },
                 new JObject { ["number"] = 2, ["id"] = 12, ["node_id"] = "b", ["title"] = "a PR", ["body"] = "", ["state"] = "open", ["labels"] = new JArray(), ["pull_request"] = new JObject() });
             var page2 = new JArray(new JObject { ["number"] = 3, ["id"] = 13, ["node_id"] = "c", ["title"] = "three", ["body"] = "", ["state"] = "closed", ["labels"] = new JArray() });
             var http = new FakeTransport();
@@ -340,12 +340,12 @@ namespace Halyard.Core.Tests
             Assert.Equal(catalog.Count, manifest.Items.Count);
             var creates = http.Writes().Where(c => c.Url.EndsWith("/issues")).Select(c => JObject.Parse(c.JsonBody!)).ToList();
             Assert.Equal("THEME", (string)creates[0]["title"]!.ToString().Substring(0, 5));
-            Assert.All(creates, c => Assert.Contains("cascade-run::t1", c["labels"]!.Select(l => (string)l!)));
+            Assert.All(creates, c => Assert.Contains("halyard-run::t1", c["labels"]!.Select(l => (string)l!)));
             // Finished work from past sprints is closed after creation, so the sandbox has delivery history.
             var closes = http.Writes().Where(c => c.Method == "PATCH").Select(c => JObject.Parse(c.JsonBody!)).ToList();
             Assert.Equal(catalog.Count(c => c.Closed), closes.Count);
             Assert.All(closes, c => Assert.Equal("closed", (string)c["state"]!));
-            Assert.All(creates, c => Assert.Contains("cascade-synthetic", c["labels"]!.Select(l => (string)l!)));
+            Assert.All(creates, c => Assert.Contains("halyard-synthetic", c["labels"]!.Select(l => (string)l!)));
             // every child's parent was created before it
             var order = creates.Select(c => HalyardMeta.Parse((string)c["body"]!)!).ToList();
             var seen = new HashSet<string>();
@@ -362,9 +362,9 @@ namespace Halyard.Core.Tests
         public async Task TeardownDeletesOnlyTheRequestedRun()
         {
             var gh = new FakeGitHubRepo("sun-of-anton/Halyard-Ballast");
-            gh.Add(1, "run1", "cascade-synthetic", "cascade-run::r1");
-            gh.Add(2, "run2", "cascade-synthetic", "cascade-run::r2");
-            gh.Add(3, "real, but labelled with the run", "cascade-run::r1");
+            gh.Add(1, "run1", "halyard-synthetic", "halyard-run::r1");
+            gh.Add(2, "run2", "halyard-synthetic", "halyard-run::r2");
+            gh.Add(3, "real, but labelled with the run", "halyard-run::r1");
             gh.IgnoreLabelFilter = true; // even if the server returned everything, only r1 synthetic items go
             var provider = new GitHubProvider(gh.Http, "https://api.github.com", "tok", Sandbox, 0);
             var policy = new WritePolicy();
@@ -419,6 +419,7 @@ namespace Halyard.Core.Tests
                 {
                     Assert.Equal(expected[i].Id, committed[i].Id);
                     Assert.Equal(expected[i].Description, committed[i].Description);
+                    Assert.Equal(expected[i].Labels, committed[i].Labels);
                 }
             }
         }

@@ -37,7 +37,7 @@ export function HierarchyPage({ params, status }: { params: URLSearchParams; sta
 
   if (status && !status.snapshot) {
     return (
-      <Page title="Hierarchy" lede="Theme → Epic → Feature → Story → Task, as declared in cascade-meta.">
+      <Page title="Hierarchy" lede="Theme → Epic → Feature → Story → Task, as declared in halyard-meta.">
         <Section><Empty title="No snapshot yet" action={<Button variant="primary" onClick={() => navigate('connection')}>Connect and synchronize</Button>}>Synchronize a repository to see its hierarchy.</Empty></Section>
       </Page>
     );
@@ -47,7 +47,7 @@ export function HierarchyPage({ params, status }: { params: URLSearchParams; sta
   return (
     <Page
       title="Hierarchy"
-      lede={h ? <>{h.total} work items{h.labelFilter ? <>, filtered to <Mono>{h.labelFilter}</Mono></> : null}. {h.orphans.length > 0 ? <span className="text-warn">{h.orphans.length} without a resolved parent.</span> : 'Every parent resolves.'}</> : 'Theme → Epic → Feature → Story → Task, as declared in cascade-meta.'}
+      lede={h ? <>{h.total} work items{h.labelFilter ? <>, filtered to <Mono>{h.labelFilter}</Mono></> : null}. {h.orphans.length > 0 ? <span className="text-warn">{h.orphans.length} without a resolved parent.</span> : 'Every parent resolves.'}</> : 'Theme → Epic → Feature → Story → Task, as declared in halyard-meta.'}
       actions={
         <div className="flex items-center gap-2">
           <Input placeholder="Find by title, id or #number" value={query} onChange={(e) => setQuery(e.target.value)} className="w-64" aria-label="Find work item" />
@@ -152,7 +152,7 @@ function Detail({ node, byKey, all, onSelect, multiRepo }: { node: HierarchyNode
       ) : d ? <p className="hairline px-4 py-2 text-[12.5px] text-ok">Complete for its level: metadata, parent and sections all present.</p> : null}
       <div className="hairline flex gap-1 px-3 pt-1">
         {(['definition', 'meta', 'raw'] as const).map((t) => (
-          <button key={t} type="button" onClick={() => setTab(t)} className={cn('-mb-px border-b-2 px-2.5 py-1.5 text-[12.5px]', tab === t ? 'border-accent text-ink' : 'border-transparent text-ink-2')}>{t === 'definition' ? 'Definition' : t === 'meta' ? 'cascade-meta' : 'Raw body'}</button>
+          <button key={t} type="button" onClick={() => setTab(t)} className={cn('-mb-px border-b-2 px-2.5 py-1.5 text-[12.5px]', tab === t ? 'border-accent text-ink' : 'border-transparent text-ink-2')}>{t === 'definition' ? 'Definition' : t === 'meta' ? 'halyard-meta' : 'Raw body'}</button>
         ))}
       </div>
       <div className="hairline scroll-y max-h-[calc(100vh-520px)] min-h-[160px] px-4 py-3">
@@ -161,7 +161,7 @@ function Detail({ node, byKey, all, onSelect, multiRepo }: { node: HierarchyNode
             <table className="w-full text-[12.5px]">
               <tbody>{d.meta.map((m) => <tr key={m.key}><td className="mono w-36 py-0.5 pr-3 text-ink-3">{m.key}</td><td className="py-0.5">{m.value || <span className="text-ink-3">(empty)</span>}</td></tr>)}</tbody>
             </table>
-          ) : <p className="text-ink-3">This item has no cascade-meta block.</p>
+          ) : <p className="text-ink-3">This item has no halyard-meta block.</p>
         ) : tab === 'raw' ? (
           <pre className="whitespace-pre-wrap break-words text-[12px] leading-relaxed text-ink-2">{d.body || '(empty body)'}</pre>
         ) : (

@@ -67,7 +67,7 @@ export function ConnectionPage({ status, refreshStatus }: { status: Status | und
               {status?.provider.identity ? <span className="text-ink-2">Last confirmed as <span className="text-ink">{status.provider.identity.login}</span></span> : status?.provider.error ? <span className="text-err">{status.provider.error}</span> : null}
             </div>
             {test && !test.connected ? <Notice tone="err">{test.code}: {test.error}</Notice> : null}
-            {test && test.connected ? <Notice tone="ok"><LuCheck size={12} className="mr-1 inline" />Signed in as {test.identity?.login}; repository {test.repository} reachable. {test.capabilities?.nativeParentLinks ? 'Native parent links available.' : 'Hierarchy lives in cascade-meta only.'}</Notice> : null}
+            {test && test.connected ? <Notice tone="ok"><LuCheck size={12} className="mr-1 inline" />Signed in as {test.identity?.login}; repository {test.repository} reachable. {test.capabilities?.nativeParentLinks ? 'Native parent links available.' : 'Hierarchy lives in halyard-meta only.'}</Notice> : null}
           </div>
           {repos.data ? (
             <div className="hairline px-4 py-3 text-[12.5px]">

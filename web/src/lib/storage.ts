@@ -1,11 +1,22 @@
 // Per-viewer conveniences only (expanded tree nodes, last view). Browser storage can be empty, blocked or
 // throw (private windows, cleared site data), so every access is guarded and the UI never depends on it.
 import { useCallback, useState } from 'react';
+import { PREFIX, migrateLegacyStorage } from './storage-migrate';
 
-// Kept from before the rename (Cascade -> Halyard): renaming the prefix would orphan what viewers already saved.
-const PREFIX = 'cascade.';
+// Copy anything saved under the former `cascade.` prefix forward once, before the first read.
+let migrated = false;
+function ensureMigrated(): void {
+  if (migrated) return;
+  migrated = true;
+  try {
+    migrateLegacyStorage(window.localStorage);
+  } catch {
+    // storage unavailable
+  }
+}
 
 export function readLocal<T>(key: string, fallback: T): T {
+  ensureMigrated();
   try {
     const raw = window.localStorage.getItem(PREFIX + key);
     return raw === null ? fallback : (JSON.parse(raw) as T);
@@ -15,6 +26,7 @@ export function readLocal<T>(key: string, fallback: T): T {
 }
 
 export function writeLocal<T>(key: string, value: T): void {
+  ensureMigrated();
   try {
     window.localStorage.setItem(PREFIX + key, JSON.stringify(value));
   } catch {

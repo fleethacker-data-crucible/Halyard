@@ -71,8 +71,12 @@ namespace Halyard.Core.Providers
     {
         private static readonly Dictionary<string, string> GitHub = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
+            // Kept for one release with the CASCADE_* fallback: an installed config/cascade.env, or a CASCADE_SANDBOX_REPO variable, can still name the old repository.
             { "sun-of-anton/cascade-sandbox", "sun-of-anton/Halyard-Ballast" },
         };
+
+        /// <summary>Former GitHub identifier to current identifier.</summary>
+        public static IEnumerable<KeyValuePair<string, string>> GitHubRenames { get { return GitHub; } }
 
         /// <summary>The current identifier for <paramref name="identifier"/>, or the identifier itself when it was never renamed.</summary>
         public static string Canonical(ProviderKind kind, string? identifier)
