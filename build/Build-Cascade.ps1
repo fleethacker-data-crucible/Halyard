@@ -42,10 +42,13 @@ function Run([string]$exe, [string[]]$arguments, [string]$cwd = $root) {
 
 # A running engine holds Cascade.Core.dll and the build cannot replace it. Stop it first and say so.
 . (Join-Path $root 'scripts\Cascade-Process.ps1')
-$running = @(Get-CascadeProcesses -Root $root)
+$running = @(Get-CascadeProcesses -Root $root -IncludeHolders)
 if ($running.Count -gt 0) {
-    Step 'Stopping the running Cascade engine so the DLL can be replaced'
-    foreach ($p in Stop-CascadeProcesses -Root $root) { Write-Host ('  stopped PID ' + $p) -ForegroundColor Yellow }
+    Step 'Stopping processes that hold Cascade.Core.dll so the build can replace it'
+    foreach ($p in $running) { Write-Host ('  ' + $(if ($p.Kind -eq 'holder') { 'PowerShell window with the DLL loaded' } else { 'Cascade engine' }) + ' PID ' + $p.Pid) -ForegroundColor DarkGray }
+    foreach ($p in Stop-CascadeProcesses -Root $root -IncludeHolders) { Write-Host ('  stopped PID ' + $p) -ForegroundColor Yellow }
+    $left = @(Get-CascadeProcesses -Root $root -IncludeHolders)
+    if ($left.Count -gt 0) { throw ('Cascade.Core.dll is still held by PID ' + (($left | ForEach-Object { $_.Pid }) -join ', ') + '. Close those PowerShell windows (they were opened as administrator) and run the build again.') }
 }
 
 foreach ($tool in @('dotnet', 'node', 'npm')) {
