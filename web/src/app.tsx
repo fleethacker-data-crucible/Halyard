@@ -189,13 +189,12 @@ function StatusStrip({ status, error }: { status: Status | undefined; error: str
 }
 
 function CascadeMark() {
+  // Three equal arcs forming a "c": theme to epic to story. Top arc follows the theme (navy / light on dark).
   return (
-    <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden>
-      <rect width="32" height="32" rx="7" fill="var(--lv-theme)" />
-      <path d="M8 9h16" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M10 15h12" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" opacity=".85" />
-      <path d="M12 21h8" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" opacity=".7" />
-      <path d="M14 27h4" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" opacity=".55" />
+    <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden fill="none" strokeWidth="5" strokeLinecap="round">
+      <path d="M26.11 8.6A11.5 11.5 0 0 0 13.23 5.24" stroke="var(--mark-top)" />
+      <path d="M7.91 9.35A11.5 11.5 0 0 0 7.91 22.65" stroke="#14b8a6" />
+      <path d="M13.23 26.76A11.5 11.5 0 0 0 26.11 23.4" stroke="#38bdf8" />
     </svg>
   );
 }
