@@ -44,7 +44,7 @@ it hides from the user, holds its DLLs and ports, breaks the next build, and war
 - **Shellback** serves static files from a PowerShell loopback server and keeps its console visible, so
   Ctrl+C works today. Items 1, 5, 6 and 7 still apply: a hidden or forgotten console is the same defect,
   and the build/serve scripts should stop a running server before replacing `dist\`.
-- **Lazarette** (formerly ARC; `Start.ps1`) runs a GUI and a loopback UI; apply the same heartbeat so closing the
+- **Lazarette** (`Start.ps1`) runs a GUI and a loopback UI; apply the same heartbeat so closing the
   tab closes the app, keep the vault's own lock-on-idle rules as they are.
 - The periodic heartbeat is a normal `fetch` with the session header. The unload signal is
   `navigator.sendBeacon` (a keepalive fetch is dropped by some browsers during unload); it cannot set

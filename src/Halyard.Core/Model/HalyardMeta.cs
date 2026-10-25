@@ -7,16 +7,16 @@ using System.Text.RegularExpressions;
 namespace Halyard.Core.Model
 {
     /// <summary>
-    /// The <c>~~~cascade-meta</c> block that makes a work item machine-readable on any Git provider.
+    /// The <c>~~~halyard-meta</c> block that makes a work item machine-readable on any Git provider.
     /// Keys are lower-case, insertion-ordered, and compared case-insensitively. The block is the
     /// source of truth for type, canonical id and parent; labels and native links are mirrors.
     /// </summary>
     public sealed class HalyardMeta
     {
-        public const string Fence = "~~~cascade-meta";
+        public const string Fence = "~~~halyard-meta";
         public const string FenceEnd = "~~~";
 
-        private static readonly Regex FenceRegex = new Regex(@"~~~cascade-meta[ \t]*\r?\n(?<body>.*?)\r?\n[ \t]*~~~", RegexOptions.Singleline | RegexOptions.Compiled);
+        private static readonly Regex FenceRegex = new Regex(@"~~~halyard-meta[ \t]*\r?\n(?<body>.*?)\r?\n[ \t]*~~~", RegexOptions.Singleline | RegexOptions.Compiled);
         private static readonly Regex CommentRegex = new Regex(@"<!--\s*(?<body>.*?)\s*-->", RegexOptions.Singleline | RegexOptions.Compiled);
         private static readonly Regex LineRegex = new Regex(@"^\s*(?<key>[A-Za-z0-9_\-\.]+)\s*:\s*(?<value>.*?)\s*$", RegexOptions.Compiled);
 
@@ -103,7 +103,7 @@ namespace Halyard.Core.Model
         }
 
         /// <summary>
-        /// Parses the first cascade-meta fence in a body; falls back to the legacy HTML-comment block.
+        /// Parses the first halyard-meta fence in a body; falls back to the legacy HTML-comment block.
         /// Returns null when no block with a <c>type</c> or <c>id</c> key is present.
         /// </summary>
         public static HalyardMeta? Parse(string? body)
@@ -154,7 +154,7 @@ namespace Halyard.Core.Model
             return new HalyardMeta(_entries);
         }
 
-        /// <summary>Removes any cascade-meta fence or leading HTML-comment block from a body.</summary>
+        /// <summary>Removes any halyard-meta fence or leading HTML-comment block from a body.</summary>
         public static string StripFromBody(string? body)
         {
             if (string.IsNullOrEmpty(body)) return string.Empty;

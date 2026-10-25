@@ -25,7 +25,7 @@ const KIND_LEDE: Record<ProposalKind, string> = {
   featureEffort: 'Effort bands suggested by the model for features.',
   parentLink: 'Parents inferred from title words, theme, area, labels and body references.',
   refinement: 'Missing playbook sections drafted by the model; existing text is kept. Read the diff before approving.',
-  metadata: 'cascade-meta blocks built or completed from labels, titles and TBD placeholders. No model involved.',
+  metadata: 'halyard-meta blocks built or completed from labels, titles and TBD placeholders. No model involved.',
   skills: 'Skills (shared taxonomy ids) each item needs, so work can be matched to people. From the parent and the text, or from the model.',
   sprintPlan: 'Sprint placement and owner for ready stories, within the committed share of team capacity, matched on skills. Approve to set sprint and owner.',
   themeLink: 'Which theme each epic belongs to, from the vision draft.',

@@ -23,8 +23,8 @@ namespace Halyard.Core.Schema
     /// </summary>
     public static class Deficiencies
     {
-        public const string MissingMeta = "missing_cascade_metadata";
-        public const string InvalidMeta = "invalid_cascade_metadata";
+        public const string MissingMeta = "missing_halyard_metadata";
+        public const string InvalidMeta = "invalid_halyard_metadata";
         public const string StoryMissingParent = "story_missing_feature_parent";
         public const string StoryMissingAcceptanceCriteria = "story_missing_acceptance_criteria";
         public const string StoryMissingUserNeed = "story_missing_user_need";
@@ -48,8 +48,8 @@ namespace Halyard.Core.Schema
 
         public static readonly DorRule[] Rules =
         {
-            new DorRule(MissingMeta, null, "No cascade-meta block; the item cannot be placed in the hierarchy by machine."),
-            new DorRule(InvalidMeta, null, "A cascade-meta block exists but has no recognised type or no id."),
+            new DorRule(MissingMeta, null, "No halyard-meta block; the item cannot be placed in the hierarchy by machine."),
+            new DorRule(InvalidMeta, null, "A halyard-meta block exists but has no recognised type or no id."),
             new DorRule(StoryMissingParent, WorkItemType.Story, "Stories belong under a Feature; declare parent: FEATURE-…"),
             new DorRule(StoryMissingAcceptanceCriteria, WorkItemType.Story, "Add testable acceptance criteria as bullets or checkboxes."),
             new DorRule(StoryMissingUserNeed, WorkItemType.Story, "State the user need: who, what, why."),
