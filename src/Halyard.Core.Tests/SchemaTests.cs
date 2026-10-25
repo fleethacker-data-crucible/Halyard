@@ -10,7 +10,7 @@ namespace Halyard.Core.Tests
         [Fact]
         public void ParsesFencedBlockAndKeepsOrder()
         {
-            var body = "~~~cascade-meta\ntype: STORY\nid: STORY-a\nparent: FEATURE-b\npoints: 5\n~~~\n\n## User need\ntext";
+            var body = "~~~halyard-meta\ntype: STORY\nid: STORY-a\nparent: FEATURE-b\npoints: 5\n~~~\n\n## User need\ntext";
             var meta = HalyardMeta.Parse(body);
             Assert.NotNull(meta);
             Assert.Equal(WorkItemType.Story, meta!.Type);
@@ -33,7 +33,7 @@ namespace Halyard.Core.Tests
         public void ReturnsNullWithoutTypeOrId()
         {
             Assert.Null(HalyardMeta.Parse("no block here"));
-            Assert.Null(HalyardMeta.Parse("~~~cascade-meta\nfoo: bar\n~~~"));
+            Assert.Null(HalyardMeta.Parse("~~~halyard-meta\nfoo: bar\n~~~"));
             Assert.Null(HalyardMeta.Parse(null));
         }
 
@@ -60,14 +60,14 @@ namespace Halyard.Core.Tests
         [Fact]
         public void ApplyToBodyReplacesExistingFence()
         {
-            var original = "~~~cascade-meta\ntype: STORY\nid: STORY-a\npoints: TBD\n~~~\n\n## Text\nkeep me";
+            var original = "~~~halyard-meta\ntype: STORY\nid: STORY-a\npoints: TBD\n~~~\n\n## Text\nkeep me";
             var meta = HalyardMeta.Parse(original)!;
             meta.Points = "3";
             var updated = HalyardMeta.ApplyToBody(original, meta);
             Assert.Contains("points: 3", updated);
             Assert.DoesNotContain("TBD", updated);
             Assert.Contains("keep me", updated);
-            Assert.Equal(1, updated.Split(new[] { "~~~cascade-meta" }, System.StringSplitOptions.None).Length - 1);
+            Assert.Equal(1, updated.Split(new[] { "~~~halyard-meta" }, System.StringSplitOptions.None).Length - 1);
         }
     }
 
@@ -119,7 +119,7 @@ namespace Halyard.Core.Tests
         {
             var repo = new RepositoryRef(ProviderKind.GitHub, "o/r");
             var item = new WorkItem(repo, 1) { Title = WorkItemTypes.ToToken(type) + " :: x" };
-            item.Body = "~~~cascade-meta\ntype: " + WorkItemTypes.ToToken(type) + "\nid: " + WorkItemTypes.ToToken(type) + "-x\n" + metaExtra + "~~~\n\n" + body;
+            item.Body = "~~~halyard-meta\ntype: " + WorkItemTypes.ToToken(type) + "\nid: " + WorkItemTypes.ToToken(type) + "-x\n" + metaExtra + "~~~\n\n" + body;
             return item;
         }
 
@@ -176,8 +176,8 @@ namespace Halyard.Core.Tests
             var body = Descriptions.Compose(meta, "## Text\nhello");
             var again = Descriptions.Compose(meta, body);
             Assert.Equal(body, again);
-            Assert.StartsWith("~~~cascade-meta", body);
-            Assert.Contains("### Cascade", body);
+            Assert.StartsWith("~~~halyard-meta", body);
+            Assert.Contains("### Halyard", body);
             Assert.Contains("- **Story points:** 5", body);
             Assert.EndsWith("hello", body);
         }

@@ -106,9 +106,9 @@ namespace Halyard.Core.Safety
     /// <summary>Label names Halyard relies on. Changing these changes what teardown is allowed to delete.</summary>
     public static class Labels
     {
-        public const string Managed = "cascade";
-        public const string Synthetic = "cascade-synthetic";
-        public const string RunPrefix = "cascade-run::";
+        public const string Managed = "halyard";
+        public const string Synthetic = "halyard-synthetic";
+        public const string RunPrefix = "halyard-run::";
         public const string ReviewQueue = "refine::sandbox-review";
         public const string TypePrefix = "type::";
         public const string ThemePrefix = "theme::";

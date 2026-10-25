@@ -57,23 +57,23 @@ namespace Halyard.Core.Intelligence
                     meta.Set(proposal.MetaKey, proposal.ProposedValue);
                     if (proposal.Kind == ProposalKind.StoryPoints && meta.Has("effort")) meta.Remove("effort");
                     if (proposal.Kind == ProposalKind.FeatureEffort && meta.Has("points")) meta.Remove("points");
-                    if (proposal.Kind != ProposalKind.ParentLink) meta.Set("sized_by", "cascade-proposal " + proposal.Id);
+                    if (proposal.Kind != ProposalKind.ParentLink) meta.Set("sized_by", "halyard-proposal " + proposal.Id);
                     return new Projection(meta, Descriptions.Rewrite(item.Body, meta));
                 case ProposalKind.Metadata:
                     ApplyMeta(meta, proposal.ProposedMeta);
-                    meta.Set("refined_by", "cascade-proposal " + proposal.Id);
+                    meta.Set("refined_by", "halyard-proposal " + proposal.Id);
                     return new Projection(meta, Descriptions.Rewrite(item.Body, meta));
                 case ProposalKind.Skills:
                 case ProposalKind.SprintPlan:
                 case ProposalKind.ThemeLink:
                     ApplyMeta(meta, proposal.ProposedMeta);
                     if (proposal.ProposedMeta == null || proposal.ProposedMeta.Count == 0) meta.Set(proposal.MetaKey, proposal.ProposedValue);
-                    meta.Set(proposal.Kind == ProposalKind.Skills ? "tagged_by" : proposal.Kind == ProposalKind.SprintPlan ? "planned_by" : "themed_by", "cascade-proposal " + proposal.Id);
+                    meta.Set(proposal.Kind == ProposalKind.Skills ? "tagged_by" : proposal.Kind == ProposalKind.SprintPlan ? "planned_by" : "themed_by", "halyard-proposal " + proposal.Id);
                     return new Projection(meta, Descriptions.Rewrite(item.Body, meta));
                 case ProposalKind.Refinement:
                     {
                         ApplyMeta(meta, proposal.ProposedMeta);
-                        meta.Set("refined_by", "cascade-proposal " + proposal.Id);
+                        meta.Set("refined_by", "halyard-proposal " + proposal.Id);
                         var narrative = string.IsNullOrWhiteSpace(proposal.ProposedValue) ? Descriptions.Narrative(item.Body) : proposal.ProposedValue;
                         return new Projection(meta, Descriptions.Compose(meta, Descriptions.SyncSizing(narrative, meta)));
                     }

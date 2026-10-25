@@ -50,7 +50,7 @@ namespace Halyard.Core.Model
         private HalyardMeta? _meta;
         private bool _metaParsed;
 
-        /// <summary>Parsed cascade-meta block, or null when the body has none. Cached per body text.</summary>
+        /// <summary>Parsed halyard-meta block, or null when the body has none. Cached per body text.</summary>
         public HalyardMeta? Meta
         {
             get
@@ -88,7 +88,7 @@ namespace Halyard.Core.Model
             }
         }
 
-        /// <summary>Declared type: cascade-meta wins, then a single unambiguous type:: label, else Unclassified.</summary>
+        /// <summary>Declared type: halyard-meta wins, then a single unambiguous type:: label, else Unclassified.</summary>
         public WorkItemType Type
         {
             get
@@ -103,7 +103,7 @@ namespace Halyard.Core.Model
         /// <summary>The meta <c>type</c> as written, even when unknown (for UNKNOWN_DECLARED_TYPE findings).</summary>
         public string? DeclaredTypeText { get { return Meta == null ? null : Meta.Get("type"); } }
 
-        /// <summary>Stable id from cascade-meta, or the provider key when none is declared.</summary>
+        /// <summary>Stable id from halyard-meta, or the provider key when none is declared.</summary>
         public string CanonicalId
         {
             get

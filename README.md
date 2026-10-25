@@ -87,7 +87,7 @@ skills and consent.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): stack, components, write safety, local security
 - [docs/OPERATIONS.md](docs/OPERATIONS.md): running, configuration, sandbox lifecycle, troubleshooting
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): building, testing, the offline end-to-end loop, CI
-- [docs/WORK_ITEM_MODEL.md](docs/WORK_ITEM_MODEL.md): the hierarchy, cascade-meta, definition of ready, PfW/DWI
+- [docs/WORK_ITEM_MODEL.md](docs/WORK_ITEM_MODEL.md): the hierarchy, halyard-meta, definition of ready, PfW/DWI
 - [docs/LOCAL_APP_LIFECYCLE.md](docs/LOCAL_APP_LIFECYCLE.md): the engine stops with its browser tab; the standard every local app in this family follows
 - [ROADMAP.md](ROADMAP.md)
 
@@ -96,6 +96,6 @@ skills and consent.
 Writes default to the sandbox repository only. Production needs `HALYARD_WRITE_MODE=production`,
 `HALYARD_ALLOW_PRODUCTION=1` and an explicit opt-in in code, and the browser can change none of them.
 Every proposal, including a hand edit, is previewed as a diff and goes through the same gateway.
-Deletes only touch items labelled `cascade-synthetic`, unless you type the wipe phrase. Every write is
+Deletes only touch items labelled `halyard-synthetic`, unless you type the wipe phrase. Every write is
 audited. Provider tokens stay in process memory and never reach the browser, logs or transcripts; the
 model key may be entered in the browser but only ever goes to the endpoint named in `config\halyard.env`.

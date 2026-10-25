@@ -9,7 +9,7 @@ used through a browser on `127.0.0.1`.
 | Constraint | Consequence |
 |---|---|
 | Target workstation runs Windows PowerShell 5.1 on .NET Framework 4.8; no installs, no admin | The runtime is PowerShell + one .NET library + static web files. No Node, Python, services or installers on the workstation. |
-| On some workstations, CAC + TOTP happen inside a PowerShell vault (Lazarette, formerly ARC) in a console | PowerShell stays the launcher and owns the vault unlock. Everything after that is C#. |
+| On some workstations, CAC + TOTP happen inside a PowerShell vault (Lazarette) in a console | PowerShell stays the launcher and owns the vault unlock. Everything after that is C#. |
 | Two Git hosts: github.com for development, a self-hosted GitLab for real work | One provider-agnostic work-item model; hosts are adapters. |
 | Production backlog must never be written by accident | Every write goes through one gateway with a sandbox allow-list. |
 | Build happens off the workstation | Compiled DLLs and built UI ship in a bundle; nothing is fetched at runtime. |
@@ -56,7 +56,7 @@ Launch-Halyard.bat
 ## Provider-agnostic work items
 
 A `WorkItem` is the same object whether it came from GitHub or GitLab: number, title, body, labels,
-state, URL, plus the parsed `~~~cascade-meta` block. **The meta block is the source of truth** for type,
+state, URL, plus the parsed `~~~halyard-meta` block. **The meta block is the source of truth** for type,
 canonical id and parent on both hosts, because both store an issue body and labels the same way.
 `type::story`-style labels are a fallback for type only. Native links (GitHub sub-issues) are written as
 a convenience when the host supports them, never read as truth.
@@ -80,13 +80,13 @@ The analysis, UI and tests do not change.
    label filter, the model profile, the model name and the model API key, nothing that decides where
    Halyard reads, writes or sends tokens: the model endpoint URL is file-only, so a key entered in the
    browser can only go where the file points. The sandbox is read only from `HALYARD_SANDBOX_REPO`.
-5. Everything created is stamped with the `cascade` label; synthetic items also get `cascade-synthetic`
-   and `cascade-run::<id>`.
-6. Deletes re-read the item first and check `cascade-synthetic` on the live copy, not the caller's. On GitHub
+5. Everything created is stamped with the `halyard` label; synthetic items also get `halyard-synthetic`
+   and `halyard-run::<id>`.
+6. Deletes re-read the item first and check `halyard-synthetic` on the live copy, not the caller's. On GitHub
    the node id is confirmed through GraphQL to belong to the sandbox and the expected number before
    `deleteIssue` runs. A full wipe needs the typed phrase `DELETE <repository>`.
 7. Every attempt, successful or not, is recorded in the write audit (Diagnostics → Write audit).
-8. Applying proposals re-reads each item, checks it is still the same canonical id, and rewrites meta, the visible `### Cascade` mirror and any
+8. Applying proposals re-reads each item, checks it is still the same canonical id, and rewrites meta, the visible `### Halyard` mirror and any
    `## Sizing` section together, so the body never disagrees with itself. `ProposalApplier.Project` is the
    one function that turns an item plus a proposal into the new body; the preview endpoint shows its
    output and the applier writes it, so the diff a reviewer approved is exactly what lands.

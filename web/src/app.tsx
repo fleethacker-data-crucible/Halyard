@@ -189,12 +189,16 @@ function StatusStrip({ status, error }: { status: Status | undefined; error: str
 }
 
 function HalyardMark() {
-  // Three equal arcs forming a "c": theme to epic to story. Top arc follows the theme (navy / light on dark).
+  // The Halyard mark (assets/brand/mark.svg): a mast with a halyard raising three sails, in the Fleet frame.
   return (
-    <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden fill="none" strokeWidth="5" strokeLinecap="round">
-      <path d="M26.11 8.6A11.5 11.5 0 0 0 13.23 5.24" stroke="var(--mark-top)" />
-      <path d="M7.91 9.35A11.5 11.5 0 0 0 7.91 22.65" stroke="#14b8a6" />
-      <path d="M13.23 26.76A11.5 11.5 0 0 0 26.11 23.4" stroke="#38bdf8" />
+    <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden>
+      <circle cx="32" cy="32" r="29.5" fill="#0d2233" stroke="#c9a66b" strokeWidth="3" />
+      <rect x="21" y="11" width="4.5" height="42" rx="1.2" fill="#f1e4c8" />
+      <circle cx="30.5" cy="15" r="3.2" fill="#c9a66b" />
+      <path d="M30.5 18 V51" stroke="#f1e4c8" strokeWidth="1.6" />
+      <polygon points="31,20 50,24 31,28" fill="#3fb6a8" />
+      <polygon points="31,30.5 45.5,34 31,37.5" fill="#f1e4c8" />
+      <polygon points="31,40.5 41,43.3 31,46" fill="#3fb6a8" />
     </svg>
   );
 }

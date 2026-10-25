@@ -15,7 +15,7 @@ namespace Halyard.Core.Intelligence
         ParentLink = 3,
         /// <summary>A rewritten narrative (missing sections drafted) and optional meta changes.</summary>
         Refinement = 4,
-        /// <summary>Metadata repair: a cascade-meta block built or completed from labels, title and placeholders.</summary>
+        /// <summary>Metadata repair: a halyard-meta block built or completed from labels, title and placeholders.</summary>
         Metadata = 5,
         /// <summary>Skills needed for the item (taxonomy ids), for matching work to people.</summary>
         Skills = 6,

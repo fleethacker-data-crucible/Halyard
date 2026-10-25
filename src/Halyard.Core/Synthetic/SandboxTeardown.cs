@@ -11,9 +11,9 @@ namespace Halyard.Core.Synthetic
 {
     public enum TeardownScope
     {
-        /// <summary>Only items carrying <c>cascade-run::&lt;RunId&gt;</c> (and the synthetic label).</summary>
+        /// <summary>Only items carrying <c>halyard-run::&lt;RunId&gt;</c> (and the synthetic label).</summary>
         Run = 1,
-        /// <summary>Every item carrying <c>cascade-synthetic</c>.</summary>
+        /// <summary>Every item carrying <c>halyard-synthetic</c>.</summary>
         AllSynthetic = 2,
         /// <summary>Every item in the sandbox, synthetic or not. Requires the confirmation phrase.</summary>
         Everything = 3,

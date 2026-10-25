@@ -15,7 +15,7 @@ namespace Halyard.Core.Tests
         public static WorkItem Make(long number, WorkItemType type, string id, string? parent, string? extraMeta = null, string body = "", params string[] labels)
         {
             var item = new WorkItem(Repo, number) { Title = WorkItemTypes.ToToken(type) + " :: " + id };
-            var meta = "~~~cascade-meta\ntype: " + WorkItemTypes.ToToken(type) + "\nid: " + id + "\n" + (parent == null ? string.Empty : "parent: " + parent + "\n") + (extraMeta ?? string.Empty) + "~~~\n\n";
+            var meta = "~~~halyard-meta\ntype: " + WorkItemTypes.ToToken(type) + "\nid: " + id + "\n" + (parent == null ? string.Empty : "parent: " + parent + "\n") + (extraMeta ?? string.Empty) + "~~~\n\n";
             item.Body = meta + body;
             item.Labels.AddRange(labels);
             return item;

@@ -26,11 +26,11 @@ param(
     [switch]$Sync,
     [ValidateSet('source', 'sandbox')][string]$SyncRepository = 'source',
     [string]$OutFile,
-    [switch]$NoArc
+    [Alias('NoArc')][switch]$NoLazarette   # -NoArc: former name, accepted for one release
 )
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '..\module\Halyard\Halyard.psd1') -Force
-$env = Initialize-HalyardEnvironment -UseArc $(if ($NoArc) { 'Never' } else { 'Auto' })
+$env = Initialize-HalyardEnvironment -UseLazarette $(if ($NoLazarette) { 'Never' } else { 'Auto' })
 $settings = $env.Settings
 
 if ($Sync) {

@@ -9,7 +9,7 @@ provider-agnostic. Last updated 2026-10-24.
 | Area | Capability |
 |---|---|
 | Architecture | C# core (`Halyard.Core`) loaded by PowerShell 5.1; React/TypeScript UI; one launcher |
-| Providers | GitHub and GitLab behind one work-item model; several source repositories per snapshot; cascade-meta is the hierarchy source of truth |
+| Providers | GitHub and GitLab behind one work-item model; several source repositories per snapshot; halyard-meta is the hierarchy source of truth |
 | Safety | Single write gateway, sandbox allow-list, protected source and extra protected repos, synthetic-only deletes, write audit; proposals refused outside the sandbox |
 | Sandbox | Deterministic synthetic hierarchy with history: closed stories in past sprints, carry-over, blockers, owners, skills, feature targets; 80/20 complete/gap, rate adjustable |
 | Analysis | Topology audit, definition-of-ready checks, hierarchy tree with rollups, Markdown/CSV review pack |

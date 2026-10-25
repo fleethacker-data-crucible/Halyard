@@ -6,15 +6,14 @@ function Get-HalyardProcesses {
     <#
     .SYNOPSIS
       Running Halyard engines: PID, port and URL, from the runtime files under logs\ plus any
-      PowerShell whose command line runs Start-Halyard.ps1 (or the former Start-Cascade.ps1). Stale runtime files are removed.
+      PowerShell whose command line runs Start-Halyard.ps1. Stale runtime files are removed.
     #>
     [CmdletBinding()]
     param([string]$Root, [switch]$IncludeHolders)
     $found = @{}
     $logs = Join-Path $Root 'logs'
     if (Test-Path $logs) {
-        # cascade-server-*.json: engines started before the rename to Halyard.
-        foreach ($f in @(Get-ChildItem -Path $logs -Filter 'halyard-server-*.json' -ErrorAction SilentlyContinue) + @(Get-ChildItem -Path $logs -Filter 'cascade-server-*.json' -ErrorAction SilentlyContinue)) {
+        foreach ($f in Get-ChildItem -Path $logs -Filter 'halyard-server-*.json' -ErrorAction SilentlyContinue) {
             try {
                 $info = Get-Content -Path $f.FullName -Raw | ConvertFrom-Json
                 $proc = Get-Process -Id ([int]$info.pid) -ErrorAction SilentlyContinue
@@ -29,7 +28,7 @@ function Get-HalyardProcesses {
     try {
         $mine = $PID
         Get-CimInstance Win32_Process -Filter "Name='powershell.exe' OR Name='pwsh.exe'" -ErrorAction SilentlyContinue |
-            Where-Object { $_.ProcessId -ne $mine -and $_.CommandLine -and $_.CommandLine -match 'Start-(Halyard|Cascade)\.ps1' } |
+            Where-Object { $_.ProcessId -ne $mine -and $_.CommandLine -and $_.CommandLine -match 'Start-Halyard\.ps1' } |
             ForEach-Object {
                 if (-not $found.ContainsKey([int]$_.ProcessId)) {
                     $found[[int]$_.ProcessId] = [pscustomobject]@{ Pid = [int]$_.ProcessId; Port = $null; Url = $null; Started = $_.CreationDate; Kind = 'engine' }
@@ -55,9 +54,7 @@ function Get-HalyardDllPaths {
     [CmdletBinding()]
     param([string]$Root)
     $paths = @()
-    # The Cascade.Core.dll paths cover build output and bundles from before the rename, which can still be loaded.
-    foreach ($rel in @('src\Halyard.Core\bin\Release\net48\Halyard.Core.dll', 'src\Halyard.Core\bin\Debug\net48\Halyard.Core.dll', 'dist\Halyard\lib\Halyard.Core.dll', 'lib\Halyard.Core.dll',
-                       'src\Cascade.Core\bin\Release\net48\Cascade.Core.dll', 'src\Cascade.Core\bin\Debug\net48\Cascade.Core.dll', 'lib\Cascade.Core.dll')) {
+    foreach ($rel in @('src\Halyard.Core\bin\Release\net48\Halyard.Core.dll', 'src\Halyard.Core\bin\Debug\net48\Halyard.Core.dll', 'dist\Halyard\lib\Halyard.Core.dll', 'lib\Halyard.Core.dll')) {
         $p = Join-Path $Root $rel
         if (Test-Path $p) { $paths += (Resolve-Path $p).Path }
     }
