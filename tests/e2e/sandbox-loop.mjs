@@ -63,7 +63,7 @@ if (!existing) {
 async function syncRun() {
   let result;
   for (let attempt = 0; attempt < 10; attempt++) {
-    result = await waitJob(await call('POST', '/api/sync', { repository: 'sandbox', labels: [`cascade-run::${runId}`] }), 'sync');
+    result = await waitJob(await call('POST', '/api/sync', { repository: 'sandbox', labels: [`halyard-run::${runId}`] }), 'sync');
     if (result.count >= total) return result;
     await new Promise((r) => setTimeout(r, 3000));
   }
@@ -104,7 +104,7 @@ async function approveAndApply(batchId, label) {
 const metaBatch = await call('POST', '/api/intelligence/metadata', {});
 assert(metaBatch.proposals.length > 0, `metadata repair proposed ${metaBatch.proposals.length} changes`);
 const preview = await call('GET', `/api/proposals/${metaBatch.id}/${metaBatch.proposals[0].id}/preview`);
-assert(preview.proposed.body !== preview.current.body && preview.proposed.body.startsWith('~~~cascade-meta'), 'preview shows the projected body with a meta block');
+assert(preview.proposed.body !== preview.current.body && preview.proposed.body.startsWith('~~~halyard-meta'), 'preview shows the projected body with a meta block');
 await approveAndApply(metaBatch.id, 'metadata');
 
 // 2. Refinement drafts from the model for content gaps (acceptance criteria, user need, tasks, done-when...).
@@ -141,7 +141,7 @@ const contentGaps = ['story_missing_acceptance_criteria', 'story_missing_user_ne
 const stillOpen = after.items.filter((i) => i.deficiencies.some((d) => contentGaps.includes(d))).length;
 const wereOpen = review.items.filter((i) => i.deficiencies.some((d) => contentGaps.includes(d))).length;
 assert(stillOpen < wereOpen, `content gaps went from ${wereOpen} to ${stillOpen} after refinement`);
-assert(after.items.every((i) => !i.deficiencies.includes('missing_cascade_metadata')), 'no item is left without a cascade-meta block');
+assert(after.items.every((i) => !i.deficiencies.includes('missing_halyard_metadata')), 'no item is left without a halyard-meta block');
 
 // 5. Leadership, planning and vision read the same snapshot.
 const lead = await call('GET', '/api/leadership');
@@ -187,8 +187,8 @@ if (fakeUrl) {
   assert(again.items.every((i) => i.copiedAs), 'every source ticket now shows its sandbox copy');
   const rerun = await call('POST', '/api/intake/preview', { keys });
   assert(rerun.alreadyCopied === raw.length, 'a second intake would copy nothing twice');
-  const copies = (await call('GET', '/api/review')).items.filter((i) => i.labels.includes('cascade-intake'));
-  assert(copies.length === raw.length && copies.every((i) => i.hasMeta && i.type !== 'UNCLASSIFIED'), 'copies are classified work items with cascade-meta');
+  const copies = (await call('GET', '/api/review')).items.filter((i) => i.labels.includes('halyard-intake'));
+  assert(copies.length === raw.length && copies.every((i) => i.hasMeta && i.type !== 'UNCLASSIFIED'), 'copies are classified work items with halyard-meta');
   const sourceWrites = (await call('GET', '/api/writes')).entries.filter((w) => w.target.includes('raw-backlog'));
   assert(sourceWrites.length === 0, 'the source repository was never written');
   // back to a run-scoped sandbox snapshot for the teardown checks

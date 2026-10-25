@@ -64,7 +64,7 @@ namespace Halyard.Core.Analysis
     }
 
     /// <summary>
-    /// Read-only topology diagnostics over explicit cascade-meta and type:: labels. Nothing is inferred:
+    /// Read-only topology diagnostics over explicit halyard-meta and type:: labels. Nothing is inferred:
     /// unknown types stay unknown, unresolved parents stay unresolved. When a parent exists in the
     /// source but outside the current label filter, only that fact is disclosed.
     /// </summary>
@@ -109,18 +109,18 @@ namespace Halyard.Core.Analysis
             {
                 var type = item.Type;
                 if (type == WorkItemType.Unclassified)
-                    findings.Add(new Finding(item, UnclassifiedType, Severity.Warning, "No unambiguous supported type is declared in cascade-meta or type:: labels."));
+                    findings.Add(new Finding(item, UnclassifiedType, Severity.Warning, "No unambiguous supported type is declared in halyard-meta or type:: labels."));
                 var declared = item.DeclaredTypeText;
                 if (!string.IsNullOrWhiteSpace(declared) && WorkItemTypes.Parse(declared) == WorkItemType.Unclassified)
-                    findings.Add(new Finding(item, UnknownDeclaredType, Severity.Warning, "The cascade-meta type '" + declared + "' is not Theme, Epic, Feature, Story, Task or Bug."));
+                    findings.Add(new Finding(item, UnknownDeclaredType, Severity.Warning, "The halyard-meta type '" + declared + "' is not Theme, Epic, Feature, Story, Task or Bug."));
                 var labels = item.TypeLabels;
                 if (labels.Count > 1)
                     findings.Add(new Finding(item, ConflictingTypeLabels, Severity.Warning, "More than one type:: label is present; keep the intended one."));
                 if (item.Meta != null && item.Meta.Type != WorkItemType.Unclassified && labels.Count > 0 && labels.Any(l => l != item.Meta.Type))
-                    findings.Add(new Finding(item, TypeMetadataLabelConflict, Severity.Warning, "The cascade-meta type disagrees with a type:: label."));
+                    findings.Add(new Finding(item, TypeMetadataLabelConflict, Severity.Warning, "The halyard-meta type disagrees with a type:: label."));
 
                 if (string.IsNullOrWhiteSpace(item.ExplicitId))
-                    findings.Add(new Finding(item, NoCanonicalId, Severity.Info, "No stable cascade-meta id; the provider number is used for display only."));
+                    findings.Add(new Finding(item, NoCanonicalId, Severity.Info, "No stable halyard-meta id; the provider number is used for display only."));
                 else
                 {
                     List<WorkItem>? same;
@@ -133,7 +133,7 @@ namespace Halyard.Core.Analysis
                 if (string.IsNullOrWhiteSpace(parentId))
                 {
                     if (expected != null)
-                        findings.Add(new Finding(item, ParentNotDeclared, Severity.Warning, "No parent is declared in cascade-meta; a " + WorkItemTypes.ToToken(type) + " normally belongs under a " + WorkItemTypes.ToToken(expected.Value) + "."));
+                        findings.Add(new Finding(item, ParentNotDeclared, Severity.Warning, "No parent is declared in halyard-meta; a " + WorkItemTypes.ToToken(type) + " normally belongs under a " + WorkItemTypes.ToToken(expected.Value) + "."));
                     continue;
                 }
                 if (type == WorkItemType.Theme)

@@ -26,8 +26,14 @@ Describe 'Module surface' {
             $names | Should -Contain $n
         }
     }
-    It 'keeps the former Connect-HalyardArc name as an alias' {
-        (Get-Command Connect-HalyardArc).ResolvedCommand.Name | Should -Be 'Connect-HalyardLazarette'
+    It 'accepts the former -UseArc / -NoArc / -Arc parameter names for one release' {
+        (Get-Command Initialize-HalyardEnvironment).Parameters['UseLazarette'].Aliases | Should -Contain 'UseArc'
+        (Get-Command (Join-Path $script:Root 'scripts\Start-Halyard.ps1')).Parameters['NoLazarette'].Aliases | Should -Contain 'NoArc'
+        (Get-Command (Join-Path $script:Root 'scripts\Start-Halyard.ps1')).Parameters['Lazarette'].Aliases | Should -Contain 'Arc'
+        (Get-Command (Join-Path $script:Root 'scripts\Invoke-SandboxTeardown.ps1')).Parameters['NoLazarette'].Aliases | Should -Contain 'NoArc'
+    }
+    It 'no longer exports the former Connect-HalyardArc name' {
+        Get-Command Connect-HalyardArc -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
     }
     It 'resolves the repository root' {
         Get-HalyardRoot | Should -Be $script:Root
@@ -49,25 +55,30 @@ Describe 'Initialize-HalyardEnvironment' {
     It 'reads halyard.env without overriding variables already set' {
         Set-Content (Join-Path $script:Tmp 'config\halyard.env') "HALYARD_PROVIDER=github`nHALYARD_SANDBOX_REPO=owner/sandbox`nHALYARD_SOURCE_REPO=owner/source`nGITHUB_TOKEN=from-file"
         [Environment]::SetEnvironmentVariable('GITHUB_TOKEN', 'from-env', 'Process')
-        $r = Initialize-HalyardEnvironment -Root $script:Tmp -UseArc Never
+        $r = Initialize-HalyardEnvironment -Root $script:Tmp -UseLazarette Never
         $r.Provider | Should -Be 'github'
         $r.Settings.Provider.SandboxRepository | Should -Be 'owner/sandbox'
         $r.Settings.Provider.SourceRepository | Should -Be 'owner/source'
         $r.Settings.Provider.Token | Should -Be 'from-env'
     }
 
-    It 'still reads a former config\cascade.env with CASCADE_* names when there is no halyard.env' {
-        Set-Content (Join-Path $script:Tmp 'config\cascade.env') "CASCADE_PROVIDER=github`nCASCADE_SANDBOX_REPO=sun-of-anton/cascade-sandbox`nCASCADE_SOURCE_REPO=owner/source"
-        $r = Initialize-HalyardEnvironment -Root $script:Tmp -UseArc Never
-        $r.EnvFile | Should -Be (Join-Path $script:Tmp 'config\cascade.env')
+    It 'copies a former config\cascade.env forward to config\halyard.env once and leaves the original' {
+        $legacy = Join-Path $script:Tmp 'config\cascade.env'
+        Set-Content $legacy "CASCADE_PROVIDER=github`nCASCADE_SANDBOX_REPO=sun-of-anton/cascade-sandbox`nCASCADE_SOURCE_REPO=owner/source"
+        $before = Get-Content $legacy -Raw
+        $r = Initialize-HalyardEnvironment -Root $script:Tmp -UseLazarette Never
+        $r.EnvFile | Should -Be (Join-Path $script:Tmp 'config\halyard.env')
+        Test-Path (Join-Path $script:Tmp 'config\halyard.env') | Should -BeTrue
+        (Get-Content $legacy -Raw) | Should -Be $before
+        (Get-Content (Join-Path $script:Tmp 'config\halyard.env')) | Should -Contain 'HALYARD_SANDBOX_REPO=sun-of-anton/Halyard-Ballast'
         $r.Settings.Provider.SandboxRepository | Should -Be 'sun-of-anton/Halyard-Ballast'
         $r.Settings.Provider.SourceRepository | Should -Be 'owner/source'
     }
 
-    It 'prefers config\halyard.env and HALYARD_* over the former names' {
+    It 'ignores config\cascade.env once config\halyard.env exists, and still reads CASCADE_* variables for one release' {
         Set-Content (Join-Path $script:Tmp 'config\cascade.env') "CASCADE_SANDBOX_REPO=owner/old"
         Set-Content (Join-Path $script:Tmp 'config\halyard.env') "HALYARD_SANDBOX_REPO=owner/new`nCASCADE_SOURCE_REPO=owner/source"
-        $r = Initialize-HalyardEnvironment -Root $script:Tmp -UseArc Never
+        $r = Initialize-HalyardEnvironment -Root $script:Tmp -UseLazarette Never
         $r.EnvFile | Should -Be (Join-Path $script:Tmp 'config\halyard.env')
         $r.Settings.Provider.SandboxRepository | Should -Be 'owner/new'
         $r.Settings.Provider.SourceRepository | Should -Be 'owner/source'
@@ -75,7 +86,7 @@ Describe 'Initialize-HalyardEnvironment' {
 
     It 'builds a sandbox-only write policy that protects the source' {
         Set-Content (Join-Path $script:Tmp 'config\halyard.env') "HALYARD_PROVIDER=gitlab`nGITLAB_URL=https://gitlab.example.com`nHALYARD_SOURCE_REPO=1234`nHALYARD_SANDBOX_REPO=5678"
-        $s = (Initialize-HalyardEnvironment -Root $script:Tmp -UseArc Never).Settings
+        $s = (Initialize-HalyardEnvironment -Root $script:Tmp -UseLazarette Never).Settings
         $policy = $s.BuildWritePolicy()
         $policy.Mode.ToString() | Should -Be 'Sandbox'
         $source = [Halyard.Core.Model.RepositoryRef]::new([Halyard.Core.Model.ProviderKind]::GitLab, '1234')
@@ -117,7 +128,7 @@ Describe 'Finding Lazarette' {
 }
 
 Describe 'Connect-HalyardLazarette with a stand-in Lazarette (lib\Arc.ps1)' {
-    # Runs in a child PowerShell so its global stand-in functions never meet the pm.ps1 stand-in below
+    # Runs in a child PowerShell so its global Arc-named stand-ins never meet the Lazarette-named stand-in below
     # (a real process only ever loads one Lazarette).
     BeforeAll {
         $script:FakeLaz = Join-Path ([IO.Path]::GetTempPath()) ('fake-lazarette-' + [guid]::NewGuid().ToString('N'))
@@ -160,26 +171,27 @@ $calls = & (Get-Module HalyardLazarette) { $script:UnlockCalls }
     }
 }
 
-Describe 'Connect-HalyardLazarette with a stand-in ARC 3/4 (pm.ps1)' {
+Describe 'Connect-HalyardLazarette with a stand-in Lazarette (lib\Lazarette.ps1, Lazarette-named API)' {
     BeforeAll {
-        $script:FakeArc = Join-Path ([IO.Path]::GetTempPath()) ('fake-arc-' + [guid]::NewGuid().ToString('N'))
-        New-Item -ItemType Directory -Force $script:FakeArc | Out-Null
-        # Minimal stand-in for ARC's pm.ps1: same function names, in-memory vault, no CAC.
-        Set-Content (Join-Path $script:FakeArc 'pm.ps1') @'
-$script:PmState = @{ VaultUnlocked = $false }
+        $script:FakeLaz2 = Join-Path ([IO.Path]::GetTempPath()) ('fake-lazarette2-' + [guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Force (Join-Path $script:FakeLaz2 'lib') | Out-Null
+        # Lazarette-named functions next to Arc-named ones: the Lazarette names must win.
+        Set-Content (Join-Path $script:FakeLaz2 'lib\Lazarette.ps1') @'
+$script:Open = $false
 $script:UnlockCalls = 0
-function Ensure-VaultUnlocked { $script:UnlockCalls++; $script:PmState.VaultUnlocked = $true; return $true }
-function Get-PmStarkApiKey { param([string]$VaultName) switch ($VaultName) { 'my-gitlab' { 'glpat-fake-gitlab' } 'my-llm' { 'sk-fake-llm' } default { $null } } }
-function Unprotect-SecretText { param($Protected) $Protected }
-function Find-VaultRows { param($Name) @() }
+function Unlock-LazaretteVaultInteractive { $script:UnlockCalls++; $script:Open = $true; return $true }
+function Test-LazaretteVaultUnlocked { return $script:Open }
+function Get-LazaretteSecret { param([Parameter(Mandatory)][string]$Service) switch ($Service) { 'my-gitlab' { 'glpat-fake-gitlab' } 'my-llm' { 'sk-fake-llm' } default { throw "no item $Service" } } }
+function Unlock-ArcVaultInteractive { throw 'the Arc name must not be used when the Lazarette name exists' }
+function Get-ArcSecret { param([string]$Service) throw 'the Arc name must not be used when the Lazarette name exists' }
 '@
     }
-    AfterAll { Remove-Item $script:FakeArc -Recurse -Force -ErrorAction SilentlyContinue; Remove-Module HalyardLazarette -ErrorAction SilentlyContinue }
+    AfterAll { Remove-Item $script:FakeLaz2 -Recurse -Force -ErrorAction SilentlyContinue; Remove-Module HalyardLazarette -ErrorAction SilentlyContinue }
 
     It 'unlocks once and exports mapped items to the process environment' {
         foreach ($n in @('GITLAB_TOKEN', 'LLM_TOKEN', 'DATABRICKS_TOKEN', 'GITHUB_TOKEN')) { [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
         $env:HALYARD_LAZARETTE_ITEM_GitLab = 'my-gitlab'; $env:HALYARD_LAZARETTE_ITEM_Llm = 'my-llm'; $env:HALYARD_LAZARETTE_ITEM_Databricks = 'my-databricks'
-        $r = Connect-HalyardArc -ArcRoot $script:FakeArc   # former command and parameter names still work
+        $r = Connect-HalyardLazarette -LazaretteRoot $script:FakeLaz2
         $r.Unlocked | Should -BeTrue -Because ('result: ' + ($r | ConvertTo-Json -Compress))
         $r.Loaded | Should -Contain 'GITLAB_TOKEN'
         $r.Loaded | Should -Contain 'LLM_TOKEN'
@@ -188,23 +200,24 @@ function Find-VaultRows { param($Name) @() }
     }
 
     It 'does not reload Lazarette or prompt again once unlocked' {
-        $again = Connect-HalyardLazarette -LazaretteRoot $script:FakeArc
+        $again = Connect-HalyardLazarette -LazaretteRoot $script:FakeLaz2
         $again.Unlocked | Should -BeTrue
         $calls = & (Get-Module HalyardLazarette) { $script:UnlockCalls }
         $calls | Should -Be 1
     }
 
     It 'keeps the live session instead of loading a second copy' {
-        # Re-importing pm.ps1 would reset ARC 3/4's in-memory CAC session, so a later call reuses the loaded one.
-        $r = Connect-HalyardLazarette -LazaretteRoot (Join-Path $script:FakeArc 'elsewhere')
+        $r = Connect-HalyardLazarette -LazaretteRoot (Join-Path $script:FakeLaz2 'elsewhere')
         $r.Unlocked | Should -BeTrue
         @(Get-Module HalyardLazarette).Count | Should -Be 1
     }
 
-    It 'finds an ARC 3/4 install from ARC_PATH' {
-        $env:ARC_PATH = $script:FakeArc
-        try { InModuleScope Halyard { Find-HalyardLazaretteRoot } | Should -Be ([IO.Path]::GetFullPath($script:FakeArc)) }
-        finally { $env:ARC_PATH = $null }
+    It 'reports ARC_NOT_FOUND (Lazarette result code) when no install is found' {
+        $saved = @{}; foreach ($n in @('LAZARETTE_PATH', 'LAZARETTE_ROOT', 'LAZARETTE_HOME', 'ARC_PATH', 'ARC_ROOT', 'ARC_HOME', 'USERPROFILE', 'LOCALAPPDATA')) { $saved[$n] = [Environment]::GetEnvironmentVariable($n, 'Process'); [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
+        try {
+            $r = InModuleScope Halyard -Parameters @{ R = (Join-Path ([IO.Path]::GetTempPath()) ('nowhere-' + [guid]::NewGuid().ToString('N') + '\Halyard')) } { param($R) Find-HalyardLazaretteRoot -HalyardRoot $R }
+            $r | Should -BeNullOrEmpty
+        } finally { foreach ($k in $saved.Keys) { [Environment]::SetEnvironmentVariable($k, $saved[$k], 'Process') } }
     }
 }
 
