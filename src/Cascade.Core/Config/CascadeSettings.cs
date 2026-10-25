@@ -38,6 +38,14 @@ namespace Cascade.Core.Config
         public string SynapseDirectory { get { return Path.Combine(ConfigDirectory, "synapse"); } }
         public string VisionDirectory { get { return Path.Combine(OutputDirectory, "vision"); } }
         public string ReportsDirectory { get { return Path.Combine(OutputDirectory, "reports"); } }
+        /// <summary>The brand mark as a PNG for the emailed report (assets/brand/png/cascade-64.png), or null when the file is absent.</summary>
+        public string? BrandLogoBase64()
+        {
+            var path = Path.Combine(RootDirectory, "assets", "brand", "png", "cascade-64.png");
+            try { return File.Exists(path) ? Convert.ToBase64String(File.ReadAllBytes(path)) : null; }
+            catch (IOException) { return null; }
+            catch (UnauthorizedAccessException) { return null; }
+        }
         public string IntakesDirectory { get { return Path.Combine(OutputDirectory, "intakes"); } }
         public string ProposalsDirectory { get { return Path.Combine(OutputDirectory, "proposals"); } }
         public string SnapshotsDirectory { get { return Path.Combine(OutputDirectory, "snapshots"); } }

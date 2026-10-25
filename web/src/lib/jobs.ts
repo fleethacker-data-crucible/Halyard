@@ -2,6 +2,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { describeError, get, post } from './api';
 import { Job } from './schemas';
+import { invalidate } from './useResource';
+
+/** Everything derived from the snapshot. A write job re-synchronizes inside itself and reports `resynced`. */
+const SNAPSHOT_VIEWS = ['/api/snapshot', '/api/status', '/api/review', '/api/hierarchy', '/api/item', '/api/leadership', '/api/intake', '/api/vision', '/api/team', '/api/sandbox'];
+
+export function resyncedBy(job: Job): boolean {
+  const r = job.result as { resynced?: unknown } | null | undefined;
+  return !!r && r.resynced === true;
+}
 
 export type StartedJob = { job: Job } & Record<string, unknown>;
 
@@ -24,6 +33,7 @@ export function useJob(onFinished?: (job: Job) => void) {
       setJob(parsed);
       if (parsed.state === 'succeeded' || parsed.state === 'failed' || parsed.state === 'cancelled') {
         stop();
+        if (parsed.state === 'succeeded' && resyncedBy(parsed)) for (const k of SNAPSHOT_VIEWS) invalidate(k);
         finishedRef.current?.(parsed);
         return;
       }
