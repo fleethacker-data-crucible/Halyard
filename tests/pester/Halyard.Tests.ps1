@@ -117,6 +117,8 @@ Describe 'Finding Lazarette' {
 }
 
 Describe 'Connect-HalyardLazarette with a stand-in Lazarette (lib\Arc.ps1)' {
+    # Runs in a child PowerShell so its global stand-in functions never meet the pm.ps1 stand-in below
+    # (a real process only ever loads one Lazarette).
     BeforeAll {
         $script:FakeLaz = Join-Path ([IO.Path]::GetTempPath()) ('fake-lazarette-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Force (Join-Path $script:FakeLaz 'lib') | Out-Null
@@ -128,34 +130,38 @@ function Unlock-ArcVaultInteractive { $script:UnlockCalls++; $script:Open = $tru
 function Test-ArcVaultUnlocked { return $script:Open }
 function Get-ArcSecret { param([Parameter(Mandatory)][string]$Service, [string]$User = '', [string]$Field = '') switch ($Service) { 'lib-gitlab' { 'glpat-lib' } default { throw "no item $Service" } } }
 '@
+        $script:Child = @'
+param([string]$Manifest, [string]$LazRoot)
+$ErrorActionPreference = 'Stop'
+foreach ($n in @('GITLAB_TOKEN', 'LLM_TOKEN', 'DATABRICKS_TOKEN', 'GITHUB_TOKEN')) { [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
+$env:CASCADE_ARC_ITEM_GitLab = 'lib-gitlab'; $env:CASCADE_ARC_ITEM_Llm = 'lib-missing'
+Import-Module $Manifest -Force
+$r = Connect-HalyardLazarette -LazaretteRoot $LazRoot 6>$null
+$calls = & (Get-Module HalyardLazarette) { $script:UnlockCalls }
+[pscustomobject]@{ Unlocked = $r.Unlocked; Error = $r.Error; Loaded = @($r.Loaded); Missing = @($r.Missing); Token = $env:GITLAB_TOKEN; Calls = $calls } | ConvertTo-Json -Compress
+'@
+        $script:ChildFile = Join-Path ([IO.Path]::GetTempPath()) ('halyard-lazarette-child-' + [guid]::NewGuid().ToString('N') + '.ps1')
+        Set-Content -Path $script:ChildFile -Value $script:Child
     }
-    AfterAll {
-        Remove-Module HalyardLazarette -ErrorAction SilentlyContinue
-        # The stand-in's functions are imported globally; make sure none outlive this block (the pm.ps1 tests below need a clean slate).
-        foreach ($f in @('Unlock-ArcVaultInteractive', 'Test-ArcVaultUnlocked', 'Get-ArcSecret')) { Remove-Item -Path ('Function:\' + $f) -ErrorAction SilentlyContinue }
-        InModuleScope Halyard { $script:HalyardLazaretteModule = $null; $script:HalyardLazaretteRoot = $null; $script:HalyardLazaretteKind = $null }
-        Remove-Item $script:FakeLaz -Recurse -Force -ErrorAction SilentlyContinue
-    }
+    AfterAll { Remove-Item $script:FakeLaz -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item $script:ChildFile -Force -ErrorAction SilentlyContinue }
 
     It 'unlocks through the ARC 5 API and reads items named by the former CASCADE_ARC_ITEM_* variables' {
-        foreach ($n in @('GITLAB_TOKEN', 'LLM_TOKEN')) { [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
-        $env:CASCADE_ARC_ITEM_GitLab = 'lib-gitlab'; $env:CASCADE_ARC_ITEM_Llm = 'lib-missing'
-        try {
-            $r = Connect-HalyardLazarette -LazaretteRoot $script:FakeLaz
-            $r.Unlocked | Should -BeTrue
-            $r.Loaded | Should -Contain 'GITLAB_TOKEN'
-            $r.Missing | Should -Contain 'lib-missing'
-            $env:GITLAB_TOKEN | Should -Be 'glpat-lib'
-            (& (Get-Module HalyardLazarette) { $script:UnlockCalls }) | Should -Be 1
-        } finally {
-            foreach ($n in @('CASCADE_ARC_ITEM_GitLab', 'CASCADE_ARC_ITEM_Llm', 'GITLAB_TOKEN')) { [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
-        }
+        $exe = (Get-Process -Id $PID).Path
+        $out = & $exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $script:ChildFile -Manifest (Join-Path $script:Root 'module\Halyard\Halyard.psd1') -LazRoot $script:FakeLaz
+        $json = @($out) | Where-Object { $_ -is [string] -and $_.TrimStart().StartsWith('{') } | Select-Object -Last 1
+        $json | Should -Not -BeNullOrEmpty -Because (@($out) -join "`n")
+        $r = $json | ConvertFrom-Json
+        $r.Error | Should -BeNullOrEmpty
+        $r.Unlocked | Should -BeTrue
+        $r.Loaded | Should -Contain 'GITLAB_TOKEN'
+        $r.Missing | Should -Contain 'lib-missing'
+        $r.Token | Should -Be 'glpat-lib'
+        $r.Calls | Should -Be 1
     }
 }
 
 Describe 'Connect-HalyardLazarette with a stand-in ARC 3/4 (pm.ps1)' {
     BeforeAll {
-        foreach ($f in @('Unlock-ArcVaultInteractive', 'Test-ArcVaultUnlocked', 'Get-ArcSecret', 'Unlock-LazaretteVaultInteractive', 'Get-LazaretteSecret')) { Remove-Item -Path ('Function:\' + $f) -ErrorAction SilentlyContinue }
         $script:FakeArc = Join-Path ([IO.Path]::GetTempPath()) ('fake-arc-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Force $script:FakeArc | Out-Null
         # Minimal stand-in for ARC's pm.ps1: same function names, in-memory vault, no CAC.
@@ -174,7 +180,7 @@ function Find-VaultRows { param($Name) @() }
         foreach ($n in @('GITLAB_TOKEN', 'LLM_TOKEN', 'DATABRICKS_TOKEN', 'GITHUB_TOKEN')) { [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
         $env:HALYARD_LAZARETTE_ITEM_GitLab = 'my-gitlab'; $env:HALYARD_LAZARETTE_ITEM_Llm = 'my-llm'; $env:HALYARD_LAZARETTE_ITEM_Databricks = 'my-databricks'
         $r = Connect-HalyardArc -ArcRoot $script:FakeArc   # former command and parameter names still work
-        $r.Unlocked | Should -BeTrue
+        $r.Unlocked | Should -BeTrue -Because ('result: ' + ($r | ConvertTo-Json -Compress))
         $r.Loaded | Should -Contain 'GITLAB_TOKEN'
         $r.Loaded | Should -Contain 'LLM_TOKEN'
         $r.Missing | Should -Contain 'my-databricks'
