@@ -81,7 +81,7 @@ namespace Halyard.Core.Intelligence
     /// </summary>
     public static class Intake
     {
-        public const string Label = "cascade-intake";
+        public const string Label = "halyard-intake";
 
         public static readonly LabelDefinition[] StandardLabels =
         {
@@ -93,7 +93,7 @@ namespace Halyard.Core.Intelligence
         /// <summary>Deterministic classification: declared meta, then type labels, then title and body shape.</summary>
         public static WorkItemType GuessType(WorkItem item, out string reason)
         {
-            if (item.Meta != null && item.Meta.Type != WorkItemType.Unclassified) { reason = "declared in cascade-meta"; return item.Meta.Type; }
+            if (item.Meta != null && item.Meta.Type != WorkItemType.Unclassified) { reason = "declared in halyard-meta"; return item.Meta.Type; }
             var labels = item.TypeLabels;
             if (labels.Count == 1) { reason = "type:: label"; return labels[0]; }
             var title = Descriptions.ShortName(item.Title);
@@ -117,7 +117,7 @@ namespace Halyard.Core.Intelligence
         }
 
         /// <summary>
-        /// A raw ticket: anything outside the sandbox, or a sandbox issue that carries no cascade-meta and no Halyard
+        /// A raw ticket: anything outside the sandbox, or a sandbox issue that carries no halyard-meta and no Halyard
         /// labels (the single-repository setup, where people file tickets straight into the sandbox).
         /// </summary>
         public static bool IsRawTicket(WorkItem item, RepositoryRef? sandbox)
@@ -188,7 +188,7 @@ namespace Halyard.Core.Intelligence
             }
             meta.Set("source_project", source.Repository.Identifier).Set("source_iid", source.Number.ToString());
             if (!string.IsNullOrEmpty(source.Url)) meta.Set("source_url", source.Url);
-            meta.Set("intake", "cascade");
+            meta.Set("intake", "halyard");
             return meta;
         }
 

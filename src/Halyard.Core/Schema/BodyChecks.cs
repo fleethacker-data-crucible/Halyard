@@ -62,7 +62,7 @@ namespace Halyard.Core.Schema
         {
             if (string.IsNullOrWhiteSpace(body)) return false;
             var clean = HalyardMeta.StripFromBody(body);
-            clean = Regex.Replace(clean, @"^\s*###\s*(?:Cascade|Halyard)\s*\r?\n(?:-\s*\*\*[^\r\n]+\r?\n?)+", string.Empty, Opts);
+            clean = Regex.Replace(clean, @"^\s*###\s*Halyard\s*\r?\n(?:-\s*\*\*[^\r\n]+\r?\n?)+", string.Empty, Opts);
             return clean.Trim().Length >= minimumLength;
         }
     }

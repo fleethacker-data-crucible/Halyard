@@ -48,10 +48,10 @@ Examples: `THEME :: Platform Engineering`, `EPIC :: Production schema parity`, `
 
 ## 2. Halyard metadata block
 
-Every Halyard-managed issue should start with a `cascade-meta` fence (or HTML comment equivalent). Reviewers should see these fields.
+Every Halyard-managed issue should start with a `halyard-meta` fence (or HTML comment equivalent). Reviewers should see these fields.
 
 ```text
-~~~cascade-meta
+~~~halyard-meta
 type: THEME|EPIC|FEATURE|STORY
 id: TYPE-slug
 theme: THEME-...
@@ -90,7 +90,7 @@ Portfolio lane. Groups Epics. Does not end when a project ends.
 ### Metadata example
 
 ```text
-~~~cascade-meta
+~~~halyard-meta
 type: THEME
 id: THEME-platform-engineering
 theme: THEME-platform-engineering
@@ -158,7 +158,7 @@ Outcome-sized initiative under one Theme. Can span multiple sprints/Features.
 ### Metadata example
 
 ```text
-~~~cascade-meta
+~~~halyard-meta
 type: EPIC
 id: EPIC-prod-test-schema-parity
 theme: THEME-platform-engineering
@@ -233,7 +233,7 @@ Shippable capability under an Epic. Sized with **effort** (not Fibonacci).
 ### Metadata example
 
 ```text
-~~~cascade-meta
+~~~halyard-meta
 type: FEATURE
 id: FEATURE-rds-iam-auth
 theme: THEME-platform-engineering
@@ -309,7 +309,7 @@ Sprint-scale, testable increment under a Feature. **Points + sprint** required f
 ### Metadata example
 
 ```text
-~~~cascade-meta
+~~~halyard-meta
 type: STORY
 id: STORY-associate-iam-postgres-roles
 theme: THEME-platform-engineering
@@ -411,9 +411,9 @@ GitLab Milestone object may also be linked in the project UI; Halyard meta keeps
 | `area::platform` | Product area filter |
 | `type::theme` / `type::epic` / `type::feature` / `type::story` | Optional explicit type label |
 | `theme::...` | Optional mirror of theme id |
-| `cascade` | Created or managed by Halyard |
-| `cascade-synthetic` | Synthetic item; the only kind teardown may delete |
-| `cascade-run::<id>` | Which seed run created the item |
+| `halyard` | Created or managed by Halyard |
+| `halyard-synthetic` | Synthetic item; the only kind teardown may delete |
+| `halyard-run::<id>` | Which seed run created the item |
 | `refine::sandbox-review` | Human review queue |
 | `refine::ai-accepted` | From bulk ACCEPT path |
 | `refine::human-needed` | Meeting required |

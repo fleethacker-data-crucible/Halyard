@@ -39,7 +39,7 @@ namespace Halyard.Core.Schema
             var t = new Taxonomy();
             t.Themes.AddRange(new[]
             {
-                new TaxonomyTheme { Id = "THEME-process-improvement", Title = "THEME :: Process Improvement", Area = "cascade", Purpose = "Agile operating system, Halyard agent, delivery process" },
+                new TaxonomyTheme { Id = "THEME-process-improvement", Title = "THEME :: Process Improvement", Area = "halyard", Purpose = "Agile operating system, Halyard agent, delivery process" },
                 new TaxonomyTheme { Id = "THEME-data-platform", Title = "THEME :: Data Platform", Area = "data-platform", Purpose = "RDS, schema, IAM, shared data platform services" },
                 new TaxonomyTheme { Id = "THEME-data-pipeline-modernization", Title = "THEME :: Data Pipeline Modernization", Area = "pipeline", Purpose = "ETL/ELT reliability and modernization" },
                 new TaxonomyTheme { Id = "THEME-platform-engineering", Title = "THEME :: Platform Engineering", Area = "platform", Purpose = "CI, environments, shared engineering tooling" },

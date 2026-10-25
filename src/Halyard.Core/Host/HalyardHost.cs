@@ -22,7 +22,7 @@ namespace Halyard.Core.Host
         /// <summary>Directory holding the built UI (index.html). When missing, the API still runs and / returns a notice.</summary>
         public string? WebRoot { get; set; }
         public int PreferredPort { get; set; } = 8773;
-        /// <summary>Random per-session token the UI must send as X-Halyard-Session (X-Cascade-Session is still accepted). Generated when null.</summary>
+        /// <summary>Random per-session token the UI must send as X-Halyard-Session. Generated when null.</summary>
         public string? SessionToken { get; set; }
         /// <summary>Free-form state from the PowerShell launcher (Lazarette vault unlocked, console hidden...).</summary>
         public Dictionary<string, object?> LauncherState { get; set; } = new Dictionary<string, object?>();
@@ -56,9 +56,7 @@ namespace Halyard.Core.Host
     public sealed partial class HalyardHost : IDisposable
     {
         public const string SessionHeader = "X-Halyard-Session";
-        public const string LegacySessionHeader = "X-Cascade-Session";
         public const string IntentHeader = "X-Halyard-Intent";
-        public const string LegacyIntentHeader = "X-Cascade-Intent";
         public const string Version = "1.0.0";
         private readonly ManualResetEventSlim _stopped = new ManualResetEventSlim(false);
         private readonly object _providerLock = new object();
@@ -412,8 +410,7 @@ namespace Halyard.Core.Host
         {
             // Header only: the launch link's ?session= is read by the page and removed from the address bar,
             // and API URLs never carry the token, so it does not end up in history or logs.
-            // X-Cascade-Session: the header name before the rename, still accepted.
-            var token = request.Header(SessionHeader) ?? request.Header(LegacySessionHeader);
+            var token = request.Header(SessionHeader);
             return !string.IsNullOrEmpty(token) && FixedTimeEquals(token!, SessionToken);
         }
 

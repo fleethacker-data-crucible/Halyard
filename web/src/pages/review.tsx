@@ -11,7 +11,7 @@ import { invalidate, useResource } from '../lib/useResource';
 import { Skeleton } from './overview';
 
 const CONTENT_GAPS = new Set(['story_missing_acceptance_criteria', 'story_missing_user_need', 'story_missing_tasks', 'feature_missing_done_when', 'feature_missing_short_description', 'epic_missing_outcome_statement', 'epic_missing_success_picture', 'theme_missing_purpose', 'theme_missing_scope']);
-const META_GAPS = new Set(['missing_cascade_metadata', 'invalid_cascade_metadata', 'story_missing_points', 'story_invalid_points', 'story_missing_sprint', 'story_has_effort_band', 'feature_has_story_points', 'feature_missing_effort', 'feature_invalid_effort', 'epic_missing_theme']);
+const META_GAPS = new Set(['missing_halyard_metadata', 'invalid_halyard_metadata', 'story_missing_points', 'story_invalid_points', 'story_missing_sprint', 'story_has_effort_band', 'feature_has_story_points', 'feature_missing_effort', 'feature_invalid_effort', 'epic_missing_theme']);
 
 /** Which proposal paths can act on an item, from its open gaps. Drives the bulk-action bar. */
 export function remedies(i: ReviewItem): Array<'refine' | 'metadata' | 'parents' | 'sizes'> {
@@ -319,8 +319,8 @@ function ParentsTable({ review }: { review: Review }) {
 
 function explainDeficiency(code: string): string {
   const map: Record<string, string> = {
-    missing_cascade_metadata: 'Add a ~~~cascade-meta block with at least type and id.',
-    invalid_cascade_metadata: 'The block exists but type or id is missing or unknown.',
+    missing_halyard_metadata: 'Add a ~~~halyard-meta block with at least type and id.',
+    invalid_halyard_metadata: 'The block exists but type or id is missing or unknown.',
     story_missing_feature_parent: 'Set parent: FEATURE-… in the story\'s meta.',
     story_missing_acceptance_criteria: 'Add an "Acceptance criteria" section with testable bullets.',
     story_missing_user_need: 'State who needs this, what and why.',

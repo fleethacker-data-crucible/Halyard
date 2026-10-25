@@ -246,7 +246,7 @@ namespace Halyard.Core.Synthetic
                             new FeatureSeed("Work-Item Traceability",
                                 "Present Theme-to-Task links with stable identifiers and reviewable coverage.",
                                 "Parents are implied by titles and labels rather than declared.",
-                                "Declare parents in cascade-meta and validate the chain on every sync.",
+                                "Declare parents in halyard-meta and validate the chain on every sync.",
                                 new[] { "Parent-chain navigation", "Schema readiness report", "Cycle detection" },
                                 new[] { "Every work item can be traced to its declared parent", "Topology validation detects missing and circular relationships", "The chain renders in the browser" },
                                 new[]

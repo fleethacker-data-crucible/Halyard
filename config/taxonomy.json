@@ -13,7 +13,7 @@
     "STORY": "{name}"
   },
   "id_pattern": "{TYPE}-{slug}",
-  "meta_fence": "~~~cascade-meta",
+  "meta_fence": "~~~halyard-meta",
   "effort_values": [
     "Small",
     "Medium",
@@ -71,7 +71,7 @@
     {
       "id": "THEME-process-improvement",
       "title": "THEME :: Process Improvement",
-      "area": "cascade",
+      "area": "halyard",
       "purpose": "Agile operating system, Halyard agent, delivery process",
       "status": "Active"
     },
@@ -148,12 +148,12 @@
   ],
   "seed_epics": [
     {
-      "id": "EPIC-cascade-agentic-backlog",
+      "id": "EPIC-halyard-agentic-backlog",
       "title": "EPIC :: Halyard Agentic Backlog Operator",
       "theme": "THEME-process-improvement",
       "outcome": "Deliver an AI-native Agile operator on GitLab so the team can intake, structure, and track work with sandbox-safe automation and clear hierarchy.",
       "success_picture": [
-        "Themes and Epics exist in Git with cascade-meta",
+        "Themes and Epics exist in Git with halyard-meta",
         "Chat intake creates correctly typed work in sandbox only",
         "Parent links append without deleting existing connections",
         "Leadership can see progress by Theme and sprint slices"

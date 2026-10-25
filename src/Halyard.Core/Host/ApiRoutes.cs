@@ -163,7 +163,7 @@ namespace Halyard.Core.Host
 
         private Task<HttpResponse> StopSession(HttpRequest r)
         {
-            if (!string.Equals(r.Header(IntentHeader) ?? r.Header(LegacyIntentHeader), "end-session", StringComparison.Ordinal))
+            if (!string.Equals(r.Header(IntentHeader), "end-session", StringComparison.Ordinal))
                 return Task.FromResult(Json.Error(403, "INTENT_REQUIRED", "Ending the session requires the X-Halyard-Intent header.", r.RequestId));
             Log.Info("SESSION_STOP_REQUESTED", "End session requested from the browser.");
             Task.Run(async () => { await Task.Delay(300).ConfigureAwait(false); Stop(); });
