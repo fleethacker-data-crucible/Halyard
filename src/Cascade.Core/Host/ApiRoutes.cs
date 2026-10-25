@@ -40,7 +40,7 @@ namespace Cascade.Core.Host
             Router.Get("/api/items/{number}", GetItem);
             Router.Get("/api/item", GetItem);
             Router.Get("/api/leadership", r => Task.FromResult(Json.Ok(LeadershipPayload(Query(r, "label")))));
-            Router.Get("/api/leadership/report.html", r => Task.FromResult(HttpResponse.Text(200, DeliveryHtml.Render(BuildDelivery(Query(r, "label"))), "text/html; charset=utf-8")));
+            Router.Get("/api/leadership/report.html", r => Task.FromResult(HttpResponse.Text(200, DeliveryHtml.Render(BuildDelivery(Query(r, "label")), "Cascade Leadership Dashboard", Settings.BrandLogoBase64()), "text/html; charset=utf-8")));
             Router.Get("/api/team", r => Task.FromResult(Json.Ok(TeamPayload())));
 
             Router.Get("/api/sandbox/preview", PreviewCatalog);
@@ -441,6 +441,8 @@ namespace Cascade.Core.Host
                 blockers = r.Blockers,
                 ready = new { r.Ready.Stories, r.Ready.Points, r.Ready.NotReady, r.Ready.AverageVelocity, r.Ready.Healthy },
                 capacity = new { r.Capacity.TeamCapacity, r.Capacity.PlannedPoints, r.Capacity.DonePoints, r.Capacity.UsedPercent, r.Capacity.Committed, r.Capacity.Allocated, r.Capacity.Experiment, r.Capacity.Teams, r.Capacity.People, r.Capacity.Configured },
+                teamCapacity = r.TeamCapacity.Select(t => new { t.Id, t.Name, t.Capacity, t.Planned, t.Done, t.Committed, t.Allocated, t.Experiment, t.People, t.UsedPercent }),
+                statusHistory = r.StatusHistory.Select(h => new { h.Sprint, h.Number, h.IsCurrent, h.Done, h.OnTrack, h.AtRisk, h.Parked, h.NotStarted, h.Total }),
                 escalationBusinessDays = Delivery.EscalationBusinessDays,
                 r.Notes,
             };
