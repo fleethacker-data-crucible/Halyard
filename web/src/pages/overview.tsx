@@ -17,7 +17,7 @@ export function OverviewPage({ status }: { status: Status | undefined }) {
     return (
       <Page title="Overview" lede="Health of the backlog hierarchy, from the latest snapshot.">
         <Section>
-          <Empty title="Nothing to show yet" action={<Button variant="primary" onClick={() => navigate('connection')}>Connect and synchronize<LuArrowRight size={14} /></Button>}>
+          <Empty emblem title="Nothing to show yet" action={<Button variant="primary" onClick={() => navigate('connection')}>Connect and synchronize<LuArrowRight size={14} /></Button>}>
             Connect to {status.config.provider === 'gitlab' ? 'GitLab' : 'GitHub'} and synchronize a repository. Every view works from that snapshot, never from live calls, so you can read without anyone noticing.
             {!status.provider.configured ? <p className="mt-2">No token is loaded yet; the launcher usually provides one from the vault or the environment.</p> : null}
           </Empty>
