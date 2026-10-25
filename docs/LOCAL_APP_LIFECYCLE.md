@@ -50,6 +50,8 @@ it hides from the user, holds its DLLs and ports, breaks the next build, and war
   `navigator.sendBeacon` (a keepalive fetch is dropped by some browsers during unload); it cannot set
   headers, so the engine accepts the session token in the JSON body for that one route only, never in
   the query string, and never logs bodies.
-- Finding what holds the DLL: `Process.Modules` does not list .NET-mapped assemblies. Use the Windows
-  Restart Manager (`RmRegisterResources` + `RmGetList` on the file path); it also reports elevated
-  holders from a normal window. Stopping an elevated holder needs one elevated `Stop-Process` (UAC).
+- Finding what holds the DLL: `Process.Modules` does not list .NET-mapped assemblies. Open the file
+  with `FILE_READ_ATTRIBUTES` and call `NtQueryInformationFile` with `FileProcessIdsUsingFileInformation`;
+  it needs no admin in any session and also reports elevated holders from a normal window. (The Restart
+  Manager's `RmGetList` was dropped: it returns access denied to a standard user in session 0, such as a
+  headless CI runner.) A failed query is reported as a warning, not as an empty result. Stopping an elevated holder needs one elevated `Stop-Process` (UAC).
