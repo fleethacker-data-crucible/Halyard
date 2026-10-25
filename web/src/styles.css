@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
-  Cascade design tokens. One idea carries the interface: each hierarchy level has a fixed hue,
+  Halyard design tokens. One idea carries the interface: each hierarchy level has a fixed hue,
   dark at the Theme end and light at the Task end, and that hue is the only decoration anywhere.
   Everything else is quiet: cool grey paper, one hairline weight, one control radius.
 */
@@ -212,8 +212,8 @@
   .table-dense tbody tr:hover td { background: var(--surface-2); }
   .scroll-y { overflow-y: auto; scrollbar-width: thin; }
   .num { font-variant-numeric: tabular-nums; }
-  .cascade-reveal { animation: cascade-reveal 420ms cubic-bezier(.2,.7,.2,1) both; }
-  @keyframes cascade-reveal {
+  .halyard-reveal { animation: halyard-reveal 420ms cubic-bezier(.2,.7,.2,1) both; }
+  @keyframes halyard-reveal {
     from { transform: scaleX(0.6); opacity: 0; }
     to { transform: scaleX(1); opacity: 1; }
   }

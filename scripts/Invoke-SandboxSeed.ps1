@@ -20,9 +20,9 @@ param(
     [switch]$NoArc
 )
 $ErrorActionPreference = 'Stop'
-Import-Module (Join-Path $PSScriptRoot '..\module\Cascade\Cascade.psd1') -Force
+Import-Module (Join-Path $PSScriptRoot '..\module\Halyard\Halyard.psd1') -Force
 $p = @{ Total = $Total; Seed = $Seed; IncludeDefects = $IncludeDefects; DefectRate = $DefectRate; NoNativeLinks = $NoNativeLinks; UseArc = $(if ($NoArc) { 'Never' } else { 'Auto' }) }
 if ($RunId) { $p['RunId'] = $RunId }
 if ($CatalogPath) { $p['CatalogPath'] = $CatalogPath }
 if ($WhatIfPreference) { $p['WhatIf'] = $true }
-Invoke-CascadeSeed @p
+Invoke-HalyardSeed @p

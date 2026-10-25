@@ -198,7 +198,7 @@ function NewAnalysis({ status, onBatch }: { status: Status | undefined; onBatch:
           </div>
           <div className="mt-3 rounded-ctl border border-line-2 p-3">
             <div className="mb-1 font-medium">Tag skills</div>
-            <p className="mb-2 text-[12.5px] text-ink-2">The model picks 1–3 skills per story or feature from the shared taxonomy (the ids Synapse uses); answers outside it are dropped.</p>
+            <p className="mb-2 text-[12.5px] text-ink-2">The model picks 1–3 skills per story or feature from the shared taxonomy (the ids Shellback uses); answers outside it are dropped.</p>
             <Button variant="primary" busy={skillsJob.running} disabled={noSnapshot || !hasModel} onClick={() => void skillsJob.start('/api/intelligence/skills', { useModel: true, maxItems: 60, profile })}><LuSparkles size={14} />Tag with the model</Button>
             {skillsJob.job ? <div className="mt-3"><Progress done={skillsJob.job.progressDone} total={skillsJob.job.progressTotal} label={skillsJob.job.message ?? skillsJob.job.state} />{skillsJob.job.error ? <p className="mt-1 text-err">{skillsJob.job.error}</p> : null}</div> : null}
             {skillsJob.error ? <p className="mt-2 text-err">{skillsJob.error}</p> : null}

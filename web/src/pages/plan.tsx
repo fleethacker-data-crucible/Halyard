@@ -10,7 +10,7 @@ import { Skeleton } from './overview';
 
 /**
  * Sprint planning: preview what the planner would place in the next sprints and who would take it, then turn
- * the plan into proposals. Capacity comes from config/team.json, skills from Synapse peer cards.
+ * the plan into proposals. Capacity comes from config/team.json, skills from Shellback peer cards.
  */
 export function PlanPage({ status }: { status: Status | undefined }) {
   const team = useResource('/api/team', TeamInfo);
@@ -62,8 +62,8 @@ export function PlanPage({ status }: { status: Status | undefined }) {
             </div>
           </div>
         </Section>
-        <Section title="Team" aside={t ? <span className="text-[12px] text-ink-3">{t.cardsImported} Synapse cards</span> : null}>
-          {!t ? <Skeleton rows={3} /> : t.teams.length === 0 ? <Empty title="No team configured">Add teams and people to <Mono>config/team.json</Mono>; drop Synapse peer cards in <Mono>config/synapse/</Mono> for skills.</Empty> : (
+        <Section title="Team" aside={t ? <span className="text-[12px] text-ink-3">{t.cardsImported} Shellback cards</span> : null}>
+          {!t ? <Skeleton rows={3} /> : t.teams.length === 0 ? <Empty title="No team configured">Add teams and people to <Mono>config/team.json</Mono>; drop Shellback peer cards in <Mono>config/shellback/</Mono> for skills.</Empty> : (
             <div className="px-4 py-3 text-[12.5px]">
               {t.teams.map((tm) => <div key={tm.id} className="mb-2 flex items-center gap-2"><LuUsers size={14} className="text-ink-3" /><span className="font-medium">{tm.name}</span><span className="text-ink-3">{tm.pointsPerSprint} pts/sprint · {tm.members} people · {Math.round(tm.committed * 100)}% committed</span></div>)}
               <ul className="flex flex-col gap-1">
@@ -71,7 +71,7 @@ export function PlanPage({ status }: { status: Status | undefined }) {
                   <li key={person.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
                     <span className="w-32 font-medium">{person.name}</span>
                     <span className="num text-ink-2">{person.pointsPerSprint} pts</span>
-                    <span className="text-ink-3">{Object.keys(person.skills).length} skills{person.fromSynapse ? ' · Synapse' : ''}{person.availability !== 'unknown' ? ` · ${person.availability}` : ''}</span>
+                    <span className="text-ink-3">{Object.keys(person.skills).length} skills{person.fromShellback ? ' · Shellback' : ''}{person.availability !== 'unknown' ? ` · ${person.availability}` : ''}</span>
                   </li>
                 ))}
               </ul>
@@ -110,7 +110,7 @@ export function PlanPage({ status }: { status: Status | undefined }) {
               {Object.keys(p.skillGaps).length === 0 ? <p className="px-4 py-3 text-ok">Every planned story has someone with its skills.</p> : (
                 <ul className="flex flex-col gap-1 px-4 py-3 text-[12.5px]">{Object.entries(p.skillGaps).sort((a, b) => b[1] - a[1]).map(([k, n]) => <li key={k} className="flex justify-between"><Mono>{k}</Mono><span className="num text-ink-2">×{n}</span></li>)}</ul>
               )}
-              <p className="hairline px-4 py-2 text-[11.5px] text-ink-3">These are the skills to grow or hire for; Synapse growth plans are the place to take them.</p>
+              <p className="hairline px-4 py-2 text-[11.5px] text-ink-3">These are the skills to grow or hire for; Shellback growth plans are the place to take them.</p>
             </Section>
             <Section title={`Does not fit (${p.unplaced.length})`}>
               {p.unplaced.length === 0 ? <p className="px-4 py-3 text-ok">Everything ready fits in the window.</p> : <ul className="flex flex-col gap-1 px-4 py-3 text-[12.5px]">{p.unplaced.map((u) => <li key={u.key}><span className="font-medium">{u.title}</span> <span className="num text-ink-3">{u.points} pts</span><div className="text-[11.5px] text-ink-3">{u.reason}</div></li>)}</ul>}

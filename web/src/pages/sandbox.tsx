@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { LuExternalLink, LuRefreshCw, LuSprout, LuTrash2 } from 'react-icons/lu';
-import { CascadeBars } from '../components/charts';
+import { LevelBars } from '../components/charts';
 import { Button, Checkbox, ConfirmDialog, Empty, Field, Input, LevelChip, Mono, Notice, Page, Pill, Progress, Section, useToast } from '../components/ui';
 import { relativeTime, shortDate } from '../lib/format';
 import { resyncedBy, useJob } from '../lib/jobs';
@@ -61,7 +61,7 @@ function Seeder({ status, onDone }: { status: Status | undefined; onDone: () => 
         ) : null}
       </div>
       <div className="hairline">
-        {preview.data ? <CascadeBars counts={Object.fromEntries(Object.entries(preview.data.counts).map(([k, v]) => [k.toUpperCase(), v]))} /> : <Skeleton rows={5} />}
+        {preview.data ? <LevelBars counts={Object.fromEntries(Object.entries(preview.data.counts).map(([k, v]) => [k.toUpperCase(), v]))} /> : <Skeleton rows={5} />}
         {preview.data ? (
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 pb-3 text-[12.5px] text-ink-2">
             <span><span className="num font-semibold text-ok">{preview.data.complete}</span> complete</span>
@@ -163,7 +163,7 @@ function Runs({ runs, error, status, onChanged }: { runs: SeedManifest[] | undef
       {teardown.job ? <div className="hairline px-4 py-3"><Progress done={teardown.job.progressDone} total={teardown.job.progressTotal} label={teardown.job.message ?? teardown.job.state} />{teardown.job.error ? <p className="mt-2 text-err">{teardown.job.error}</p> : null}</div> : null}
       {teardown.error ? <Notice tone="err" className="m-4">{teardown.error}</Notice> : null}
       <div className="hairline px-4 py-3 text-[12.5px] text-ink-3">
-        Need the sandbox completely empty, including items Cascade did not create? <button type="button" className="underline hover:text-err" onClick={() => setConfirm({ scope: 'everything' })} disabled={!sandboxId}>Wipe everything in {sandboxId || 'the sandbox'}</button>. It asks you to type a phrase.
+        Need the sandbox completely empty, including items Halyard did not create? <button type="button" className="underline hover:text-err" onClick={() => setConfirm({ scope: 'everything' })} disabled={!sandboxId}>Wipe everything in {sandboxId || 'the sandbox'}</button>. It asks you to type a phrase.
       </div>
       <ConfirmDialog
         open={confirm !== null}

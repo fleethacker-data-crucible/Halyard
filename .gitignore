@@ -8,6 +8,7 @@ logs/
 *~
 
 # Local secrets and environment (NEVER commit real values)
+config/halyard.env
 config/cascade.env
 .env
 .env.*
@@ -34,7 +35,7 @@ web/node_modules
 web/dist/
 node_modules/
 
-# Assembled release bundle (produced by build/Build-Cascade.ps1)
+# Assembled release bundle (produced by build/Build-Halyard.ps1)
 dist/
 
 # Tooling caches

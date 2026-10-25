@@ -27,7 +27,7 @@ export function LeadershipPage({ status }: { status: Status | undefined }) {
     setDownloading(true);
     try {
       const html = await getText('/api/leadership/report.html');
-      downloadText(`cascade-leadership-${d?.currentSprint ?? 'report'}.html`, html, 'text/html');
+      downloadText(`halyard-leadership-${d?.currentSprint ?? 'report'}.html`, html, 'text/html');
     } catch (e) {
       toast.push('err', describeError(e));
     } finally {
@@ -116,7 +116,7 @@ export function LeadershipPage({ status }: { status: Status | undefined }) {
           </table>
         )}
       </Section>
-      <p className="text-[11.5px] text-ink-3">Primary object: feature % complete. Secondary: epic status, velocity trend, ready-backlog health, capacity split, blocker age. Story checklists and full proposals for work are deliberately not shown. Weekly email: <Mono>scripts\Register-CascadeReportSchedule.ps1</Mono>.</p>
+      <p className="text-[11.5px] text-ink-3">Primary object: feature % complete. Secondary: epic status, velocity trend, ready-backlog health, capacity split, blocker age. Story checklists and full proposals for work are deliberately not shown. Weekly email: <Mono>scripts\Register-HalyardReportSchedule.ps1</Mono>.</p>
     </Page>
   );
 }

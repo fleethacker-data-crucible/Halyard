@@ -69,7 +69,7 @@ export function IntakePage({ status }: { status: Status | undefined }) {
       lede={s ? <>{s.items.length} tickets from {s.repositories.length === 0 ? 'the source' : <Mono>{s.repositories.join(', ')}</Mono>}, {s.items.filter((i) => i.copiedAs).length} already copied into <Mono>{s.sandbox}</Mono>. Pick tickets, check the proposed level and id, then copy. The source repository is never written.</> : 'Raw tickets from the source backlog, copied into the sandbox as structured work items.'}
     >
       {sources.error ? <Notice tone="err">{sources.error}</Notice> : null}
-      {s && s.items.length === 0 ? <Notice tone="info">No raw tickets. A raw ticket is any issue in a source repository, or an issue in the sandbox with no cascade-meta and no Cascade labels. To bring in the real backlog, set <Mono>CASCADE_SOURCE_REPO</Mono> to it and synchronize "Sources and sandbox together".</Notice> : null}
+      {s && s.items.length === 0 ? <Notice tone="info">No raw tickets. A raw ticket is any issue in a source repository, or an issue in the sandbox with no cascade-meta and no Halyard labels. To bring in the real backlog, set <Mono>HALYARD_SOURCE_REPO</Mono> to it and synchronize "Sources and sandbox together".</Notice> : null}
       {selected.size > 0 && !preview ? (
         <div className="panel flex flex-wrap items-center gap-2 px-4 py-2.5">
           <span className="font-medium">{selected.size} selected</span>
