@@ -1,4 +1,4 @@
-// Builds the Cascade UI to static files with esbuild and Tailwind's compiler API.
+// Builds the Halyard UI to static files with esbuild and Tailwind's compiler API.
 // Why not Vite: the runtime target is a locked-down workstation that only ever serves
 // pre-built files from a local process, so the build is the whole story. Two tools,
 // no plugins, no dev server to secure.

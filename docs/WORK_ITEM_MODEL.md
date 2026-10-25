@@ -1,8 +1,8 @@
 # Work-item model
 
-The standard Cascade checks every issue against, on GitHub and GitLab alike. The code that enforces it
-lives in `src/Cascade.Core/Schema` (required keys, sizing policy, definition-of-ready checks) and
-`src/Cascade.Core/Analysis` (topology audit); the codes it reports are listed in the Review page.
+The standard Halyard checks every issue against, on GitHub and GitLab alike. The code that enforces it
+lives in `src/Halyard.Core/Schema` (required keys, sizing policy, definition-of-ready checks) and
+`src/Halyard.Core/Analysis` (topology audit); the codes it reports are listed in the Review page.
 
 **Scope:** Theme → Epic → Feature → Story (tasks inside the Story) · milestone association · PfW/DWI work definitions.
 
@@ -32,7 +32,7 @@ SPRINT         iteration timebox — primarily on Stories
 | Milestone | Optional link on Epic, Feature, and/or Story |
 | Points | Stories only (Fibonacci: 1, 2, 3, 5, 8, 13) |
 | Effort | Features only: Small \| Medium \| Large |
-| Writes | Cascade sandbox first; the source backlog only after human accept |
+| Writes | Halyard sandbox first; the source backlog only after human accept |
 
 ### Title pattern
 
@@ -46,9 +46,9 @@ Examples: `THEME :: Platform Engineering`, `EPIC :: Production schema parity`, `
 
 ---
 
-## 2. Cascade metadata block
+## 2. Halyard metadata block
 
-Every Cascade-managed issue should start with a `cascade-meta` fence (or HTML comment equivalent). Reviewers should see these fields.
+Every Halyard-managed issue should start with a `cascade-meta` fence (or HTML comment equivalent). Reviewers should see these fields.
 
 ```text
 ~~~cascade-meta
@@ -400,7 +400,7 @@ Milestone is **not** a hierarchy level. It is a **named time/release gate**.
 
 Use **one consistent milestone name** string in meta and body (example: `FY26-Q2-Platform-Release`).
 
-GitLab Milestone object may also be linked in the project UI; Cascade meta keeps the name portable.
+GitLab Milestone object may also be linked in the project UI; Halyard meta keeps the name portable.
 
 ---
 
@@ -411,7 +411,7 @@ GitLab Milestone object may also be linked in the project UI; Cascade meta keeps
 | `area::platform` | Product area filter |
 | `type::theme` / `type::epic` / `type::feature` / `type::story` | Optional explicit type label |
 | `theme::...` | Optional mirror of theme id |
-| `cascade` | Created or managed by Cascade |
+| `cascade` | Created or managed by Halyard |
 | `cascade-synthetic` | Synthetic item; the only kind teardown may delete |
 | `cascade-run::<id>` | Which seed run created the item |
 | `refine::sandbox-review` | Human review queue |
@@ -487,5 +487,5 @@ Set `artifact_level: Proposal for Work | Defined Work Instruction | Lightweight`
 ## 13. Sizing placeholders
 
 When a size is unknown, keep the key and write `TBD`; never omit it. `points: TBD` and `effort: TBD` are valid,
-and the sizing proposals in Cascade only ever fill a `TBD` after a human approves the change. Stories with no
+and the sizing proposals in Halyard only ever fill a `TBD` after a human approves the change. Stories with no
 testable acceptance criteria stay `TBD` instead of receiving an invented size.

@@ -1,15 +1,15 @@
-// In-memory fake of the GitHub REST/GraphQL endpoints Cascade uses, plus an OpenAI-compatible chat
+// In-memory fake of the GitHub REST/GraphQL endpoints Halyard uses, plus an OpenAI-compatible chat
 // endpoint. Lets the full seed -> sync -> propose -> apply -> teardown loop run end to end without a
 // token or network access. Node only, so CI needs nothing beyond the Node it already sets up.
 //
 //   node tests/fakes/fake-github.mjs 8790
 //
-// Then point Cascade at it: GITHUB_API_URL=http://127.0.0.1:8790, GITHUB_TOKEN=fake,
+// Then point Halyard at it: GITHUB_API_URL=http://127.0.0.1:8790, GITHUB_TOKEN=fake,
 // LLM_URL=http://127.0.0.1:8790/v1/chat/completions, LLM_TOKEN=fake.
 import { createServer } from 'node:http';
 
 const port = Number(process.argv[2] ?? 8790);
-const SANDBOX = 'sun-of-anton/cascade-sandbox';
+const SANDBOX = 'sun-of-anton/Halyard-Ballast';
 // One issue store per repository, so a source backlog and the sandbox can coexist (intake copies between them).
 const repos = new Map();
 function repoState(repo) {
