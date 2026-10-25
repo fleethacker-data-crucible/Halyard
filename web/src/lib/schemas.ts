@@ -400,12 +400,12 @@ export const TeamInfo = z.object({
   path: Nullable(z.string()),
   sprint: z.object({ prefix: z.string(), lengthDays: z.number(), firstNumber: z.number(), firstStart: z.string(), current: z.string() }),
   teams: z.array(z.object({ id: z.string(), name: z.string(), pointsPerSprint: z.number(), committed: z.number(), allocated: z.number(), experiment: z.number(), members: z.number() })),
-  people: z.array(z.object({ id: z.string(), name: z.string(), team: z.string(), pointsPerSprint: z.number(), skills: z.record(z.number()), availability: z.string(), fromSynapse: z.boolean(), synapseCard: Nullable(z.string()) })),
+  people: z.array(z.object({ id: z.string(), name: z.string(), team: z.string(), pointsPerSprint: z.number(), skills: z.record(z.number()), availability: z.string(), fromShellback: z.boolean(), shellbackCard: Nullable(z.string()) })),
   cardsImported: z.number(),
   warnings: z.array(z.string()),
   skillsPath: z.string(),
   skillCount: z.number(),
-  synapseDirectory: z.string(),
+  shellbackDirectory: z.string(),
 });
 export type TeamInfo = z.infer<typeof TeamInfo>;
 

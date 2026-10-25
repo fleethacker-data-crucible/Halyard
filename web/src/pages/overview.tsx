@@ -1,6 +1,6 @@
 import { LuArrowRight } from 'react-icons/lu';
 import { navigate } from '../app';
-import { CascadeBars, Coverage, Donut, HBars } from '../components/charts';
+import { LevelBars, Coverage, Donut, HBars } from '../components/charts';
 import { Button, Empty, LevelChip, Page, Section, SeverityIcon, Stat, cn } from '../components/ui';
 import { humanizeCode, relativeTime } from '../lib/format';
 import { Hierarchy, Review, type Status } from '../lib/schemas';
@@ -55,8 +55,8 @@ export function OverviewPage({ status }: { status: Status | undefined }) {
     >
       {review.error ? <p className="text-err">{review.error}</p> : null}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <Section title="The cascade" aside={summary ? <span>{summary.total} work items</span> : null}>
-          {summary ? <CascadeBars counts={summary.byType} onSelect={(level) => navigate('review', { type: level })} /> : <Skeleton rows={5} />}
+        <Section title="Levels" aside={summary ? <span>{summary.total} work items</span> : null}>
+          {summary ? <LevelBars counts={summary.byType} onSelect={(level) => navigate('review', { type: level })} /> : <Skeleton rows={5} />}
         </Section>
         <Section title="Needs attention">
           {r ? (

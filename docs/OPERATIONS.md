@@ -1,24 +1,24 @@
 # Operations
 
-## Running Cascade
+## Running Halyard
 
-1. Copy the release bundle (`dist\Cascade`, produced by `build\Build-Cascade.ps1`) to the machine.
-2. Copy `config\cascade.env.example` to `config\cascade.env` and set the provider and repositories.
-3. Double-click `Launch-Cascade.bat`.
+1. Copy the release bundle (`dist\Halyard`, produced by `build\Build-Halyard.ps1`) to the machine.
+2. Copy `config\halyard.env.example` to `config\halyard.env` and set the provider and repositories.
+3. Double-click `Launch-Halyard.bat`.
 
-The launcher loads settings, unlocks the vault bridge (ARC) in its console when the provider is GitLab
+The launcher loads settings, unlocks the vault bridge (Lazarette, formerly ARC) in its console when the provider is GitLab
 and it is configured, starts the engine
 on `127.0.0.1` (port 8773, or a free one if taken), opens the browser with a one-time session link and
 hides the console. **End session** in the sidebar stops everything.
 
 | Option | Effect |
 |---|---|
-| `Launch-Cascade.bat --console` | Keep the console visible (diagnosing startup or ARC). |
-| `--no-arc` | Never load ARC; use tokens from `cascade.env` (local development only). |
-| `--arc` | Load ARC even for GitHub (reads `CASCADE_ARC_ITEM_GitHub`). |
+| `Launch-Halyard.bat --console` | Keep the console visible (diagnosing startup or Lazarette). |
+| `--no-lazarette` (or `--no-arc`) | Never load Lazarette; use tokens from `halyard.env` (local development only). |
+| `--lazarette` (or `--arc`) | Load Lazarette even for GitHub (reads `HALYARD_LAZARETTE_ITEM_GitHub`). |
 | `--no-browser` | Start the engine without opening a browser. |
 
-If you close the browser tab, relaunch Cascade. The session link is opened once and not shown again, so
+If you close the browser tab, relaunch Halyard. The session link is opened once and not shown again, so
 nothing else on the machine can pick it up. With `--no-browser` the console prints it instead.
 
 ## Configurations
@@ -26,63 +26,63 @@ nothing else on the machine can pick it up. With `--no-browser` the console prin
 **Personal machine, GitHub sandbox**
 
 ```
-CASCADE_PROVIDER=github
-CASCADE_SOURCE_REPO=sun-of-anton/cascade-sandbox
-CASCADE_SANDBOX_REPO=sun-of-anton/cascade-sandbox
+HALYARD_PROVIDER=github
+HALYARD_SOURCE_REPO=sun-of-anton/Halyard-Ballast
+HALYARD_SANDBOX_REPO=sun-of-anton/Halyard-Ballast
 ```
 
-Token: `gh auth login` once (the launcher reads `gh auth token`), or `GITHUB_TOKEN=` in `cascade.env`.
+Token: `gh auth login` once (the launcher reads `gh auth token`), or `GITHUB_TOKEN=` in `halyard.env`.
 The token needs `repo` scope; deleting issues needs admin rights on the repository.
 
 **Several source repositories** (the usual case at work: issues spread over many projects)
 
 ```
-CASCADE_SOURCE_REPO=org/platform,org/web,org/ops      # or GitLab ids: 1234,5678,group/project
-CASCADE_SANDBOX_REPO=org/cascade-sandbox
+HALYARD_SOURCE_REPO=org/platform,org/web,org/ops      # or GitLab ids: 1234,5678,group/project
+HALYARD_SANDBOX_REPO=org/halyard-ballast
 ```
 
 Every source is read-only. Connection synchronizes one source, the sandbox, or all sources at once;
 items keep their repository, and the Hierarchy and Review pages show it. Proposals are only made for
 sandbox items; Intake is how source tickets become sandbox copies.
 
-**Team, skills and Synapse** (files, not variables)
+**Team, skills and Shellback** (files, not variables)
 
 | File | Contents |
 |---|---|
-| `config\team.json` | Sprint calendar (`sprintStart`, length, numbering), teams with `pointsPerSprint` and the committed / allocated / experiment split, people with team, skills and an optional Synapse card name |
-| `config\skills.json` | Skill taxonomy; the ids are Synapse's so cards need no translation |
-| `config\synapse\*.json` | Exported Synapse peer cards. Only cards with consent are read; skills and confidence (0–4) and availability are merged into the matching person by name |
+| `config\team.json` | Sprint calendar (`sprintStart`, length, numbering), teams with `pointsPerSprint` and the committed / allocated / experiment split, people with team, skills and an optional Shellback card name |
+| `config\skills.json` | Skill taxonomy; the ids are Shellback's so cards need no translation |
+| `config\shellback\*.json` | Exported Shellback peer cards. Only cards with consent are read; skills and confidence (0–4) and availability are merged into the matching person by name |
 
 Leadership, Plan and the skill tagger read these on every request, so editing the files needs no restart.
 
 **Model**
 
 ```
-CASCADE_LLM_PROFILE=auto           # auto | openai | databricks
+HALYARD_LLM_PROFILE=auto           # auto | openai | databricks
 # LLM_URL=https://api.openai.com/v1/chat/completions   (or a base such as https://gateway.example.com/v1)
 # LLM_MODEL=gpt-4o-mini
 # LLM_TOKEN=                                            (or OPENAI_API_KEY)
 ```
 
 The key and model can also be entered on the **Settings** page. The key stays in memory for the session;
-with *remember* ticked it is written to `config\cascade.env` (git-ignored) so the next launch has it. The
+with *remember* ticked it is written to `config\halyard.env` (git-ignored) so the next launch has it. The
 endpoint URL can only be set in the file, so a key entered in the browser never goes anywhere else.
 
 **Workstation, self-hosted GitLab**
 
 ```
-CASCADE_PROVIDER=gitlab
+HALYARD_PROVIDER=gitlab
 GITLAB_URL=https://gitlab.example.com
-CASCADE_SOURCE_REPO=1234            # read-only source backlog
-CASCADE_SANDBOX_REPO=5678           # the only writable project
-CASCADE_PROTECTED_REPOS=            # optional extra never-write list
-ARC_PATH=C:\path\to\arc              # optional vault bridge
-CASCADE_ARC_ITEM_GitLab=<vault item>  # -> GITLAB_TOKEN
-CASCADE_ARC_ITEM_Llm=<vault item>     # -> LLM_TOKEN
+HALYARD_SOURCE_REPO=1234            # read-only source backlog
+HALYARD_SANDBOX_REPO=5678           # the only writable project
+HALYARD_PROTECTED_REPOS=            # optional extra never-write list
+LAZARETTE_PATH=C:\path\to\Lazarette  # optional vault bridge (former name ARC_PATH still read)
+HALYARD_LAZARETTE_ITEM_GitLab=<vault item>  # -> GITLAB_TOKEN
+HALYARD_LAZARETTE_ITEM_Llm=<vault item>     # -> LLM_TOKEN
 ```
 
 With this configuration the source project is read-only and protected; only the sandbox can be written.
-Unset `CASCADE_ARC_ITEM_*` names are skipped, so the bridge only reads what you name.
+Unset `HALYARD_LAZARETTE_ITEM_*` names are skipped, so the bridge only reads what you name.
 
 ## Sandbox lifecycle
 
@@ -111,21 +111,21 @@ closures, blockers and targets; the current one is the live table), velocity wit
 outlined and the three-sprint average, capacity per team as a meter with the committed/allocated
 boundaries, and points by theme. Then the ready backlog against velocity and open blockers with their
 business-day age (escalated past five days). The emailed report carries the same charts drawn as HTML
-tables, which Outlook renders, and the Cascade mark in the header. *Download report* saves the same page as one self-contained HTML file, built from the latest
+tables, which Outlook renders, and the Halyard mark in the header. *Download report* saves the same page as one self-contained HTML file, built from the latest
 sandbox snapshot. `GET /api/leadership/report.html` returns it too.
 
 To send it by email every week without a browser:
 
 ```powershell
-scripts\Send-CascadeReport.ps1 -To lead@example.com -Via Outlook -Sync        # Outlook desktop (COM)
-scripts\Send-CascadeReport.ps1 -To lead@example.com -Via Smtp -SmtpServer mail.example.com -From cascade@example.com -Sync
-scripts\Send-CascadeReport.ps1 -Via File -OutFile output\reports\weekly.html   # just write the file
-scripts\Register-CascadeReportSchedule.ps1 -To lead@example.com -Via Outlook -Day MON -Time 07:30
+scripts\Send-HalyardReport.ps1 -To lead@example.com -Via Outlook -Sync        # Outlook desktop (COM)
+scripts\Send-HalyardReport.ps1 -To lead@example.com -Via Smtp -SmtpServer mail.example.com -From halyard@example.com -Sync
+scripts\Send-HalyardReport.ps1 -Via File -OutFile output\reports\weekly.html   # just write the file
+scripts\Register-HalyardReportSchedule.ps1 -To lead@example.com -Via Outlook -Day MON -Time 07:30
 ```
 
 With `-Sync` the script takes a fresh snapshot first (`-SyncRepository source|sandbox`, source by
 default), then renders and sends the report; the schedule script registers a weekly Windows scheduled
-task (`-Remove` deletes it). Both read `config\cascade.env` and unlock the vault the same way the
+task (`-Remove` deletes it). Both read `config\halyard.env` and unlock the vault the same way the
 launcher does.
 
 ## Intake: source tickets into the hierarchy
@@ -151,16 +151,36 @@ each team's committed share of `pointsPerSprint`. An owner is suggested where so
 story's skills with room left; stories nobody on the team can cover are listed as skill gaps. *Propose*
 turns the plan into sprint-plan proposals, reviewed and applied like any other.
 
-## Updating Cascade
+## Updating Halyard
 
-Double-click `Update-Cascade.bat`: it pulls the latest code, builds (stopping any engine or PowerShell
-window that still holds `Cascade.Core.dll`, and saying which), and launches. If the build cannot stop a
+Double-click `Update-Halyard.bat`: it pulls the latest code, builds (stopping any engine or PowerShell
+window that still holds `Halyard.Core.dll`, and saying which), and launches. If the build cannot stop a
 holder because it was opened as administrator, it names the PID and asks you to close that window.
 
-## Stopping Cascade
+### Upgrading from Cascade
+
+Halyard was called Cascade. An existing checkout or bundle upgrades in place; nothing has to be edited first:
+
+- `Update-Cascade.bat` still works: it pulls, then runs `build\Build-Cascade.ps1` and `Launch-Cascade.bat`, which are
+  now small forwarders to the Halyard names. Use `Update-Halyard.bat` from then on.
+- `config\cascade.env` is still read when there is no `config\halyard.env`, and every `CASCADE_*` variable still
+  works when its `HALYARD_*` name is not set (`CASCADE_ARC_ITEM_*` and `CASCADE_USE_ARC` included). Rename the file
+  and the variables when convenient; the new names win when both are present.
+- A config that names `sun-of-anton/cascade-sandbox` is read as `sun-of-anton/Halyard-Ballast`, the sandbox's new
+  name, so writes keep going to the sandbox and nowhere else.
+- Peer cards in `config\synapse\` are still read; new ones go in `config\shellback\`. `team.json` may use
+  `shellbackCard` or the former `synapseCard`.
+- Labels already on issues (`cascade`, `cascade-synthetic`, `cascade-run::*`, `cascade-intake`), the
+  `~~~cascade-meta` block and the `### Cascade` mirror heading keep their names, so teardown and parsing work
+  on everything created before the rename.
+- A weekly report task registered before the rename runs `Send-CascadeReport.ps1`, which forwards to
+  `Send-HalyardReport.ps1`. To move it to the new name, run `Register-HalyardReportSchedule.ps1` with your
+  usual options, then `Register-HalyardReportSchedule.ps1 -Remove -TaskName 'Cascade leadership report'`.
+
+## Stopping Halyard
 
 The engine stops itself when its browser tab closes (heartbeat; about 20 seconds, never during a running
-job), or at once from **End session** at the bottom of the navigation. `scripts\Stop-Cascade.ps1` stops
+job), or at once from **End session** at the bottom of the navigation. `scripts\Stop-Halyard.ps1` stops
 every engine on the machine. Launching while one is running asks whether to replace it; `--stay` keeps an
 engine alive after the tab closes. The pattern is written up as a standard in
 [LOCAL_APP_LIFECYCLE.md](LOCAL_APP_LIFECYCLE.md).
@@ -201,22 +221,22 @@ each marked with the review label, and the seed manifest records which codes the
 | `output\seeds\` | Seed run manifests |
 | `output\intakes\` | Intake run manifests (source → sandbox copy) |
 | `output\vision\` | Saved vision drafts |
-| `output\reports\` | Leadership reports written by `Send-CascadeReport.ps1 -Via File` |
-| `output\llm_transcripts\` | Redacted model requests and responses (`CASCADE_LLM_TRANSCRIPTS=0` turns off) |
-| `logs\cascade-*.jsonl` | Engine log, one file per run |
+| `output\reports\` | Leadership reports written by `Send-HalyardReport.ps1 -Via File` |
+| `output\llm_transcripts\` | Redacted model requests and responses (`HALYARD_LLM_TRANSCRIPTS=0` turns off) |
+| `logs\halyard-*.jsonl` | Engine log, one file per run |
 
 ## Troubleshooting
 
 | Symptom | Cause and fix |
 |---|---|
-| "Cascade.Core.dll was not found" | Run from a built bundle, or build with `build\Build-Cascade.ps1`. |
-| "Windows blocked Cascade.Core.dll" | Application control rejects the unsigned DLL. Ask IT to sign or allow it. |
+| "Halyard.Core.dll was not found" | Run from a built bundle, or build with `build\Build-Halyard.ps1`. |
+| "Windows blocked Halyard.Core.dll" | Application control rejects the unsigned DLL. Ask IT to sign or allow it. |
 | Script will not run at all | Execution policy enforced by Group Policy. `-ExecutionPolicy Bypass` cannot override that; use the IT-approved signed-script route. |
-| Console stays open after launch | ARC did not unlock; read the message in the console. |
-| "Cascade is already running" at launch | An engine from an earlier session is still up. Answer Y to replace it, or `--stay` was used earlier; `scripts\Stop-Cascade.ps1` stops everything. |
-| Build fails: `Cascade.Core.dll` "being used by another process" | An engine is running. The build script now stops it first; if it could not (started from an elevated window), run `scripts\Stop-Cascade.ps1` from such a window. |
-| Engine stopped while I was away | By design: it stops itself about 20 s after its browser tab closes (never during a job). Launch with `--stay` or set `CASCADE_AUTO_STOP=0` to keep it running. |
+| Console stays open after launch | Lazarette did not unlock; read the message in the console. |
+| "Halyard is already running" at launch | An engine from an earlier session is still up. Answer Y to replace it, or `--stay` was used earlier; `scripts\Stop-Halyard.ps1` stops everything. |
+| Build fails: `Halyard.Core.dll` "being used by another process" | An engine is running. The build script now stops it first; if it could not (started from an elevated window), run `scripts\Stop-Halyard.ps1` from such a window. |
+| Engine stopped while I was away | By design: it stops itself about 20 s after its browser tab closes (never during a job). Launch with `--stay` or set `HALYARD_AUTO_STOP=0` to keep it running. |
 | `PROVIDER_NOT_READY` in the UI | No token for the configured provider. See Configurations above. |
 | `AUTH_REJECTED` / `FORBIDDEN` | Token expired or lacks access to the repository. |
-| `WRITE_BLOCKED` | The write policy refused the target. Check `CASCADE_SANDBOX_REPO`. |
-| Page says "Open Cascade from the launcher" | The tab has no session token. Relaunch. |
+| `WRITE_BLOCKED` | The write policy refused the target. Check `HALYARD_SANDBOX_REPO`. |
+| Page says "Open Halyard from the launcher" | The tab has no session token. Relaunch. |
