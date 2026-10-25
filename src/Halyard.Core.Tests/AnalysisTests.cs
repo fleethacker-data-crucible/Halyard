@@ -10,7 +10,7 @@ namespace Halyard.Core.Tests
 {
     public static class Items
     {
-        public static readonly RepositoryRef Repo = new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/Halyard-Ballast");
+        public static readonly RepositoryRef Repo = new RepositoryRef(ProviderKind.GitHub, "fleethacker-data-crucible/Halyard-Ballast");
 
         public static WorkItem Make(long number, WorkItemType type, string id, string? parent, string? extraMeta = null, string body = "", params string[] labels)
         {
