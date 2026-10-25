@@ -5,7 +5,7 @@ import { DiffView } from '../components/diff';
 import { Button, Checkbox, Empty, Input, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, cn, useToast } from '../components/ui';
 import { describeError, post } from '../lib/api';
 import { humanizeCode, relativeTime } from '../lib/format';
-import { useJob } from '../lib/jobs';
+import { resyncedBy, useJob } from '../lib/jobs';
 import { LEVELS, LEVEL_LABEL } from '../lib/levels';
 import { IntakeManifest, IntakePreview, IntakeSources, type IntakeDraft, type LevelToken, type Status } from '../lib/schemas';
 import { invalidate, useResource } from '../lib/useResource';
@@ -33,7 +33,7 @@ export function IntakePage({ status }: { status: Status | undefined }) {
     if (j.state === 'succeeded') {
       const r = j.result as { items?: unknown[]; errors?: string[]; drafts?: unknown } | null;
       if (r?.drafts) { const p = IntakePreview.safeParse(r); if (p.success) setPreview(p.data); return; }
-      toast.push(r?.errors?.length ? 'err' : 'ok', `Copied ${r?.items?.length ?? 0} tickets into the sandbox${r?.errors?.length ? ` with ${r.errors.length} errors` : ''}. Synchronize the sandbox to review them.`);
+      toast.push(r?.errors?.length ? 'err' : 'ok', `Copied ${r?.items?.length ?? 0} tickets into the sandbox${r?.errors?.length ? ` with ${r.errors.length} errors` : ''}${resyncedBy(j) ? '; snapshot refreshed, they are on Review now.' : '. Synchronize the sandbox to review them.'}`);
       invalidate('/api/intake'); setPreview(null); setSelected(new Set());
     } else if (j.state === 'failed') toast.push('err', j.error ?? 'Intake failed');
   });
