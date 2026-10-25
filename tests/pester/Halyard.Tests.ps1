@@ -131,6 +131,8 @@ function Get-ArcSecret { param([Parameter(Mandatory)][string]$Service, [string]$
     }
     AfterAll {
         Remove-Module HalyardLazarette -ErrorAction SilentlyContinue
+        # The stand-in's functions are imported globally; make sure none outlive this block (the pm.ps1 tests below need a clean slate).
+        foreach ($f in @('Unlock-ArcVaultInteractive', 'Test-ArcVaultUnlocked', 'Get-ArcSecret')) { Remove-Item -Path ('Function:\' + $f) -ErrorAction SilentlyContinue }
         InModuleScope Halyard { $script:HalyardLazaretteModule = $null; $script:HalyardLazaretteRoot = $null; $script:HalyardLazaretteKind = $null }
         Remove-Item $script:FakeLaz -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -153,6 +155,7 @@ function Get-ArcSecret { param([Parameter(Mandatory)][string]$Service, [string]$
 
 Describe 'Connect-HalyardLazarette with a stand-in ARC 3/4 (pm.ps1)' {
     BeforeAll {
+        foreach ($f in @('Unlock-ArcVaultInteractive', 'Test-ArcVaultUnlocked', 'Get-ArcSecret', 'Unlock-LazaretteVaultInteractive', 'Get-LazaretteSecret')) { Remove-Item -Path ('Function:\' + $f) -ErrorAction SilentlyContinue }
         $script:FakeArc = Join-Path ([IO.Path]::GetTempPath()) ('fake-arc-' + [guid]::NewGuid().ToString('N'))
         New-Item -ItemType Directory -Force $script:FakeArc | Out-Null
         # Minimal stand-in for ARC's pm.ps1: same function names, in-memory vault, no CAC.
