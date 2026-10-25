@@ -37,8 +37,8 @@ function Get-HalyardProcesses {
     } catch { }
     foreach ($v in $found.Values) { if (-not $v.PSObject.Properties['Kind']) { $v | Add-Member -NotePropertyName Kind -NotePropertyValue 'engine' } }
     # Any other process that loaded Halyard.Core.dll (a seed, teardown, report or test run left open) locks the DLL too.
-    # Process.Modules does not list .NET-mapped assemblies, so ask the Windows Restart Manager, which also sees
-    # elevated holders from a normal window.
+    # Process.Modules does not list .NET-mapped assemblies, so ask Windows which processes have the file open
+    # (Get-FileHolders), which needs no admin and also sees elevated holders from a normal window.
     if ($IncludeHolders) {
         foreach ($dll in Get-HalyardDllPaths -Root $Root) {
             foreach ($h in Get-FileHolders -Path $dll) {
@@ -64,42 +64,73 @@ function Get-HalyardDllPaths {
 function Get-FileHolders {
     <#
     .SYNOPSIS
-      Processes that have the file open or mapped, via the Windows Restart Manager (rstrtmgr.dll).
-      Returns objects with Pid, Name and Started. Empty on any failure, so callers degrade gracefully.
+      Processes that have the file open or mapped, via NtQueryInformationFile with
+      FileProcessIdsUsingFileInformation (class 47). Needs only FILE_READ_ATTRIBUTES on the file, so it
+      works without admin in any session (including a standard-user headless runner in session 0), and
+      it also reports elevated holders from a normal window.
+      Returns objects with Pid, Name and Started. A file that does not exist has no holders (empty, no
+      warning). Any other failure (the file cannot be opened, the query fails, or the helper cannot be
+      compiled) is reported with Write-Warning naming the path and the error code, and returns empty
+      instead of throwing, so callers degrade gracefully.
     #>
     [CmdletBinding()]
     param([Parameter(Mandatory = $true)][string]$Path)
-    if (-not ('Halyard.RestartManager' -as [type])) {
-        Add-Type -Namespace Halyard -Name RestartManager -MemberDefinition @'
-[StructLayout(LayoutKind.Sequential)] public struct RM_UNIQUE_PROCESS { public int dwProcessId; public System.Runtime.InteropServices.ComTypes.FILETIME ProcessStartTime; }
-[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)] public struct RM_PROCESS_INFO {
-    public RM_UNIQUE_PROCESS Process;
-    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 256)] public string strAppName;
-    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 64)] public string strServiceShortName;
-    public int ApplicationType; public uint AppStatus; public uint TSSessionId; [MarshalAs(UnmanagedType.Bool)] public bool bRestartable; }
-[DllImport("rstrtmgr.dll", CharSet = CharSet.Unicode)] public static extern int RmStartSession(out uint pSessionHandle, int dwSessionFlags, string strSessionKey);
-[DllImport("rstrtmgr.dll")] public static extern int RmEndSession(uint pSessionHandle);
-[DllImport("rstrtmgr.dll", CharSet = CharSet.Unicode)] public static extern int RmRegisterResources(uint pSessionHandle, uint nFiles, string[] rgsFilenames, uint nApplications, [In] RM_UNIQUE_PROCESS[] rgApplications, uint nServices, string[] rgsServiceNames);
-[DllImport("rstrtmgr.dll")] public static extern int RmGetList(uint dwSessionHandle, out uint pnProcInfoNeeded, ref uint pnProcInfo, [In, Out] RM_PROCESS_INFO[] rgAffectedApps, ref uint lpdwRebootReasons);
-public static int[] Holders(string path) {
-    uint handle; var key = Guid.NewGuid().ToString();
-    if (RmStartSession(out handle, 0, key) != 0) return new int[0];
-    try {
-        if (RmRegisterResources(handle, 1, new[] { path }, 0, null, 0, null) != 0) return new int[0];
-        uint needed = 0, count = 0, reasons = 0;
-        int rc = RmGetList(handle, out needed, ref count, null, ref reasons);
-        if (rc == 0 && needed == 0) return new int[0];
-        if (rc != 234 && rc != 0) return new int[0]; // 234 = ERROR_MORE_DATA
-        var info = new RM_PROCESS_INFO[needed]; count = needed;
-        if (RmGetList(handle, out needed, ref count, info, ref reasons) != 0) return new int[0];
-        var ids = new int[count]; for (int i = 0; i < count; i++) ids[i] = info[i].Process.dwProcessId; return ids;
-    } finally { RmEndSession(handle); }
+    if (-not ('Halyard.FileHolderQuery' -as [type])) {
+        try {
+            Add-Type -Namespace Halyard -Name FileHolderQuery -MemberDefinition @'
+[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] public static extern Microsoft.Win32.SafeHandles.SafeFileHandle CreateFileW(string lpFileName, uint dwDesiredAccess, uint dwShareMode, IntPtr lpSecurityAttributes, uint dwCreationDisposition, uint dwFlagsAndAttributes, IntPtr hTemplateFile);
+[StructLayout(LayoutKind.Sequential)] public struct IO_STATUS_BLOCK { public IntPtr Status; public IntPtr Information; }
+[DllImport("ntdll.dll")] public static extern int NtQueryInformationFile(Microsoft.Win32.SafeHandles.SafeFileHandle FileHandle, out IO_STATUS_BLOCK IoStatusBlock, IntPtr FileInformation, int Length, int FileInformationClass);
+// Process IDs that have the file open or mapped. Returns null and sets error when the file cannot be
+// opened or the query fails; returns an empty array when the file does not exist (nothing can hold it).
+public static int[] Holders(string path, out string error) {
+    error = null;
+    // FILE_READ_ATTRIBUTES (0x80), share read/write/delete (7), OPEN_EXISTING (3)
+    using (var h = CreateFileW(path, 0x80, 7, IntPtr.Zero, 3, 0, IntPtr.Zero)) {
+        if (h.IsInvalid) {
+            int err = Marshal.GetLastWin32Error();
+            if (err == 2 || err == 3) return new int[0]; // ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND
+            error = "CreateFileW failed with Win32 error " + err + " (" + new System.ComponentModel.Win32Exception(err).Message + ")";
+            return null;
+        }
+        int len = 4096;
+        while (true) {
+            IntPtr buf = Marshal.AllocHGlobal(len);
+            try {
+                IO_STATUS_BLOCK io;
+                int st = NtQueryInformationFile(h, out io, buf, len, 47); // FileProcessIdsUsingFileInformation
+                if (st == unchecked((int)0xC0000004) || st == unchecked((int)0x80000005)) { // STATUS_INFO_LENGTH_MISMATCH, STATUS_BUFFER_OVERFLOW
+                    if (len >= (1 << 24)) { error = "NtQueryInformationFile(FileProcessIdsUsingFileInformation) returned NTSTATUS 0x" + st.ToString("X8") + " at a 16 MB buffer"; return null; }
+                    len *= 2; continue;
+                }
+                if (st != 0) { error = "NtQueryInformationFile(FileProcessIdsUsingFileInformation) returned NTSTATUS 0x" + st.ToString("X8"); return null; }
+                // FILE_PROCESS_IDS_USING_FILE_INFORMATION: ULONG count, then ULONG_PTR ids (aligned to pointer size)
+                int n = Marshal.ReadInt32(buf);
+                if (n < 0 || (long)(n + 1) * IntPtr.Size > len) { error = "NtQueryInformationFile(FileProcessIdsUsingFileInformation) returned an invalid count " + n; return null; }
+                var ids = new int[n];
+                for (int i = 0; i < n; i++) ids[i] = (int)Marshal.ReadIntPtr(buf, IntPtr.Size * (i + 1)).ToInt64();
+                return ids;
+            } finally { Marshal.FreeHGlobal(buf); }
+        }
+    }
 }
 '@ -ErrorAction Stop
+        } catch {
+            Write-Warning ('Get-FileHolders: cannot list processes holding ' + $Path + ': compiling the file-holder helper failed: ' + $_.Exception.Message)
+            return @()
+        }
     }
     $out = @()
+    $err = $null
+    $ids = $null
+    try { $ids = [Halyard.FileHolderQuery]::Holders($Path, [ref]$err) }
+    catch { $err = $_.Exception.Message }
+    if ($null -ne $err) {
+        Write-Warning ('Get-FileHolders: cannot list processes holding ' + $Path + ': ' + $err)
+        return @()
+    }
     try {
-        foreach ($id in [Halyard.RestartManager]::Holders($Path)) {
+        foreach ($id in $ids) {
             $proc = Get-Process -Id $id -ErrorAction SilentlyContinue
             $started = $null; try { if ($proc) { $started = $proc.StartTime } } catch { }
             $out += [pscustomobject]@{ Pid = [int]$id; Name = $(if ($proc) { $proc.ProcessName } else { '?' }); Started = $started }

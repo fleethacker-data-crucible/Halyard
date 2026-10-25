@@ -42,5 +42,5 @@ Notes:
 
 - The beacon cannot set headers, so the server accepts the session token in the JSON body on that one route only — never in the query string, never logged.
 - A hidden PowerShell console counts: if the window is hidden or minimised, the user has no Ctrl+C.
-- To find what holds a DLL, use the Windows Restart Manager (`RmRegisterResources` + `RmGetList`); `Process.Modules` misses .NET-mapped assemblies.
+- To find what holds a DLL, open it with `FILE_READ_ATTRIBUTES` and call `NtQueryInformationFile` with `FileProcessIdsUsingFileInformation` (class 47); it needs no admin in any session. Don't use the Restart Manager (`RmGetList`): it returns access denied to a standard user in session 0. `Process.Modules` misses .NET-mapped assemblies.
 - Reference implementation: Halyard (`web/src/lib/api.ts` `startHeartbeat`, `Host/HalyardHost.cs`, `scripts/Halyard-Process.ps1`, `Stop-Halyard.ps1`, `Start-Halyard.ps1`).
