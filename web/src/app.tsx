@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { LuActivity, LuArrowRightToLine, LuBoxes, LuCalendarRange, LuClipboardCheck, LuCompass, LuGitBranch, LuLayoutDashboard, LuPlug, LuPower, LuPresentation, LuSettings2, LuSparkles, LuTestTubeDiagonal } from 'react-icons/lu';
+import { LuActivity, LuArrowRightToLine, LuBoxes, LuCalendarRange, LuClipboardCheck, LuCompass, LuGitBranch, LuLayoutDashboard, LuMonitor, LuMoon, LuPanelLeftClose, LuPanelLeftOpen, LuPlug, LuPower, LuPresentation, LuSettings2, LuSparkles, LuSun, LuTestTubeDiagonal } from 'react-icons/lu';
 import { post, sessionToken, startHeartbeat } from './lib/api';
 import { ageLabel } from './lib/format';
 import { Status } from './lib/schemas';
+import { useLocalState } from './lib/storage';
+import { useTheme, type ThemePref } from './lib/theme';
 import { useResource } from './lib/useResource';
-import { Button, ConfirmDialog, Notice, Pill, ToastProvider, cn, useToast } from './components/ui';
+import { Button, ConfirmDialog, Emblem, Notice, Pill, ToastProvider, cn, useToast } from './components/ui';
 import { ConnectionPage } from './pages/connection';
 import { DiagnosticsPage } from './pages/diagnostics';
 import { HierarchyPage } from './pages/hierarchy';
@@ -21,18 +23,18 @@ import { VisionPage } from './pages/vision';
 export type Route = 'overview' | 'leadership' | 'vision' | 'intake' | 'hierarchy' | 'review' | 'proposals' | 'plan' | 'sandbox' | 'connection' | 'diagnostics' | 'settings';
 
 const NAV: Array<{ route: Route; label: string; icon: ReactNode; group: 'work' | 'operate' }> = [
-  { route: 'overview', label: 'Overview', icon: <LuLayoutDashboard size={16} />, group: 'work' },
-  { route: 'leadership', label: 'Leadership', icon: <LuPresentation size={16} />, group: 'work' },
-  { route: 'vision', label: 'Vision', icon: <LuCompass size={16} />, group: 'work' },
-  { route: 'intake', label: 'Intake', icon: <LuArrowRightToLine size={16} />, group: 'work' },
-  { route: 'hierarchy', label: 'Hierarchy', icon: <LuGitBranch size={16} />, group: 'work' },
-  { route: 'review', label: 'Review', icon: <LuClipboardCheck size={16} />, group: 'work' },
-  { route: 'proposals', label: 'Proposals', icon: <LuSparkles size={16} />, group: 'work' },
-  { route: 'plan', label: 'Plan', icon: <LuCalendarRange size={16} />, group: 'work' },
-  { route: 'sandbox', label: 'Sandbox', icon: <LuTestTubeDiagonal size={16} />, group: 'operate' },
-  { route: 'connection', label: 'Connection', icon: <LuPlug size={16} />, group: 'operate' },
-  { route: 'diagnostics', label: 'Diagnostics', icon: <LuActivity size={16} />, group: 'operate' },
-  { route: 'settings', label: 'Settings', icon: <LuSettings2 size={16} />, group: 'operate' },
+  { route: 'overview', label: 'Overview', icon: <LuLayoutDashboard size={20} />, group: 'work' },
+  { route: 'leadership', label: 'Leadership', icon: <LuPresentation size={20} />, group: 'work' },
+  { route: 'vision', label: 'Vision', icon: <LuCompass size={20} />, group: 'work' },
+  { route: 'intake', label: 'Intake', icon: <LuArrowRightToLine size={20} />, group: 'work' },
+  { route: 'hierarchy', label: 'Hierarchy', icon: <LuGitBranch size={20} />, group: 'work' },
+  { route: 'review', label: 'Review', icon: <LuClipboardCheck size={20} />, group: 'work' },
+  { route: 'proposals', label: 'Proposals', icon: <LuSparkles size={20} />, group: 'work' },
+  { route: 'plan', label: 'Plan', icon: <LuCalendarRange size={20} />, group: 'work' },
+  { route: 'sandbox', label: 'Sandbox', icon: <LuTestTubeDiagonal size={20} />, group: 'operate' },
+  { route: 'connection', label: 'Connection', icon: <LuPlug size={20} />, group: 'operate' },
+  { route: 'diagnostics', label: 'Diagnostics', icon: <LuActivity size={20} />, group: 'operate' },
+  { route: 'settings', label: 'Settings', icon: <LuSettings2 size={20} />, group: 'operate' },
 ];
 
 export function parseHash(hash: string): { route: Route; params: URLSearchParams } {
@@ -71,6 +73,7 @@ function Shell() {
   const toast = useToast();
   const [confirmStop, setConfirmStop] = useState(false);
   const [stopped, setStopped] = useState(false);
+  const [collapsed, setCollapsed] = useLocalState('sidebar-collapsed', false);
 
   useEffect(() => startHeartbeat(), []);
 
@@ -87,8 +90,9 @@ function Shell() {
 
   if (!sessionToken()) {
     return (
-      <main className="mx-auto max-w-[60ch] px-6 py-16">
-        <h1>Open Halyard from the launcher</h1>
+      <main className="mx-auto flex max-w-[60ch] flex-col items-center px-6 py-12 text-center">
+        <Emblem size={280} />
+        <h1 className="mt-4 text-[28px]">Open Halyard from the launcher</h1>
         <p className="mt-3 text-ink-2">This page has no session token, so the local engine will refuse its requests. Run <code>Launch-Halyard.bat</code>; it opens the browser with a one-time link to this session.</p>
       </main>
     );
@@ -96,8 +100,9 @@ function Shell() {
 
   if (stopped) {
     return (
-      <main className="mx-auto max-w-[60ch] px-6 py-16">
-        <h1>Session ended</h1>
+      <main className="mx-auto flex max-w-[60ch] flex-col items-center px-6 py-12 text-center">
+        <Emblem size={280} />
+        <h1 className="mt-4 text-[28px]">Session ended</h1>
         <p className="mt-3 text-ink-2">The local Halyard engine has stopped. Close this tab, or run the launcher again to start a new session.</p>
       </main>
     );
@@ -121,27 +126,38 @@ function Shell() {
     }
   })();
 
+  const label = collapsed ? 'sr-only' : 'max-lg:sr-only';
+  const centred = collapsed ? 'justify-center px-0' : 'max-lg:justify-center max-lg:px-0';
   return (
-    <div className="grid min-h-screen grid-cols-[216px_minmax(0,1fr)]">
-      <nav className="sticky top-0 flex h-screen flex-col border-r border-line-2 bg-surface">
-        <div className="flex items-center gap-2.5 px-4 py-4">
-          <HalyardMark />
-          <div className="leading-tight">
-            <div className="text-[15px] font-semibold tracking-tight">Halyard</div>
-            <div className="text-[11.5px] text-ink-3">Delivery intelligence</div>
-          </div>
+    <div className={cn('grid h-screen grid-rows-[minmax(0,1fr)_28px]', collapsed ? 'grid-cols-[64px_minmax(0,1fr)]' : 'grid-cols-[240px_minmax(0,1fr)] max-lg:grid-cols-[64px_minmax(0,1fr)]')}>
+      <nav className="flex min-h-0 flex-col border-r border-line-2 bg-sidebar" aria-label="Halyard">
+        {/* Expanded: the full emblem with its wordmark. Collapsed rail: the emblem's circle only. */}
+        <div className={cn('flex-col items-center px-3 pt-3 pb-2', collapsed ? 'hidden' : 'flex max-lg:hidden')}>
+          <Emblem size={168} />
+          <div className="text-[12px] text-ink-3">Delivery intelligence</div>
         </div>
-        <NavGroup label="Backlog" items={NAV.filter((n) => n.group === 'work')} route={route} />
-        <NavGroup label="Operate" items={NAV.filter((n) => n.group === 'operate')} route={route} />
-        <div className="mt-auto flex flex-col gap-2 border-t border-line-2 px-4 py-3 text-[12px] text-ink-3">
-          {s ? <span>Engine {s.version} · port {s.port}</span> : <span>Connecting to engine…</span>}
-          <Button variant="quiet" size="sm" className="justify-start px-1 text-ink-2" onClick={() => setConfirmStop(true)}><LuPower size={14} />End session</Button>
+        <div className={cn('justify-center py-4', collapsed ? 'flex' : 'hidden max-lg:flex')}>
+          <img src="brand/icon-256.png" alt="Halyard" width={40} height={40} />
+        </div>
+        <div className="scroll-y min-h-0 flex-1">
+          <NavGroup label="Backlog" items={NAV.filter((n) => n.group === 'work')} route={route} collapsed={collapsed} />
+          <NavGroup label="Operate" items={NAV.filter((n) => n.group === 'operate')} route={route} collapsed={collapsed} />
+        </div>
+        <div className="flex flex-col gap-1 border-t border-line-2 px-2 py-2">
+          <ThemeSwitch className={centred} labelClass={label} />
+          <Button variant="quiet" className={cn('h-8 justify-start px-3 text-ink-2', centred)} onClick={() => setCollapsed(!collapsed)} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
+            {collapsed ? <LuPanelLeftOpen size={16} /> : <LuPanelLeftClose size={16} />}<span className={label}>Collapse sidebar</span>
+          </Button>
+          <Button variant="quiet" className={cn('h-8 justify-start px-3 text-ink-2', centred)} onClick={() => setConfirmStop(true)} title="End session">
+            <LuPower size={16} /><span className={label}>End session</span>
+          </Button>
         </div>
       </nav>
-      <div className="flex min-w-0 flex-col">
+      <div className="flex min-h-0 min-w-0 flex-col">
         <StatusStrip status={s} error={status.error} />
-        <main className="min-w-0 flex-1">{page}</main>
+        <main className="scroll-y min-h-0 min-w-0 flex-1">{page}</main>
       </div>
+      <StatusBar status={s} error={status.error} />
       <ConfirmDialog open={confirmStop} title="End this Halyard session?" confirmLabel="End session" onConfirm={endSession} onCancel={() => setConfirmStop(false)}>
         The local engine stops and this page stops working. Snapshots, proposals and seed manifests stay on disk under <code>output/</code>.
       </ConfirmDialog>
@@ -149,25 +165,59 @@ function Shell() {
   );
 }
 
-function NavGroup({ label, items, route }: { label: string; items: typeof NAV; route: Route }) {
+function NavGroup({ label, items, route, collapsed }: { label: string; items: typeof NAV; route: Route; collapsed: boolean }) {
+  const hide = collapsed ? 'sr-only' : 'max-lg:sr-only';
   return (
-    <div className="px-2 pb-3">
-      <div className="px-2 pb-1 text-[11.5px] text-ink-3">{label}</div>
-      <ul className="flex flex-col gap-px">
+    <div className="pb-3">
+      <div className={cn('px-4 pb-1 text-[12px] font-medium text-ink-3', hide)}>{label}</div>
+      <ul className="fl-nav flex flex-col gap-px">
         {items.map((n) => (
           <li key={n.route}>
             <a
               href={`#/${n.route}`}
               aria-current={route === n.route ? 'page' : undefined}
-              className={cn('flex items-center gap-2.5 rounded-ctl px-2 py-1.5 text-ink-2 hover:bg-surface-2 hover:text-ink', route === n.route && 'bg-surface-2 text-ink font-medium')}
+              title={n.label}
+              className={cn('flex min-h-9 items-center gap-3 px-4 text-ink-2 hover:bg-surface-2 hover:text-ink', route === n.route && 'bg-surface-2 font-medium', collapsed ? 'justify-center px-0' : 'max-lg:justify-center max-lg:px-0')}
             >
-              <span className={cn('text-ink-3', route === n.route && 'text-accent')}>{n.icon}</span>
-              {n.label}
+              {n.icon}
+              <span className={hide}>{n.label}</span>
             </a>
           </li>
         ))}
       </ul>
     </div>
+  );
+}
+
+const THEMES: Array<{ value: ThemePref; label: string; icon: ReactNode }> = [
+  { value: 'system', label: 'System theme', icon: <LuMonitor size={16} /> },
+  { value: 'dark', label: 'Night watch', icon: <LuMoon size={16} /> },
+  { value: 'light', label: 'Chart room', icon: <LuSun size={16} /> },
+];
+
+function ThemeSwitch({ className, labelClass }: { className: string; labelClass: string }) {
+  const [pref, setPref] = useTheme();
+  const i = Math.max(0, THEMES.findIndex((t) => t.value === pref));
+  const current = THEMES[i]!;
+  const next = THEMES[(i + 1) % THEMES.length]!;
+  return (
+    <Button variant="quiet" className={cn('h-8 justify-start px-3 text-ink-2', className)} onClick={() => setPref(next.value)} title={`Theme: ${current.label}. Switch to ${next.label}`}>
+      {current.icon}<span className={labelClass}>{current.label}</span>
+    </Button>
+  );
+}
+
+function StatusBar({ status, error }: { status: Status | undefined; error: string | null }) {
+  // UNIFIED-UI 5: engine state as a dot and a word, the bound address, session state, version.
+  const state = status && !error ? 'Running' : status ? 'Reconnecting' : error ? 'Disconnected' : 'Connecting';
+  const dot = state === 'Running' ? 'bg-ok' : state === 'Disconnected' ? 'bg-err' : 'bg-warn';
+  return (
+    <footer className="col-span-2 flex items-center gap-4 border-t border-line-2 bg-sidebar px-4 text-[12px] text-ink-2">
+      <span className="flex items-center gap-1.5"><span className={cn('inline-block h-2 w-2 rounded-full', dot)} aria-hidden />{state}</span>
+      <span className="mono">{window.location.host}</span>
+      <span>{status ? (status.provider.identity ? <>Signed in as <span className="text-ink">{status.provider.identity.login}</span></> : 'Not connected') : '—'}</span>
+      <span className="ml-auto">Halyard {status ? status.version : '—'}</span>
+    </footer>
   );
 }
 
@@ -181,24 +231,8 @@ function StatusStrip({ status, error }: { status: Status | undefined; error: str
     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-line-2 bg-surface px-6 py-1.5 text-[12px] text-ink-2">
       <span className="flex items-center gap-1.5"><LuBoxes size={13} className="text-ink-3" />{status.config.provider === 'gitlab' ? 'GitLab' : 'GitHub'} · <span className="mono text-ink">{repo}</span></span>
       <Pill tone={status.policy.mode === 'production' ? 'production' : 'sandbox'}>{status.policy.mode === 'production' ? 'Production writes enabled' : 'Sandbox-only writes'}</Pill>
-      {status.provider.identity ? <span>Signed in as <span className="text-ink">{status.provider.identity.login}</span></span> : <span className="text-ink-3">Not connected</span>}
       <span className="ml-auto">{status.snapshot ? <>Snapshot of {status.snapshot.count} items, {ageLabel(status.snapshot.ageSeconds)}</> : 'No snapshot yet'}</span>
       {status.jobs.running > 0 ? <Pill tone="info">{status.jobs.running} job{status.jobs.running === 1 ? '' : 's'} running</Pill> : null}
     </div>
-  );
-}
-
-function HalyardMark() {
-  // The Halyard mark (assets/brand/mark.svg): a mast with a halyard raising three sails, in the Fleet frame.
-  return (
-    <svg width="28" height="28" viewBox="0 0 64 64" aria-hidden>
-      <circle cx="32" cy="32" r="29.5" fill="#0d2233" stroke="#c9a66b" strokeWidth="3" />
-      <rect x="21" y="11" width="4.5" height="42" rx="1.2" fill="#f1e4c8" />
-      <circle cx="30.5" cy="15" r="3.2" fill="#c9a66b" />
-      <path d="M30.5 18 V51" stroke="#f1e4c8" strokeWidth="1.6" />
-      <polygon points="31,20 50,24 31,28" fill="#3fb6a8" />
-      <polygon points="31,30.5 45.5,34 31,37.5" fill="#f1e4c8" />
-      <polygon points="31,40.5 41,43.3 31,46" fill="#3fb6a8" />
-    </svg>
   );
 }

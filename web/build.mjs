@@ -9,7 +9,7 @@
 import { build } from 'esbuild';
 import { compile } from 'tailwindcss';
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -17,6 +17,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const srcDir = path.join(here, 'src');
 const outDir = path.join(here, 'dist');
+const publicDir = path.join(here, 'public');
 const watch = process.argv.includes('--watch');
 const require = createRequire(import.meta.url);
 
@@ -98,6 +99,8 @@ async function run() {
     .replace('%APP_JS%', `assets/app.${hash}.js`)
     .replace('%APP_CSS%', `assets/app.${hash}.css`);
   await writeFile(path.join(outDir, 'index.html'), html);
+  // Static files (favicon, emblem art) are copied as they are, at the same relative paths.
+  await cp(publicDir, outDir, { recursive: true });
   await writeFile(path.join(outDir, 'build.json'), JSON.stringify({ hash, builtAt: new Date().toISOString(), watch }, null, 2));
   const size = (await stat(path.join(outDir, 'assets', `app.${hash}.js`))).size;
   console.log(`built dist/ (app.${hash}.js ${(size / 1024).toFixed(0)} KB, css ${(css.length / 1024).toFixed(0)} KB)`);
