@@ -7,7 +7,7 @@
 .EXAMPLE
   .\scripts\Invoke-SandboxTeardown.ps1 -AllSynthetic -DryRun
 .EXAMPLE
-  .\scripts\Invoke-SandboxTeardown.ps1 -Everything -ConfirmText 'DELETE sun-of-anton/Halyard-Ballast'
+  .\scripts\Invoke-SandboxTeardown.ps1 -Everything -ConfirmText 'DELETE fleethacker-data-crucible/Halyard-Ballast'
 #>
 [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High', DefaultParameterSetName = 'Run')]
 param(
