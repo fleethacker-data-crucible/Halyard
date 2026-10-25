@@ -1,113 +1,85 @@
 @import "tailwindcss";
+@import "../vendor/fleet/fleet.css";
 
 /*
-  Halyard design tokens. One idea carries the interface: each hierarchy level has a fixed hue,
-  dark at the Theme end and light at the Task end, and that hue is the only decoration anywhere.
-  Everything else is quiet: cool grey paper, one hairline weight, one control radius.
+  Halyard design tokens, built on the shared Fleet tokens (vendor/fleet/fleet.css, docs/UNIFIED-UI.md):
+  Night watch / Chart room follow the system unless <html data-theme> overrides it, and
+  <html data-app="halyard"> sets the teal signature accent. The roles below only map Halyard's names
+  onto --fl-* values. The one decoration of Halyard's own is the hierarchy-level hue (--lv-*), dark at
+  the Theme end and light at the Task end.
 */
 :root {
-  --paper: #eef1f4;
-  --surface: #ffffff;
-  --surface-2: #f5f7f9;
-  --ink: #16202a;
-  --ink-2: #4b5a69;
-  --ink-3: #7b8895;
-  --line: #d3dae1;
-  --line-2: #e5eaef;
-  --focus: #1d4ed8;
+  --paper: var(--fl-background);
+  --sidebar: var(--fl-sidebar);
+  --surface: var(--fl-surface);
+  --surface-2: var(--fl-muted);
+  --ink: var(--fl-foreground);
+  --ink-2: var(--fl-muted-foreground);
+  --ink-3: var(--fl-muted-foreground);
+  --line: var(--fl-control-border);
+  --line-2: var(--fl-border);
+  --focus: var(--fl-brass);
+  --brass: var(--fl-brass);
 
+  --ok: var(--fl-success);
+  --warn: var(--fl-warning);
+  --err: var(--fl-danger);
+  --info: var(--fl-info);
+  --ok-bg: color-mix(in srgb, var(--fl-success) 14%, var(--fl-surface));
+  --warn-bg: color-mix(in srgb, var(--fl-warning) 14%, var(--fl-surface));
+  --err-bg: color-mix(in srgb, var(--fl-danger) 14%, var(--fl-surface));
+  --info-bg: color-mix(in srgb, var(--fl-info) 14%, var(--fl-surface));
+  --accent: var(--fl-accent);
+  --accent-ink: var(--fl-accent-ink);
+  --production: var(--fl-danger);
+}
+
+/* Chart room: level hues and series colours for the light theme. */
+:root {
   --lv-theme: #134e4a;
-  --chart-1: #2a78d6;
+  --chart-1: #1f5fa3;
   --chart-done: #1e3a5f;
   --lv-epic: #1e3a8a;
   --lv-feature: #4338ca;
   --lv-story: #0e7490;
   --lv-task: #64748b;
   --lv-bug: #9f1239;
-  --lv-none: #a3adb8;
-
-  --ok: #15803d;
-  --ok-bg: #e8f5ec;
-  --warn: #b45309;
-  --warn-bg: #fbf0e3;
-  --err: #b91c1c;
-  --err-bg: #fbe9e9;
-  --info: #1d4ed8;
-  --info-bg: #e8eefc;
-  --accent: #0f766e;
-  --accent-ink: #ffffff;
+  --lv-none: #8c8370;
   --sandbox: #6d28d9;
-  --production: #b91c1c;
 }
 
+/* Night watch: the same roles, lightened to read on the ink-navy field. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --paper: #0f1418;
-    --surface: #161c22;
-    --surface-2: #1c232b;
-    --ink: #e6ebf0;
-    --ink-2: #aab5c0;
-    --ink-3: #7e8a96;
-    --line: #2b353f;
-    --line-2: #222b34;
-    --focus: #7ea2ff;
     --lv-theme: #5eead4;
-    --chart-1: #3987e5;
+    --chart-1: #6aa7e0;
     --chart-done: #9fb6d1;
     --lv-epic: #93b4ff;
     --lv-feature: #b4a7ff;
     --lv-story: #67e8f9;
     --lv-task: #a7b4c2;
     --lv-bug: #fda4af;
-    --lv-none: #6b7681;
-    --ok: #4ade80;
-    --ok-bg: #122a1a;
-    --warn: #fbbf24;
-    --warn-bg: #2b2210;
-    --err: #f87171;
-    --err-bg: #2d1515;
-    --info: #93b4ff;
-    --info-bg: #15203a;
-    --accent: #2dd4bf;
-    --accent-ink: #062a26;
+    --lv-none: #5f8199;
     --sandbox: #c4b5fd;
-    --production: #f87171;
   }
 }
-
 :root[data-theme="dark"] {
-  --paper: #0f1418;
-  --surface: #161c22;
-  --surface-2: #1c232b;
-  --ink: #e6ebf0;
-  --ink-2: #aab5c0;
-  --ink-3: #7e8a96;
-  --line: #2b353f;
-  --line-2: #222b34;
-  --focus: #7ea2ff;
   --lv-theme: #5eead4;
+  --chart-1: #6aa7e0;
+  --chart-done: #9fb6d1;
   --lv-epic: #93b4ff;
   --lv-feature: #b4a7ff;
   --lv-story: #67e8f9;
   --lv-task: #a7b4c2;
   --lv-bug: #fda4af;
-  --lv-none: #6b7681;
-  --ok: #4ade80;
-  --ok-bg: #122a1a;
-  --warn: #fbbf24;
-  --warn-bg: #2b2210;
-  --err: #f87171;
-  --err-bg: #2d1515;
-  --info: #93b4ff;
-  --info-bg: #15203a;
-  --accent: #2dd4bf;
-  --accent-ink: #062a26;
+  --lv-none: #5f8199;
   --sandbox: #c4b5fd;
-  --production: #f87171;
 }
 
 @theme inline {
   --color-paper: var(--paper);
+  --color-sidebar: var(--sidebar);
+  --color-brass: var(--brass);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-ink: var(--ink);
@@ -136,8 +108,9 @@
   --color-sandbox: var(--sandbox);
   --color-production: var(--production);
 
-  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
+  --font-sans: var(--fl-font-body);
+  --font-mono: var(--fl-font-mono);
+  --font-display: var(--fl-font-display);
 
   --radius-ctl: 6px;
   --radius-panel: 10px;
@@ -146,8 +119,8 @@
 @layer base {
   html {
     font-family: var(--font-sans);
-    font-size: 13px;
-    line-height: 1.45;
+    font-size: 14px;
+    line-height: 1.5;
     color: var(--ink);
     background: var(--paper);
     -webkit-font-smoothing: antialiased;
@@ -167,12 +140,12 @@
     letter-spacing: -0.01em;
     margin: 0;
   }
-  h1 { font-size: 22px; line-height: 1.2; }
-  h2 { font-size: 16px; line-height: 1.3; }
-  h3 { font-size: 13.5px; line-height: 1.3; }
+  h1 { font-family: var(--fl-font-display); font-size: 20px; font-weight: 600; line-height: 1.25; letter-spacing: 0; }
+  h2 { font-size: 16px; line-height: 1.25; }
+  h3 { font-size: 14px; line-height: 1.25; }
   code, kbd, .mono { font-family: var(--font-mono); font-size: 0.93em; }
   a { color: var(--info); text-underline-offset: 2px; }
-  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+  :focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
   ::selection { background: color-mix(in srgb, var(--accent) 25%, transparent); }
   table { border-collapse: collapse; }
   th { font-weight: 600; text-align: left; }
@@ -185,11 +158,24 @@
 
 @layer components {
   .panel {
-    background: var(--surface);
+    background: var(--fl-card);
     border: 1px solid var(--line-2);
     border-radius: var(--radius-panel);
   }
   .hairline { border-top: 1px solid var(--line-2); }
+
+  /* Theme-specific artwork (the emblem has a Night watch and a Chart room version). */
+  .only-dark { display: none; }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .only-dark { display: revert; }
+    :root:not([data-theme="light"]) .only-light { display: none; }
+  }
+  :root[data-theme="dark"] .only-dark { display: revert; }
+  :root[data-theme="dark"] .only-light { display: none; }
+
+  /* Fleet sidebar navigation (UNIFIED-UI 6): accent text and a 3 px accent bar on the active item. */
+  .fl-nav a { border-left: 3px solid transparent; }
+  .fl-nav a[aria-current="page"] { color: var(--accent); border-left-color: var(--accent); }
   .level-rail {
     border-left: 3px solid var(--level, var(--lv-none));
   }
@@ -209,7 +195,7 @@
   .table-dense tbody tr:hover td { background: var(--surface-2); }
   .scroll-y { overflow-y: auto; scrollbar-width: thin; }
   .num { font-variant-numeric: tabular-nums; }
-  .halyard-reveal { animation: halyard-reveal 420ms cubic-bezier(.2,.7,.2,1) both; }
+  .halyard-reveal { animation: halyard-reveal 200ms cubic-bezier(.2,.7,.2,1) both; }
   @keyframes halyard-reveal {
     from { transform: scaleX(0.6); opacity: 0; }
     to { transform: scaleX(1); opacity: 1; }
