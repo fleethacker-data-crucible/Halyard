@@ -62,7 +62,7 @@ namespace Halyard.Core.Providers
     }
 
     /// <summary>
-    /// Repositories the owner renamed on the host. GitHub redirects an old name, but the transport refuses
+    /// Repositories the owner renamed or moved on the host. GitHub redirects an old name, but the transport refuses
     /// redirects on purpose (a redirected write could go somewhere nobody configured), so a config that still
     /// names the old repository is mapped to the new name when settings load. The write policy then compares
     /// against the new name, and an existing config keeps working.
@@ -72,7 +72,10 @@ namespace Halyard.Core.Providers
         private static readonly Dictionary<string, string> GitHub = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             // Kept for one release with the CASCADE_* fallback: an installed config/cascade.env, or a CASCADE_SANDBOX_REPO variable, can still name the old repository.
-            { "sun-of-anton/cascade-sandbox", "sun-of-anton/Halyard-Ballast" },
+            { "sun-of-anton/cascade-sandbox", "fleethacker-data-crucible/Halyard-Ballast" },
+            // The sandbox moved to the organization. The old address is now a personal fork with issues turned off, and
+            // config/halyard.env files copied forward from cascade.env name it.
+            { "sun-of-anton/Halyard-Ballast", "fleethacker-data-crucible/Halyard-Ballast" },
         };
 
         /// <summary>Former GitHub identifier to current identifier.</summary>

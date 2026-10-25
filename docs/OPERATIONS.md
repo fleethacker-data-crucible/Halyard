@@ -27,8 +27,8 @@ nothing else on the machine can pick it up. With `--no-browser` the console prin
 
 ```
 HALYARD_PROVIDER=github
-HALYARD_SOURCE_REPO=sun-of-anton/Halyard-Ballast
-HALYARD_SANDBOX_REPO=sun-of-anton/Halyard-Ballast
+HALYARD_SOURCE_REPO=fleethacker-data-crucible/Halyard-Ballast
+HALYARD_SANDBOX_REPO=fleethacker-data-crucible/Halyard-Ballast
 ```
 
 Token: `gh auth login` once (the launcher reads `gh auth token`), or `GITHUB_TOKEN=` in `halyard.env`.
@@ -166,7 +166,7 @@ Halyard was called Cascade. What an installed copy needs on its first launch aft
   `Update-Halyard.bat` and `Launch-Halyard.bat` from then on.
 - On the first launch, `config\cascade.env` is copied once to `config\halyard.env` with the variable names updated
   (`CASCADE_*` to `HALYARD_*`, `CASCADE_ARC_ITEM_*` to `HALYARD_LAZARETTE_ITEM_*`, `CASCADE_USE_ARC` to
-  `HALYARD_USE_LAZARETTE`, and `sun-of-anton/cascade-sandbox` to `sun-of-anton/Halyard-Ballast`). The old file is
+  `HALYARD_USE_LAZARETTE`, and `sun-of-anton/cascade-sandbox` to `fleethacker-data-crucible/Halyard-Ballast`). The old file is
   left untouched and is not read again.
 - `CASCADE_*` environment variables set outside the env file still work for this release when their
   `HALYARD_*` name is not set. The fallback will be removed in the next release.
