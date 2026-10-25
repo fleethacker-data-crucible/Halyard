@@ -46,5 +46,10 @@ it hides from the user, holds its DLLs and ports, breaks the next build, and war
   and the build/serve scripts should stop a running server before replacing `dist\`.
 - **Arc** (`pm.ps1`, `Start.ps1`) runs a GUI and a loopback UI; apply the same heartbeat so closing the
   tab closes the app, keep the vault's own lock-on-idle rules as they are.
-- The heartbeat is a `fetch` with `keepalive: true`, not `navigator.sendBeacon`, because the session
-  header has to travel with it. Both are fire-and-forget.
+- The periodic heartbeat is a normal `fetch` with the session header. The unload signal is
+  `navigator.sendBeacon` (a keepalive fetch is dropped by some browsers during unload); it cannot set
+  headers, so the engine accepts the session token in the JSON body for that one route only, never in
+  the query string, and never logs bodies.
+- Finding what holds the DLL: `Process.Modules` does not list .NET-mapped assemblies. Use the Windows
+  Restart Manager (`RmRegisterResources` + `RmGetList` on the file path); it also reports elevated
+  holders from a normal window. Stopping an elevated holder needs one elevated `Stop-Process` (UAC).

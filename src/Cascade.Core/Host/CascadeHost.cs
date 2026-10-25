@@ -351,7 +351,7 @@ namespace Cascade.Core.Host
 
             if (request.Path.StartsWith("/api/", StringComparison.Ordinal) || request.Path == "/api")
             {
-                if (request.Path != "/api/health" && !TokenMatches(request))
+                if (request.Path != "/api/health" && !TokenMatches(request) && !BeaconTokenMatches(request))
                     return Json.Error(401, "SESSION_REQUIRED", "Missing or invalid X-Cascade-Session token. Reopen Cascade from the launcher.", request.RequestId);
                 var origin = request.Header("Origin");
                 if (origin != null && !IsOwnOrigin(origin))
@@ -385,6 +385,23 @@ namespace Cascade.Core.Host
             if (request.Path == "/" || request.Path == "/index.html")
                 return HttpResponse.Text(200, "Cascade host is running on port " + Port + ", but no built UI was found" + (string.IsNullOrEmpty(webRoot) ? "." : " at " + webRoot + ".") + " Build it with build/Build-Cascade.ps1 and relaunch.", "text/html; charset=utf-8");
             return HttpResponse.Text(404, "Not found");
+        }
+
+        /// <summary>
+        /// The unload beacon (navigator.sendBeacon) cannot set headers, so for /api/heartbeat alone the token may
+        /// travel in the JSON body as "session". Bodies are never logged; the query string is still refused.
+        /// </summary>
+        private bool BeaconTokenMatches(HttpRequest request)
+        {
+            if (request.Path != "/api/heartbeat" || !string.Equals(request.Method, "POST", StringComparison.OrdinalIgnoreCase)) return false;
+            if (request.Body == null || request.Body.Length == 0 || request.Body.Length > 512) return false;
+            try
+            {
+                var body = Json.Body(request);
+                var token = Json.Read<string>(body, "session");
+                return !string.IsNullOrEmpty(token) && FixedTimeEquals(token!, SessionToken);
+            }
+            catch (Newtonsoft.Json.JsonException) { return false; }
         }
 
         private bool TokenMatches(HttpRequest request)

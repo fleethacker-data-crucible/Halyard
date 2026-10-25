@@ -529,6 +529,12 @@ namespace Cascade.Core.Tests
 
             var anon = new HttpClient();
             Assert.Equal(401, (int)(await anon.PostAsync(_info.Url + "api/heartbeat", new StringContent("{}", System.Text.Encoding.UTF8, "application/json"))).StatusCode);
+            Assert.Equal(401, (int)(await anon.PostAsync(_info.Url + "api/heartbeat", new StringContent("{\"leaving\":true,\"session\":\"wrong\"}", System.Text.Encoding.UTF8, "application/json"))).StatusCode);
+            // The unload beacon cannot set headers: the token in the body is accepted for this route only.
+            var beacon = await anon.PostAsync(_info.Url + "api/heartbeat", new StringContent("{\"leaving\":true,\"session\":\"" + _info.SessionToken + "\"}", System.Text.Encoding.UTF8, "application/json"));
+            Assert.Equal(200, (int)beacon.StatusCode);
+            Assert.True(_host.BrowserGone(DateTimeOffset.UtcNow + TimeSpan.FromSeconds(6)), "the beacon marked the tab as leaving");
+            Assert.Equal(401, (int)(await anon.PostAsync(_info.Url + "api/status", new StringContent("{\"session\":\"" + _info.SessionToken + "\"}", System.Text.Encoding.UTF8, "application/json"))).StatusCode);
         }
 
         [Fact]
