@@ -120,7 +120,28 @@ export function Section({ title, aside, children, className }: { title?: ReactNo
   );
 }
 
-export function Empty({ title, children, action }: { title: string; children?: ReactNode; action?: ReactNode }) {
+export function Emblem({ size }: { size: number }) {
+  // The full Halyard emblem (assets/brand/emblem-*.png with the backdrop made transparent), one per theme.
+  return (
+    <>
+      <img src="brand/emblem-light.png" alt="Halyard" width={size} height={size} className="only-light" />
+      <img src="brand/emblem-dark.png" alt="Halyard" width={size} height={size} className="only-dark" />
+    </>
+  );
+}
+
+export function Empty({ title, children, action, emblem }: { title: string; children?: ReactNode; action?: ReactNode; emblem?: boolean }) {
+  if (emblem) {
+    // First-run empty state (UNIFIED-UI 6, .fl-empty): emblem, display-serif headline, one primary action.
+    return (
+      <div className="flex flex-col items-center gap-3 px-4 py-8 text-center text-ink-2">
+        <Emblem size={240} />
+        <h2 className="font-display text-[28px] font-semibold text-ink">{title}</h2>
+        {children ? <div className="max-w-[60ch]">{children}</div> : null}
+        {action ? <div className="mt-1">{action}</div> : null}
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col items-start gap-2 px-4 py-8 text-ink-2">
       <p className="font-medium text-ink">{title}</p>
