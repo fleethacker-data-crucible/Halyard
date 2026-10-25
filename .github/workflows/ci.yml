@@ -21,7 +21,9 @@ jobs:
 
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 8.0.426
+        env:
+          DOTNET_INSTALL_DIR: ${{ runner.tool_cache }}\dotnet
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -63,24 +65,6 @@ jobs:
           foreach ($t in $r.Failed) {
             $msg = ($t.ErrorRecord | Select-Object -First 1).Exception.Message -replace '\r?\n', ' '
             Write-Host ('::error title=Pester ' + ($t.ExpandedPath -replace '::', ' ') + '::' + $msg)
-          }
-          Write-Host "::notice title=Pester on PowerShell $($PSVersionTable.PSVersion)::$($r.PassedCount) passed, $($r.FailedCount) failed"
-          if ($r.FailedCount -gt 0 -or $r.Result -ne 'Passed') { exit 1 }
-
-      - name: Pester on PowerShell 7
-        shell: pwsh
-        run: |
-          Write-Host "PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition))"
-          if (-not (Get-Module -ListAvailable Pester | Where-Object Version -ge '5.0')) { Install-Module Pester -MinimumVersion 5.5 -Scope CurrentUser -Force -SkipPublisherCheck -AllowClobber }
-          Import-Module Pester -MinimumVersion 5.0
-          $c = New-PesterConfiguration
-          $c.Run.Path = 'tests/pester'
-          $c.Run.PassThru = $true
-          $c.Output.Verbosity = 'Detailed'
-          $r = Invoke-Pester -Configuration $c
-          foreach ($t in $r.Failed) {
-            $msg = ($t.ErrorRecord | Select-Object -First 1).Exception.Message -replace '\r?\n', ' '
-            Write-Host ('::error title=Pester7 ' + ($t.ExpandedPath -replace '::', ' ') + '::' + $msg)
           }
           Write-Host "::notice title=Pester on PowerShell $($PSVersionTable.PSVersion)::$($r.PassedCount) passed, $($r.FailedCount) failed"
           if ($r.FailedCount -gt 0 -or $r.Result -ne 'Passed') { exit 1 }

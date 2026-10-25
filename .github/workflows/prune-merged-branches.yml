@@ -8,16 +8,17 @@ permissions:
   pull-requests: read
 jobs:
   prune:
-    # Runs on the self-hosted Windows runner, which has PowerShell but no Python.
+    # Runs on the self-hosted Windows runner under Windows PowerShell 5.1 (no PowerShell 7 or Python).
     runs-on: [self-hosted, Windows, X64]
     steps:
       - name: Remove only fully merged, unchanged, same-repository branches
         env:
           GH_REPOSITORY: ${{ github.repository }}
           GH_TOKEN: ${{ github.token }}
-        shell: pwsh
+        shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
+          [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
           $repo = $env:GH_REPOSITORY
           $root = "https://api.github.com/repos/$repo"
           $headers = @{ Authorization = "Bearer $env:GH_TOKEN"; Accept = 'application/vnd.github+json'; 'X-GitHub-Api-Version' = '2022-11-28' }
