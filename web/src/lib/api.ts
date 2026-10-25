@@ -107,7 +107,17 @@ export function startHeartbeat(intervalMs = 5000): () => void {
   };
   send(false);
   const timer = window.setInterval(() => send(false), intervalMs);
-  const onHide = () => send(true);
+  const onHide = () => {
+    // sendBeacon is what browsers actually deliver during unload (a keepalive fetch is dropped by some);
+    // it cannot set headers, so the token travels in the body, which the engine accepts for this route only.
+    let sent = false;
+    try {
+      if (navigator.sendBeacon) sent = navigator.sendBeacon('/api/heartbeat', new Blob([JSON.stringify({ leaving: true, session: token })], { type: 'application/json' }));
+    } catch {
+      sent = false;
+    }
+    if (!sent) send(true);
+  };
   const onShow = () => send(false);
   window.addEventListener('pagehide', onHide);
   window.addEventListener('pageshow', onShow);
