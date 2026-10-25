@@ -34,6 +34,8 @@ namespace Cascade.Core.Synthetic
         public string Target { get; set; } = string.Empty;
         public DateTimeOffset StartedAt { get; set; }
         public DateTimeOffset? FinishedAt { get; set; }
+        /// <summary>Set when the run's items were deleted by a teardown; the run then leaves the Sandbox list.</summary>
+        public DateTimeOffset? DeletedAt { get; set; }
         public int Requested { get; set; }
         public List<SeededItem> Items { get; set; } = new List<SeededItem>();
         public List<string> Errors { get; set; } = new List<string>();
@@ -204,7 +206,7 @@ namespace Cascade.Core.Synthetic
             File.WriteAllText(ManifestPath(directory, manifest.RunId), manifest.ToJson(), new UTF8Encoding(false));
         }
 
-        public static List<SeedManifest> ReadManifests(string directory)
+        public static List<SeedManifest> ReadManifests(string directory, bool includeDeleted = false)
         {
             var list = new List<SeedManifest>();
             if (!Directory.Exists(directory)) return list;
@@ -213,7 +215,25 @@ namespace Cascade.Core.Synthetic
                 try { list.Add(SeedManifest.FromJson(File.ReadAllText(file))); }
                 catch (JsonException) { }
             }
-            return list.OrderByDescending(m => m.StartedAt).ToList();
+            return list.Where(m => includeDeleted || m.DeletedAt == null).OrderByDescending(m => m.StartedAt).ToList();
+        }
+
+        /// <summary>Marks seed manifests as deleted after a teardown: one run, or every run when <paramref name="runId"/> is null.</summary>
+        public static int MarkDeleted(string directory, string? runId, DateTimeOffset when)
+        {
+            var marked = 0;
+            if (!Directory.Exists(directory)) return 0;
+            foreach (var file in Directory.GetFiles(directory, "seed-*.json"))
+            {
+                SeedManifest m;
+                try { m = SeedManifest.FromJson(File.ReadAllText(file)); } catch (JsonException) { continue; }
+                if (m.DeletedAt != null) continue;
+                if (runId != null && !string.Equals(m.RunId, runId, StringComparison.OrdinalIgnoreCase)) continue;
+                m.DeletedAt = when;
+                File.WriteAllText(file, m.ToJson());
+                marked++;
+            }
+            return marked;
         }
 
         private static void Report(IProgress<SeedProgress>? progress, int done, int total, string message)

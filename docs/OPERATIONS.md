@@ -106,9 +106,12 @@ secondary rate limits, so 100 items take about two minutes. Deletion is permanen
 ## Weekly leadership report
 
 **Leadership** in the browser shows feature % complete with a status (on track / at risk / parked /
-done and why), velocity over the last six sprints, the ready backlog against velocity, capacity used in
-the current sprint, open blockers with their business-day age (escalated past five days), and points by
-theme. *Download report* saves the same page as one self-contained HTML file, built from the latest
+done and why), then four charts: feature status by sprint (past sprints reconstructed from story sprints,
+closures, blockers and targets; the current one is the live table), velocity with this sprint's plan
+outlined and the three-sprint average, capacity per team as a meter with the committed/allocated
+boundaries, and points by theme. Then the ready backlog against velocity and open blockers with their
+business-day age (escalated past five days). The emailed report carries the same charts drawn as HTML
+tables, which Outlook renders, and the Cascade mark in the header. *Download report* saves the same page as one self-contained HTML file, built from the latest
 sandbox snapshot. `GET /api/leadership/report.html` returns it too.
 
 To send it by email every week without a browser:
@@ -182,7 +185,8 @@ engine alive after the tab closes. The pattern is written up as a standard in
 4. On **Proposals**, open a row to read the before/after diff and the definition-of-ready state after
    applying. Approve or reject; *Apply approved to sandbox*, or *Apply all approved* across batches.
    A batch made by mistake can be deleted. Refused for batches made from a non-sandbox repository.
-5. Re-synchronize to see the result; the gaps close in **Review** and **Overview**.
+5. Every write (apply, intake, seed, delete) re-synchronizes the snapshot by itself as the last step of its
+   job, so the gaps close in **Review** and **Overview** without a trip to **Connection**.
 
 The synthetic sandbox seeds this workflow: with *gaps* on, about a fifth of the items carry one of 21
 kinds of problem (missing sections, missing or invalid sizes, missing or wrong parents, no metadata, ...),

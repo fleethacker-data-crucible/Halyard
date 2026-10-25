@@ -3,7 +3,7 @@ import { LuExternalLink, LuRefreshCw, LuSprout, LuTrash2 } from 'react-icons/lu'
 import { CascadeBars } from '../components/charts';
 import { Button, Checkbox, ConfirmDialog, Empty, Field, Input, LevelChip, Mono, Notice, Page, Pill, Progress, Section, useToast } from '../components/ui';
 import { relativeTime, shortDate } from '../lib/format';
-import { useJob } from '../lib/jobs';
+import { resyncedBy, useJob } from '../lib/jobs';
 import { CatalogPreview, SeedManifest, type Status } from '../lib/schemas';
 import { invalidate, useResource } from '../lib/useResource';
 import { z } from 'zod';
@@ -38,7 +38,7 @@ function Seeder({ status, onDone }: { status: Status | undefined; onDone: () => 
   const job = useJob((j) => {
     if (j.state === 'succeeded') {
       const m = j.result as { items?: unknown[]; errors?: string[] } | null;
-      toast.push(m?.errors?.length ? 'err' : 'ok', `Seeded ${m?.items?.length ?? 0} items${m?.errors?.length ? ` with ${m.errors.length} errors` : ''}. Synchronize the sandbox to review them.`);
+      toast.push(m?.errors?.length ? 'err' : 'ok', `Seeded ${m?.items?.length ?? 0} items${m?.errors?.length ? ` with ${m.errors.length} errors` : ''}${resyncedBy(j) ? '; snapshot refreshed.' : '. Synchronize the sandbox to review them.'}`);
     } else if (j.state === 'failed') toast.push('err', j.error ?? 'Seeding failed');
     onDone();
   });
