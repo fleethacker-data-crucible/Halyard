@@ -11,7 +11,7 @@ $script:HalyardCoreLoaded = $false
 function Get-HalyardSetting {
     <# Process environment value of HALYARD_<Suffix>, else the former CASCADE_<Suffix>; $null when neither is set. #>
     param([Parameter(Mandatory)][string]$Suffix)
-    foreach ($n in @('HALYARD_' + $Suffix, 'CASCADE_' + $Suffix)) {
+    foreach ($n in @(('HALYARD_' + $Suffix), ('CASCADE_' + $Suffix))) {
         $v = [Environment]::GetEnvironmentVariable($n, 'Process')
         if (-not [string]::IsNullOrWhiteSpace($v)) { return $v.Trim() }
     }

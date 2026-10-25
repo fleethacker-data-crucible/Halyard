@@ -232,7 +232,7 @@ function Get-HalyardLazaretteSecret {
 function Get-HalyardLazaretteItemName {
     <# Vault item name for one purpose: HALYARD_LAZARETTE_ITEM_<Purpose>, else the former CASCADE_ARC_ITEM_<Purpose>. #>
     param([Parameter(Mandatory)][string]$Purpose)
-    foreach ($n in @('HALYARD_LAZARETTE_ITEM_' + $Purpose, 'CASCADE_ARC_ITEM_' + $Purpose)) {
+    foreach ($n in @(('HALYARD_LAZARETTE_ITEM_' + $Purpose), ('CASCADE_ARC_ITEM_' + $Purpose))) {
         $v = [Environment]::GetEnvironmentVariable($n, 'Process')
         if (-not [string]::IsNullOrWhiteSpace($v)) { return $v.Trim() }
     }
