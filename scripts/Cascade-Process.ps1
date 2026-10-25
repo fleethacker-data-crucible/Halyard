@@ -9,7 +9,7 @@ function Get-CascadeProcesses {
       PowerShell whose command line runs Start-Cascade.ps1. Stale runtime files are removed.
     #>
     [CmdletBinding()]
-    param([string]$Root)
+    param([string]$Root, [switch]$IncludeHolders)
     $found = @{}
     $logs = Join-Path $Root 'logs'
     if (Test-Path $logs) {
@@ -31,28 +31,40 @@ function Get-CascadeProcesses {
             Where-Object { $_.ProcessId -ne $mine -and $_.CommandLine -and $_.CommandLine -match 'Start-Cascade\.ps1' } |
             ForEach-Object {
                 if (-not $found.ContainsKey([int]$_.ProcessId)) {
-                    $found[[int]$_.ProcessId] = [pscustomobject]@{ Pid = [int]$_.ProcessId; Port = $null; Url = $null; Started = $_.CreationDate }
+                    $found[[int]$_.ProcessId] = [pscustomobject]@{ Pid = [int]$_.ProcessId; Port = $null; Url = $null; Started = $_.CreationDate; Kind = 'engine' }
                 }
             }
     } catch { }
+    foreach ($v in $found.Values) { if (-not $v.PSObject.Properties['Kind']) { $v | Add-Member -NotePropertyName Kind -NotePropertyValue 'engine' } }
+    # Any other PowerShell that loaded Cascade.Core.dll (a seed, teardown, report or test run left open) locks the DLL too.
+    if ($IncludeHolders) {
+        foreach ($p in Get-Process -Name powershell, pwsh -ErrorAction SilentlyContinue) {
+            if ($p.Id -eq $PID -or $found.ContainsKey($p.Id)) { continue }
+            $holds = $false
+            try { $holds = [bool]($p.Modules | Where-Object { $_.ModuleName -eq 'Cascade.Core.dll' }) } catch { $holds = $false }
+            if ($holds) { $found[$p.Id] = [pscustomobject]@{ Pid = $p.Id; Port = $null; Url = $null; Started = $p.StartTime; Kind = 'holder' } }
+        }
+    }
     return @($found.Values | Sort-Object Pid)
 }
 
 function Stop-CascadeProcesses {
     <#
     .SYNOPSIS
-      Stops every running Cascade engine and returns the PIDs stopped. Access-denied (an engine started
-      from an elevated window) is reported, not thrown.
+      Stops every running Cascade engine (and, with -IncludeHolders, every other PowerShell that has
+      Cascade.Core.dll loaded) and returns the PIDs stopped. Access-denied (started from an elevated
+      window) is reported, not thrown.
     #>
     [CmdletBinding()]
-    param([string]$Root)
+    param([string]$Root, [switch]$IncludeHolders)
     $stopped = New-Object System.Collections.Generic.List[int]
-    foreach ($p in Get-CascadeProcesses -Root $Root) {
+    foreach ($p in Get-CascadeProcesses -Root $Root -IncludeHolders:$IncludeHolders) {
+        $what = if ($p.Kind -eq 'holder') { 'PowerShell window holding Cascade.Core.dll' } else { 'Cascade engine' }
         try {
             Stop-Process -Id $p.Pid -Force -ErrorAction Stop
             $stopped.Add($p.Pid)
         } catch {
-            Write-Warning ('Could not stop Cascade engine PID ' + $p.Pid + ': ' + $_.Exception.Message + ' (started from an elevated window? stop it from one.)')
+            Write-Warning ('Could not stop ' + $what + ' PID ' + $p.Pid + ': ' + $_.Exception.Message + ' (started from an elevated window? close it, or stop it from an elevated window.)')
         }
     }
     if ($stopped.Count -gt 0) { Start-Sleep -Milliseconds 700 }  # let the DLL unlock
