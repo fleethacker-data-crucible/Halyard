@@ -167,3 +167,26 @@ Describe 'Repository rules' {
         }
     }
 }
+
+Describe 'Process helpers (Cascade-Process.ps1)' {
+    BeforeAll { . (Join-Path $PSScriptRoot '..\..\scripts\Cascade-Process.ps1') }
+
+    It 'finds no engines in an empty root and removes stale runtime files' {
+        $root = Join-Path ([IO.Path]::GetTempPath()) ('cascade-proc-' + [guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Path (Join-Path $root 'logs') | Out-Null
+        Set-Content -Path (Join-Path $root 'logs\cascade-server-999999.json') -Value '{"pid":999999,"port":1,"url":"http://127.0.0.1:1/"}'
+        @(Get-CascadeProcesses -Root $root).Count | Should -Be 0
+        Test-Path (Join-Path $root 'logs\cascade-server-999999.json') | Should -BeFalse
+        Remove-Item $root -Recurse -Force
+    }
+
+    It 'sees this process as a holder of a file it keeps open (Restart Manager)' -Skip:(-not $IsWindows -and $PSVersionTable.PSEdition -eq 'Core') {
+        $file = Join-Path ([IO.Path]::GetTempPath()) ('cascade-hold-' + [guid]::NewGuid().ToString('N') + '.dll')
+        Set-Content -Path $file -Value 'x'
+        $stream = [IO.File]::Open($file, 'Open', 'Read', 'None')
+        try {
+            $holders = @(Get-FileHolders -Path $file)
+            ($holders | ForEach-Object { $_.Pid }) | Should -Contain $PID
+        } finally { $stream.Dispose(); Remove-Item $file -Force }
+    }
+}
