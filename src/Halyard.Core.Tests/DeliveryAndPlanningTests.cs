@@ -36,7 +36,7 @@ namespace Halyard.Core.Tests
         public static TeamConfig Load()
         {
             var dir = ConfigDir();
-            return TeamConfig.Load(Path.Combine(dir, "team.json"), new[] { Path.Combine(dir, "shellback"), Path.Combine(dir, "synapse") });
+            return TeamConfig.Load(Path.Combine(dir, "team.json"), Path.Combine(dir, "shellback"));
         }
 
         /// <summary>A date inside the synthetic catalogue's current sprint (S23 = 2026-10-19..11-01).</summary>
@@ -208,7 +208,7 @@ namespace Halyard.Core.Tests
             Assert.All(batch.Proposals, p => Assert.All(p.ProposedMeta!["skills"]!.Split(',').Select(x => x.Trim()), id => Assert.True(taxonomy.Contains(id))));
             Assert.Contains(batch.Proposals, p => p.Reason.Contains("from parent"));
             // A story whose text names a skill scores it above the inherited ones.
-            var doc = new WorkItem(Items.Repo, 9999) { Title = "STORY :: Write technical writing guide", Body = "~~~cascade-meta\ntype: STORY\nid: STORY-x\n~~~\n\n## User need\nAs a reader I want technical writing standards and documentation stewardship." };
+            var doc = new WorkItem(Items.Repo, 9999) { Title = "STORY :: Write technical writing guide", Body = "~~~halyard-meta\ntype: STORY\nid: STORY-x\n~~~\n\n## User need\nAs a reader I want technical writing standards and documentation stewardship." };
             var suggested = SkillTagger.Suggest(doc, null, taxonomy);
             Assert.Equal("technical-writing", suggested[0].Key);
             Assert.Contains(suggested, kv => kv.Key == "documentation-stewardship");
@@ -493,7 +493,7 @@ namespace Halyard.Core.Tests
         {
             var snap = Snapshot();
             // A previous intake already copied ticket #3.
-            var copy = new WorkItem(Sandbox, 900) { Title = "BUG :: Login page throws 500", Body = "~~~cascade-meta\ntype: BUG\nid: BUG-login\nsource_project: acme/raw-backlog\nsource_iid: 3\n~~~\n\nold" };
+            var copy = new WorkItem(Sandbox, 900) { Title = "BUG :: Login page throws 500", Body = "~~~halyard-meta\ntype: BUG\nid: BUG-login\nsource_project: acme/raw-backlog\nsource_iid: 3\n~~~\n\nold" };
             snap.Add(copy);
             var keys = new HashSet<string>(snap.Where(i => i.Repository.Equals(Source)).Select(i => i.Key), StringComparer.OrdinalIgnoreCase);
             var drafts = Intake.Prepare(snap, Sandbox, new IntakeOptions { Keys = keys }, Schema.Taxonomy.Default());

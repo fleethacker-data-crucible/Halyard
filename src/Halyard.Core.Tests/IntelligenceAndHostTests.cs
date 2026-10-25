@@ -458,7 +458,7 @@ namespace Halyard.Core.Tests
         }
 
         [Fact]
-        public void HalyardVariablesWinOverFormerCascadeNames()
+        public void HalyardVariablesWinOverFormerNamesWhichStillWorkForOneRelease()
         {
             var s = HalyardSettings.FromEnvironment("root", Vars(
                 ("HALYARD_SANDBOX_REPO", "owner/new-sandbox"), ("CASCADE_SANDBOX_REPO", "owner/old-sandbox"),
@@ -481,19 +481,41 @@ namespace Halyard.Core.Tests
         }
 
         [Fact]
-        public void EnvFileFallsBackToCascadeEnvOnlyWhenHalyardEnvIsMissing()
+        public void FormerEnvFileIsCopiedForwardOnceWithRenamedVariablesAndLeftUntouched()
         {
             var dir = Path.Combine(Path.GetTempPath(), "halyard-envfile-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(dir);
+            var legacy = Path.Combine(dir, "cascade.env");
+            var current = Path.Combine(dir, "halyard.env");
             try
             {
-                Assert.Equal(Path.Combine(dir, "halyard.env"), HalyardSettings.ResolveEnvFile(dir));
-                File.WriteAllText(Path.Combine(dir, "cascade.env"), "X=1");
-                Assert.Equal(Path.Combine(dir, "cascade.env"), HalyardSettings.ResolveEnvFile(dir));
-                File.WriteAllText(Path.Combine(dir, "halyard.env"), "X=2");
-                Assert.Equal(Path.Combine(dir, "halyard.env"), HalyardSettings.ResolveEnvFile(dir));
+                Assert.False(HalyardSettings.MigrateLegacyEnvFile(dir)); // neither file: nothing to do
+                var original = "# my settings\nCASCADE_PROVIDER=github\nexport CASCADE_SANDBOX_REPO=sun-of-anton/cascade-sandbox\n" +
+                               "CASCADE_ARC_ITEM_GitLab=gitmil\nCASCADE_USE_ARC=1\nGITHUB_TOKEN=keep\n";
+                File.WriteAllText(legacy, original);
+                Assert.True(HalyardSettings.MigrateLegacyEnvFile(dir));
+                Assert.Equal(original, File.ReadAllText(legacy)); // the original is left untouched
+                var copied = File.ReadAllLines(current);
+                Assert.Contains("# my settings", copied);
+                Assert.Contains("HALYARD_PROVIDER=github", copied);
+                Assert.Contains("export HALYARD_SANDBOX_REPO=sun-of-anton/Halyard-Ballast", copied);
+                Assert.Contains("HALYARD_LAZARETTE_ITEM_GitLab=gitmil", copied);
+                Assert.Contains("HALYARD_USE_LAZARETTE=1", copied);
+                Assert.Contains("GITHUB_TOKEN=keep", copied);
+                Assert.DoesNotContain(copied, l => l.StartsWith("CASCADE_", StringComparison.Ordinal));
+
+                File.WriteAllText(current, "HALYARD_PROVIDER=gitlab\n"); // edited after migrating
+                Assert.False(HalyardSettings.MigrateLegacyEnvFile(dir)); // runs once: halyard.env exists
+                Assert.Equal("HALYARD_PROVIDER=gitlab\n", File.ReadAllText(current));
             }
             finally { Directory.Delete(dir, true); }
+        }
+
+        [Fact]
+        public void EnvFilePathIsAlwaysHalyardEnv()
+        {
+            var s = new HalyardSettings { RootDirectory = "root" };
+            Assert.Equal(Path.Combine("root", "config", "halyard.env"), s.EnvFilePath);
         }
 
         [Fact]
@@ -554,12 +576,12 @@ namespace Halyard.Core.Tests
         }
 
         [Fact]
-        public async Task FormerSessionHeaderNameIsStillAccepted()
+        public async Task OnlyTheHalyardSessionHeaderIsAccepted()
         {
-            using (var legacy = new HttpClient())
+            using (var other = new HttpClient())
             {
-                legacy.DefaultRequestHeaders.Add("X-Cascade-Session", _info.SessionToken);
-                Assert.Equal(200, (int)(await legacy.GetAsync(_info.Url + "api/status")).StatusCode);
+                other.DefaultRequestHeaders.Add("X-Cascade-Session", _info.SessionToken);
+                Assert.Equal(401, (int)(await other.GetAsync(_info.Url + "api/status")).StatusCode);
             }
         }
 

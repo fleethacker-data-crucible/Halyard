@@ -131,7 +131,7 @@ namespace Halyard.Core.Synthetic
                 var hasMeta = meta.Count > 0; // a "no metadata" defect ships the narrative alone, as a hand-written ticket would
                 if (hasMeta)
                 {
-                    meta.Set("source", "cascade-synthetic");
+                    meta.Set("source", "halyard-synthetic");
                     meta.Set("run_id", options.RunId);
                 }
                 WorkItem? parent = null;

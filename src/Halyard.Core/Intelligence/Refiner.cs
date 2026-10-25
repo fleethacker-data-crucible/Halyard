@@ -68,8 +68,8 @@ namespace Halyard.Core.Intelligence
                    "- Use these exact section headings when adding: STORY: '## User need' (As a <role>, I want <goal> so that <benefit>), '## Acceptance criteria' (3-6 testable '- [ ]' checkboxes), '## Tasks' ('- [ ]' checklist). " +
                    "FEATURE: '## Description', '## Definition of done' ('- [ ]' checklist). EPIC: '## Outcome', '## Success picture' (3-7 bullets). THEME: '## Purpose', '## In scope', '## Out of scope'.\n" +
                    "- Be specific to the item's title, parent and siblings; never invent people, dates, systems or credentials; mark anything uncertain with (to confirm).\n" +
-                   "- Never include a ~~~cascade-meta block or a '### Cascade' mirror; those are managed by the tool.\n" +
-                   "- Return ONLY a JSON object: {\"narrative\": \"<full markdown>\", \"meta\": {<optional cascade-meta keys to set, e.g. \"points\": \"TBD\">}, \"note\": \"<one sentence on what you added>\"}.";
+                   "- Never include a ~~~halyard-meta block or a '### Halyard' mirror; those are managed by the tool.\n" +
+                   "- Return ONLY a JSON object: {\"narrative\": \"<full markdown>\", \"meta\": {<optional halyard-meta keys to set, e.g. \"points\": \"TBD\">}, \"note\": \"<one sentence on what you added>\"}.";
         }
 
         public static string UserPrompt(WorkItem item, IReadOnlyList<string> gaps, WorkItem? parent, IReadOnlyList<WorkItem> siblings)
@@ -246,7 +246,7 @@ namespace Halyard.Core.Intelligence
         }
 
         /// <summary>
-        /// Deterministic metadata repair: builds or completes the cascade-meta block from what the item already
+        /// Deterministic metadata repair: builds or completes the halyard-meta block from what the item already
         /// says (type label, title, theme/area labels) and policy placeholders (TBD), without a model.
         /// </summary>
         public static ProposalBatch MetadataProposals(IReadOnlyList<WorkItem> items, ReviewReport report, Taxonomy taxonomy, RepositoryRef target, HashSet<long>? onlyNumbers = null)
@@ -311,7 +311,7 @@ namespace Halyard.Core.Intelligence
                     ProposedMeta = changes,
                     Addresses = gaps,
                     Confidence = confidence,
-                    Reason = reasons.Count == 0 ? "Completes the required cascade-meta keys." : string.Join("; ", reasons) + ".",
+                    Reason = reasons.Count == 0 ? "Completes the required halyard-meta keys." : string.Join("; ", reasons) + ".",
                     Source = "deterministic",
                 });
             }

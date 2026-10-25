@@ -16,11 +16,11 @@ param(
     [Parameter(Mandatory, ParameterSetName = 'Everything')][switch]$Everything,
     [Parameter(ParameterSetName = 'Everything')][string]$ConfirmText,
     [switch]$DryRun,
-    [switch]$NoArc
+    [Alias('NoArc')][switch]$NoLazarette   # -NoArc: former name, accepted for one release
 )
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '..\module\Halyard\Halyard.psd1') -Force
-$p = @{ DryRun = $DryRun; UseArc = $(if ($NoArc) { 'Never' } else { 'Auto' }) }
+$p = @{ DryRun = $DryRun; UseLazarette = $(if ($NoLazarette) { 'Never' } else { 'Auto' }) }
 switch ($PSCmdlet.ParameterSetName) {
     'All' { $p['AllSynthetic'] = $true }
     'Everything' { $p['Everything'] = $true; $p['ConfirmText'] = $ConfirmText }

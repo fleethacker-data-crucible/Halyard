@@ -1,8 +1,7 @@
 // Thin client for the Halyard host. Every /api call carries the per-session token the launcher
 // put in the URL once; nothing else on the machine can talk to the host without it.
 
-// sessionStorage key kept from before the rename (Cascade -> Halyard); it only lives for the tab.
-const TOKEN_KEY = 'cascade.session';
+const TOKEN_KEY = 'halyard.session';
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string, message: string, public requestId?: string) {

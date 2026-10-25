@@ -122,7 +122,7 @@ export function OverviewPage({ status }: { status: Status | undefined }) {
         <Section title="Next actions" aside={<a href="#/proposals" className="text-[12px]">Proposals</a>}>
           {!r ? <Skeleton rows={4} /> : (
             <ul className="flex flex-col divide-y divide-line-2 text-[12.5px]">
-              <NextAction count={remedyCounts.metadata} label="items need their cascade-meta repaired" hint="deterministic, no model" onClick={() => navigate('proposals')} />
+              <NextAction count={remedyCounts.metadata} label="items need their halyard-meta repaired" hint="deterministic, no model" onClick={() => navigate('proposals')} />
               <NextAction count={remedyCounts.parents} label="items have no resolved parent" hint="evidence-ranked candidates" onClick={() => navigate('review', { tab: 'parents' })} />
               <NextAction count={remedyCounts.refine} label="items are missing playbook sections" hint="drafted by the model, you approve" onClick={() => navigate('review')} />
               <NextAction count={remedyCounts.sizes} label="items are unsized" hint="model proposes, policy clamps" onClick={() => navigate('proposals')} />

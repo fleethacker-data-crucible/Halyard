@@ -17,11 +17,11 @@ param(
     [ValidateRange(0.0, 0.5)][double]$DefectRate = 0.2,
     [switch]$NoNativeLinks,
     [string]$CatalogPath,
-    [switch]$NoArc
+    [Alias('NoArc')][switch]$NoLazarette   # -NoArc: former name, accepted for one release
 )
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '..\module\Halyard\Halyard.psd1') -Force
-$p = @{ Total = $Total; Seed = $Seed; IncludeDefects = $IncludeDefects; DefectRate = $DefectRate; NoNativeLinks = $NoNativeLinks; UseArc = $(if ($NoArc) { 'Never' } else { 'Auto' }) }
+$p = @{ Total = $Total; Seed = $Seed; IncludeDefects = $IncludeDefects; DefectRate = $DefectRate; NoNativeLinks = $NoNativeLinks; UseLazarette = $(if ($NoLazarette) { 'Never' } else { 'Auto' }) }
 if ($RunId) { $p['RunId'] = $RunId }
 if ($CatalogPath) { $p['CatalogPath'] = $CatalogPath }
 if ($WhatIfPreference) { $p['WhatIf'] = $true }

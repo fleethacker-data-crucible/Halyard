@@ -1,7 +1,7 @@
 #requires -Version 5.1
 # Halyard PowerShell module: a thin shell around Halyard.Core.dll. All logic (providers, write gateway,
 # analysis, synthetic sandbox, local host) lives in the DLL; PowerShell handles what only it can do on the
-# workstation: reading halyard.env, the Lazarette (formerly ARC) unlock in the console, and launching the browser.
+# workstation: reading halyard.env, the Lazarette unlock in the console, and launching the browser.
 Set-StrictMode -Version 3.0
 
 . (Join-Path $PSScriptRoot 'Lazarette.ps1')
@@ -9,7 +9,7 @@ Set-StrictMode -Version 3.0
 $script:HalyardCoreLoaded = $false
 
 function Get-HalyardSetting {
-    <# Process environment value of HALYARD_<Suffix>, else the former CASCADE_<Suffix>; $null when neither is set. #>
+    <# Process environment value of HALYARD_<Suffix>, else the former CASCADE_<Suffix> (fallback kept for one release); $null when neither is set. #>
     param([Parameter(Mandatory)][string]$Suffix)
     foreach ($n in @(('HALYARD_' + $Suffix), ('CASCADE_' + $Suffix))) {
         $v = [Environment]::GetEnvironmentVariable($n, 'Process')
@@ -19,12 +19,15 @@ function Get-HalyardSetting {
 }
 
 function Get-HalyardEnvFile {
-    <# config\halyard.env, or the former config\cascade.env when only that one exists. #>
+    <#
+      config\halyard.env. On the first launch after the rename, a config\cascade.env is copied forward to it once
+      (variable names updated, the original left untouched) by Halyard.Core before this returns.
+    #>
     param([Parameter(Mandatory)][string]$Root)
-    $current = Join-Path $Root 'config\halyard.env'
-    $legacy = Join-Path $Root 'config\cascade.env'
-    if (-not (Test-Path -LiteralPath $current) -and (Test-Path -LiteralPath $legacy)) { return $legacy }
-    return $current
+    if ([Halyard.Core.Facade]::MigrateLegacyEnvFile($Root)) {
+        Write-Host 'Copied config\cascade.env to config\halyard.env (first launch after the rename; the old file is unchanged).' -ForegroundColor DarkGray
+    }
+    return (Join-Path $Root 'config\halyard.env')
 }
 
 function Get-HalyardRoot {
@@ -102,17 +105,16 @@ function Get-HalyardGitHubCliToken {
 function Initialize-HalyardEnvironment {
     <#
     .SYNOPSIS
-      Loads config\halyard.env (or the former config\cascade.env) into the process environment, resolves tokens,
-      and returns HalyardSettings.
-    .PARAMETER UseArc
-      Auto (default): unlock Lazarette only for the GitLab provider or when HALYARD_USE_LAZARETTE=1 (former name
-      CASCADE_USE_ARC=1). Always / Never override.
+      Loads config\halyard.env into the process environment (copying a former config\cascade.env forward once),
+      resolves tokens, and returns HalyardSettings.
+    .PARAMETER UseLazarette
+      Auto (default): unlock Lazarette only for the GitLab provider or when HALYARD_USE_LAZARETTE=1. Always / Never override.
     #>
     [CmdletBinding()]
     param(
         [string]$Root = (Get-HalyardRoot),
         [string]$EnvFile,
-        [ValidateSet('Auto', 'Always', 'Never')][string]$UseArc = 'Auto'
+        [ValidateSet('Auto', 'Always', 'Never')][Alias('UseArc')][string]$UseLazarette = 'Auto'
     )
     Import-HalyardCore -Root $Root
     if (-not $EnvFile) { $EnvFile = Get-HalyardEnvFile -Root $Root }
@@ -121,16 +123,16 @@ function Initialize-HalyardEnvironment {
 
     $providerSetting = Get-HalyardSetting 'PROVIDER'
     $provider = if ($providerSetting) { $providerSetting.ToLowerInvariant() } else { 'github' }
-    $useVault = (Get-HalyardSetting 'USE_LAZARETTE') -eq '1' -or (Get-HalyardSetting 'USE_ARC') -eq '1'
-    $arc = $null
-    $wantArc = ($UseArc -eq 'Always') -or ($UseArc -eq 'Auto' -and ($provider -eq 'gitlab' -or $useVault))
-    if ($wantArc) { $arc = Connect-HalyardLazarette -HalyardRoot $Root }
+    $useVault = (Get-HalyardSetting 'USE_LAZARETTE') -eq '1' -or $env:CASCADE_USE_ARC -eq '1'   # former name, one release
+    $vault = $null
+    $wantVault = ($UseLazarette -eq 'Always') -or ($UseLazarette -eq 'Auto' -and ($provider -eq 'gitlab' -or $useVault))
+    if ($wantVault) { $vault = Connect-HalyardLazarette -HalyardRoot $Root }
     if ($provider -eq 'github' -and [string]::IsNullOrWhiteSpace($env:GITHUB_TOKEN) -and [string]::IsNullOrWhiteSpace($env:GH_TOKEN)) {
         $t = Get-HalyardGitHubCliToken
         if ($t) { [Environment]::SetEnvironmentVariable('GITHUB_TOKEN', $t, 'Process'); Write-Verbose 'Using the GitHub CLI token.' }
     }
     $settings = [Halyard.Core.Facade]::SettingsFromEnvironment($Root)
-    return [pscustomobject]@{ Settings = $settings; Arc = $arc; Provider = $provider; EnvFile = $EnvFile; EnvApplied = $applied }
+    return [pscustomobject]@{ Settings = $settings; Lazarette = $vault; Provider = $provider; EnvFile = $EnvFile; EnvApplied = $applied }
 }
 
 function Find-HalyardWebRoot {
@@ -156,20 +158,20 @@ function Start-Halyard {
         [int]$Port = 0,
         [switch]$NoBrowser,
         [switch]$KeepConsole,
-        [ValidateSet('Auto', 'Always', 'Never')][string]$UseArc = 'Auto',
+        [ValidateSet('Auto', 'Always', 'Never')][Alias('UseArc')][string]$UseLazarette = 'Auto',
         [string]$WebRoot,
         [bool]$AutoStop = $true
     )
-    $envInfo = Initialize-HalyardEnvironment -Root $Root -UseArc $UseArc
+    $envInfo = Initialize-HalyardEnvironment -Root $Root -UseLazarette $UseLazarette
     $settings = $envInfo.Settings
     if (-not $WebRoot) { $WebRoot = Find-HalyardWebRoot -Root $Root }
     if (-not $WebRoot) { Write-Warning 'No built UI found (web\dist). The engine will run; build the UI with build\Build-Halyard.ps1.' }
     $launcher = New-Object 'System.Collections.Generic.Dictionary[string,object]'
     $launcher['powershell'] = $PSVersionTable.PSVersion.ToString()
     $launcher['edition'] = $PSVersionTable.PSEdition
-    if ($envInfo.Arc) {
-        $launcher['arcUnlocked'] = [bool]$envInfo.Arc.Unlocked
-        if ($envInfo.Arc.Error) { $launcher['arcError'] = $envInfo.Arc.Error }
+    if ($envInfo.Lazarette) {
+        $launcher['lazaretteUnlocked'] = [bool]$envInfo.Lazarette.Unlocked
+        if ($envInfo.Lazarette.Error) { $launcher['lazaretteError'] = $envInfo.Lazarette.Error }
     }
     $preferred = if ($Port -gt 0) { $Port } else { $settings.PreferredPort }
     $autoStop = $AutoStop -and $settings.AutoStop
@@ -181,11 +183,11 @@ function Start-Halyard {
     if ($autoStop) { Write-Host '  It stops by itself when the browser tab closes (--stay keeps it running). "End session" in the browser also stops it.' -ForegroundColor DarkGray }
     else { Write-Host '  Use "End session" in the browser or scripts\Stop-Halyard.ps1 to stop it. Closing this window also stops it.' -ForegroundColor DarkGray }
     if ($NoBrowser) { Write-Host ('  Session link (open once): ' + $info.LaunchUrl) -ForegroundColor DarkGray } else { Start-Process $info.LaunchUrl }
-    $arcFailed = $envInfo.Arc -and -not $envInfo.Arc.Unlocked
-    if (-not $KeepConsole -and -not $arcFailed) {
+    $vaultFailed = $envInfo.Lazarette -and -not $envInfo.Lazarette.Unlocked
+    if (-not $KeepConsole -and -not $vaultFailed) {
         Start-Sleep -Milliseconds 800
         [void][Halyard.Core.Facade]::SetConsoleVisible($false)
-    } elseif ($arcFailed) {
+    } elseif ($vaultFailed) {
         Write-Host 'Console kept open because Lazarette did not unlock.' -ForegroundColor Yellow
     }
     try {
@@ -199,8 +201,8 @@ function Start-Halyard {
 
 function Test-HalyardConnection {
     [CmdletBinding()]
-    param([string]$Root = (Get-HalyardRoot), [ValidateSet('Auto', 'Always', 'Never')][string]$UseArc = 'Auto')
-    $s = (Initialize-HalyardEnvironment -Root $Root -UseArc $UseArc).Settings
+    param([string]$Root = (Get-HalyardRoot), [ValidateSet('Auto', 'Always', 'Never')][Alias('UseArc')][string]$UseLazarette = 'Auto')
+    $s = (Initialize-HalyardEnvironment -Root $Root -UseLazarette $UseLazarette).Settings
     $id = [Halyard.Core.Facade]::TestConnection($s)
     [pscustomobject]@{ Provider = $s.Provider.Kind; Login = $id.Login; Api = $id.ApiBase; Source = $s.Provider.SourceRepository; Sandbox = $s.Provider.SandboxRepository }
 }
@@ -236,9 +238,9 @@ function Invoke-HalyardSeed {
         [ValidateRange(0.0, 0.5)][double]$DefectRate = 0.2,
         [switch]$NoNativeLinks,
         [string]$CatalogPath,
-        [ValidateSet('Auto', 'Always', 'Never')][string]$UseArc = 'Auto'
+        [ValidateSet('Auto', 'Always', 'Never')][Alias('UseArc')][string]$UseLazarette = 'Auto'
     )
-    $s = (Initialize-HalyardEnvironment -UseArc $UseArc).Settings
+    $s = (Initialize-HalyardEnvironment -UseLazarette $UseLazarette).Settings
     $target = $s.Provider.Kind.ToString() + ':' + $s.Provider.SandboxRepository
     if (-not $PSCmdlet.ShouldProcess($target, "Create $Total synthetic work items")) { return }
     $progress = [Action[string]] { param($m) Write-Host ('  ' + $m) -ForegroundColor DarkGray }
@@ -271,9 +273,9 @@ function Invoke-HalyardTeardown {
         [Parameter(Mandatory, ParameterSetName = 'Everything')][switch]$Everything,
         [Parameter(ParameterSetName = 'Everything')][string]$ConfirmText,
         [switch]$DryRun,
-        [ValidateSet('Auto', 'Always', 'Never')][string]$UseArc = 'Auto'
+        [ValidateSet('Auto', 'Always', 'Never')][Alias('UseArc')][string]$UseLazarette = 'Auto'
     )
-    $s = (Initialize-HalyardEnvironment -UseArc $UseArc).Settings
+    $s = (Initialize-HalyardEnvironment -UseLazarette $UseLazarette).Settings
     $scope = switch ($PSCmdlet.ParameterSetName) { 'All' { 'allSynthetic' } 'Everything' { 'everything' } default { 'run' } }
     $target = $s.Provider.Kind.ToString() + ':' + $s.Provider.SandboxRepository
     $what = switch ($scope) { 'run' { "Delete synthetic items of run $RunId" } 'allSynthetic' { 'Delete every synthetic item' } default { 'Delete EVERY item' } }
@@ -289,8 +291,8 @@ function Invoke-HalyardTeardown {
 function Get-HalyardWorkItem {
     <# Lists work items from the source (default) or sandbox repository as provider-agnostic objects. #>
     [CmdletBinding()]
-    param([ValidateSet('source', 'sandbox')][string]$Repository = 'source', [int]$Max = 200, [ValidateSet('Auto', 'Always', 'Never')][string]$UseArc = 'Auto')
-    $s = (Initialize-HalyardEnvironment -UseArc $UseArc).Settings
+    param([ValidateSet('source', 'sandbox')][string]$Repository = 'source', [int]$Max = 200, [ValidateSet('Auto', 'Always', 'Never')][Alias('UseArc')][string]$UseLazarette = 'Auto')
+    $s = (Initialize-HalyardEnvironment -UseLazarette $UseLazarette).Settings
     foreach ($w in [Halyard.Core.Facade]::ListWorkItems($s, $Repository, $Max)) {
         [pscustomobject]@{
             Number = $w.Number; Type = $w.Type; Id = $w.CanonicalId; Parent = $w.ParentId; Title = $w.Title; State = $w.State
@@ -301,6 +303,3 @@ function Get-HalyardWorkItem {
 
 Export-ModuleMember -Function Get-HalyardRoot, Import-HalyardCore, Initialize-HalyardEnvironment, Connect-HalyardLazarette, Start-Halyard, Test-HalyardConnection, New-HalyardSyntheticCatalog, Invoke-HalyardSeed, Invoke-HalyardTeardown, Get-HalyardWorkItem
 
-# Former command name (the vault was called ARC); kept so existing scripts keep working.
-Set-Alias -Name Connect-HalyardArc -Value Connect-HalyardLazarette
-Export-ModuleMember -Alias Connect-HalyardArc

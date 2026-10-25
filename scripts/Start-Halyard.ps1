@@ -1,11 +1,11 @@
 #requires -Version 5.1
 <#
 .SYNOPSIS
-  Starts Halyard: loads config\halyard.env, unlocks Lazarette (formerly ARC) in this console when the provider needs it,
+  Starts Halyard: loads config\halyard.env, unlocks Lazarette in this console when the provider needs it,
   starts the local engine on 127.0.0.1 and opens the browser. Launch-Halyard.bat calls this.
 .PARAMETER KeepConsole
   Leave this window visible (useful for diagnosing Lazarette or startup problems). Also: Launch-Halyard.bat --console
-.PARAMETER NoArc
+.PARAMETER NoLazarette
   Never load Lazarette, even for GitLab (local development with GITLAB_TOKEN in halyard.env).
 .PARAMETER Stay
   Keep the engine running after the browser tab closes (by default it stops itself when the tab is gone).
@@ -18,8 +18,8 @@ param(
     [int]$Port = 0,
     [switch]$NoBrowser,
     [switch]$KeepConsole,
-    [switch]$NoArc,
-    [switch]$Arc,
+    [Alias('NoArc')][switch]$NoLazarette,   # -NoArc / -Arc: former names, accepted for one release
+    [Alias('Arc')][switch]$Lazarette,
     [switch]$Stay,
     [switch]$Replace,
     [string]$WebRoot,
@@ -29,8 +29,8 @@ $ErrorActionPreference = 'Stop'
 foreach ($a in @($Rest)) {
     switch -Regex ($a) {
         '^--?console$' { $KeepConsole = $true }
-        '^--?no-(arc|lazarette)$' { $NoArc = $true }
-        '^--?(arc|lazarette)$' { $Arc = $true }
+        '^--?no-(lazarette|arc)$' { $NoLazarette = $true }   # --no-arc / --arc: former flags (old shortcuts), one release
+        '^--?(lazarette|arc)$' { $Lazarette = $true }
         '^--?no-browser$' { $NoBrowser = $true }
         '^--?stay$' { $Stay = $true }
         '^--?replace$' { $Replace = $true }
@@ -52,9 +52,9 @@ if ($running.Count -gt 0) {
         exit 0
     }
 }
-$useArc = if ($NoArc) { 'Never' } elseif ($Arc) { 'Always' } else { 'Auto' }
+$useVault = if ($NoLazarette) { 'Never' } elseif ($Lazarette) { 'Always' } else { 'Auto' }
 try {
-    $params = @{ Port = $Port; NoBrowser = $NoBrowser; KeepConsole = $KeepConsole; UseArc = $useArc; AutoStop = (-not $Stay) }
+    $params = @{ Port = $Port; NoBrowser = $NoBrowser; KeepConsole = $KeepConsole; UseLazarette = $useVault; AutoStop = (-not $Stay) }
     if ($WebRoot) { $params['WebRoot'] = $WebRoot }
     Start-Halyard @params
 } catch {
