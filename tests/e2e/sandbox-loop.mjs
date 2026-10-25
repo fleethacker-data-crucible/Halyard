@@ -16,7 +16,7 @@ if (!base || !token) {
   process.exit(2);
 }
 const total = Number(totalArg ?? 30);
-const H = { 'X-Cascade-Session': token, 'Content-Type': 'application/json' };
+const H = { 'X-Halyard-Session': token, 'Content-Type': 'application/json' };
 
 async function call(method, path, body) {
   const r = await fetch(base + path, { method, headers: H, body: body === undefined ? undefined : JSON.stringify(body) });
@@ -196,7 +196,7 @@ if (fakeUrl) {
 }
 
 const writes = await call('GET', '/api/writes');
-assert(writes.entries.length > 0 && writes.entries.every((w) => w.target.endsWith('cascade-sandbox')), `${writes.entries.length} audited writes, all to the sandbox`);
+assert(writes.entries.length > 0 && writes.entries.every((w) => w.target.endsWith('Halyard-Ballast')), `${writes.entries.length} audited writes, all to the sandbox`);
 
 if (keep) {
   console.log(`kept run ${runId}; delete it later with: Invoke-SandboxTeardown.ps1 -RunId ${runId}`);
@@ -211,7 +211,7 @@ assert(td.deleted === total, `teardown deleted ${td.deleted}/${total}`);
 const blocked = await fetch(base + '/api/sandbox/teardown', { method: 'POST', headers: H, body: JSON.stringify({ scope: 'everything', confirmText: 'yes please' }) });
 assert(blocked.status === 403, 'wipe without the confirmation phrase is refused');
 if (fakeUrl) {
-  const wipe = await waitJob(await call('POST', '/api/sandbox/teardown', { scope: 'everything', confirmText: 'DELETE sun-of-anton/cascade-sandbox' }), 'wipe');
+  const wipe = await waitJob(await call('POST', '/api/sandbox/teardown', { scope: 'everything', confirmText: 'DELETE sun-of-anton/Halyard-Ballast' }), 'wipe');
   assert(wipe.deleted >= 4, `wipe with the phrase removed the ${wipe.deleted} remaining (intake) items`);
 }
 

@@ -1,6 +1,6 @@
 {
   "version": "1",
-  "source": "Synapse capability taxonomy (13 domains x 8 skills); ids are the slugs Synapse peer cards use",
+  "source": "Shellback capability taxonomy (13 domains x 8 skills); ids are the slugs Shellback peer cards use",
   "domains": [
     {
       "id": "data-engineering",

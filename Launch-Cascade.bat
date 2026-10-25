@@ -1,5 +1,4 @@
 @echo off
-rem Starts Cascade in the browser. Options: --console (keep this window), --no-arc, --arc, --no-browser, --stay (keep running after the tab closes), --replace
-setlocal
-powershell.exe -STA -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\Start-Cascade.ps1" %*
-endlocal
+rem Former name of Launch-Halyard.bat (Cascade is now Halyard). Kept so existing shortcuts and the old
+rem Update-Cascade.bat keep working; it forwards every option.
+call "%~dp0Launch-Halyard.bat" %*

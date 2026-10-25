@@ -1,7 +1,7 @@
 # Local app lifecycle standard
 
-Applies to every product in this family that runs a local engine and a browser UI (Cascade, Synapse,
-Arc, and whatever comes next). A loopback app that keeps running after its tab closes is a defect:
+Applies to every product in this family that runs a local engine and a browser UI (Halyard, Shellback,
+Lazarette, and whatever comes next). A loopback app that keeps running after its tab closes is a defect:
 it hides from the user, holds its DLLs and ports, breaks the next build, and warms the CPU for nothing.
 
 ## Requirements
@@ -27,24 +27,24 @@ it hides from the user, holds its DLLs and ports, breaks the next build, and war
 8. **An off switch.** `<APP>_AUTO_STOP=0` in the env file disables auto-stop for machines or sessions
    where it gets in the way.
 
-## Reference implementation (Cascade)
+## Reference implementation (Halyard)
 
 | Piece | Where |
 |---|---|
 | Heartbeat + leaving beacon (keepalive fetch, `pagehide`, `visibilitychange`) | `web/src/lib/api.ts` `startHeartbeat`, mounted once in `app.tsx` |
-| Presence rule, timer, `POST /api/heartbeat` | `src/Cascade.Core/Host/CascadeHost.cs` (`RecordPresence`, `BrowserGone`, `PresenceTick`), `ApiRoutes.cs` |
-| Options and env | `HostOptions.AutoStop/HeartbeatTimeout/LeavingGrace`, `CASCADE_AUTO_STOP` |
-| Process discovery and stop | `scripts/Cascade-Process.ps1` (`Get-CascadeProcesses`, `Stop-CascadeProcesses`), `scripts/Stop-Cascade.ps1` |
-| Launcher guard, `--stay`, `--replace` | `scripts/Start-Cascade.ps1` |
-| Build stops the app | `build/Build-Cascade.ps1` |
+| Presence rule, timer, `POST /api/heartbeat` | `src/Halyard.Core/Host/HalyardHost.cs` (`RecordPresence`, `BrowserGone`, `PresenceTick`), `ApiRoutes.cs` |
+| Options and env | `HostOptions.AutoStop/HeartbeatTimeout/LeavingGrace`, `HALYARD_AUTO_STOP` |
+| Process discovery and stop | `scripts/Halyard-Process.ps1` (`Get-HalyardProcesses`, `Stop-HalyardProcesses`), `scripts/Stop-Halyard.ps1` |
+| Launcher guard, `--stay`, `--replace` | `scripts/Start-Halyard.ps1` |
+| Build stops the app | `build/Build-Halyard.ps1` |
 | Test of the rule | `HostTests.EngineStopsItselfOnlyAfterTheBrowserIsGone` |
 
 ## Notes for the other stacks
 
-- **Synapse** serves static files from a PowerShell loopback server and keeps its console visible, so
+- **Shellback** serves static files from a PowerShell loopback server and keeps its console visible, so
   Ctrl+C works today. Items 1, 5, 6 and 7 still apply: a hidden or forgotten console is the same defect,
   and the build/serve scripts should stop a running server before replacing `dist\`.
-- **Arc** (`pm.ps1`, `Start.ps1`) runs a GUI and a loopback UI; apply the same heartbeat so closing the
+- **Lazarette** (formerly ARC; `Start.ps1`) runs a GUI and a loopback UI; apply the same heartbeat so closing the
   tab closes the app, keep the vault's own lock-on-idle rules as they are.
 - The periodic heartbeat is a normal `fetch` with the session header. The unload signal is
   `navigator.sendBeacon` (a keepalive fetch is dropped by some browsers during unload); it cannot set

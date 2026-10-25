@@ -72,7 +72,7 @@ function DraftView({ id }: { id: string }) {
       title={d ? `Portfolio vision · ${new Date(d.createdAt).toLocaleDateString()}` : 'Draft'}
       aside={d ? <>
         {d.proposalBatchId ? <Button size="sm" onClick={() => navigate('proposals', { batch: d.proposalBatchId! })}>Theme proposals</Button> : null}
-        <Button size="sm" variant="quiet" onClick={() => downloadText(`cascade-vision-${d.id}.md`, d.markdown, 'text/markdown')}><LuDownload size={13} />Markdown</Button>
+        <Button size="sm" variant="quiet" onClick={() => downloadText(`halyard-vision-${d.id}.md`, d.markdown, 'text/markdown')}><LuDownload size={13} />Markdown</Button>
       </> : null}
     >
       {draft.error ? <Notice tone="err" className="m-4">{draft.error}</Notice> : !d ? <Skeleton rows={10} /> : (

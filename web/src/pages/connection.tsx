@@ -61,7 +61,7 @@ export function ConnectionPage({ status, refreshStatus }: { status: Status | und
               <dt className="text-ink-2">Token</dt><dd>{status?.config.hasProviderToken ? <Pill tone="ok">loaded in memory</Pill> : <Pill tone="warn">missing</Pill>}</dd>
               <dt className="text-ink-2">Write policy</dt><dd className="text-ink-2">{status?.policy.description}</dd>
             </dl>
-            {!status?.config.hasProviderToken ? <Notice tone="warn">{status?.config.provider === 'gitlab' ? 'Unlock the ARC vault from the launcher, or set GITLAB_TOKEN in config/cascade.env for local development.' : 'Set GITHUB_TOKEN in config/cascade.env, or run "gh auth login" before launching; the launcher reads the gh token.'}</Notice> : null}
+            {!status?.config.hasProviderToken ? <Notice tone="warn">{status?.config.provider === 'gitlab' ? 'Unlock the Lazarette vault from the launcher, or set GITLAB_TOKEN in config/halyard.env for local development.' : 'Set GITHUB_TOKEN in config/halyard.env, or run "gh auth login" before launching; the launcher reads the gh token.'}</Notice> : null}
             <div className="flex items-center gap-3">
               <Button variant="primary" onClick={runTest} busy={testing} disabled={!status?.config.hasProviderToken}><LuPlug size={14} />Test connection</Button>
               {status?.provider.identity ? <span className="text-ink-2">Last confirmed as <span className="text-ink">{status.provider.identity.login}</span></span> : status?.provider.error ? <span className="text-err">{status.provider.error}</span> : null}
@@ -81,7 +81,7 @@ export function ConnectionPage({ status, refreshStatus }: { status: Status | und
 
         <Section title="Snapshot">
           <div className="flex flex-col gap-3 px-4 py-3">
-            {status?.snapshot ? <p className="text-ink-2">Current snapshot: {status.snapshot.count} items from <Mono>{status.snapshot.repository}</Mono>, taken {relativeTime(status.snapshot.takenAt)}.</p> : <p className="text-ink-2">No snapshot yet. Everything in Cascade reads from a snapshot, so take one first.</p>}
+            {status?.snapshot ? <p className="text-ink-2">Current snapshot: {status.snapshot.count} items from <Mono>{status.snapshot.repository}</Mono>, taken {relativeTime(status.snapshot.takenAt)}.</p> : <p className="text-ink-2">No snapshot yet. Everything in Halyard reads from a snapshot, so take one first.</p>}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Repository to read">
                 <Select value={which} onChange={(e) => setWhich(e.target.value as typeof which)}>
