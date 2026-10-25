@@ -1,6 +1,7 @@
-// Thin client for the Cascade host. Every /api call carries the per-session token the launcher
+// Thin client for the Halyard host. Every /api call carries the per-session token the launcher
 // put in the URL once; nothing else on the machine can talk to the host without it.
 
+// sessionStorage key kept from before the rename (Cascade -> Halyard); it only lives for the tab.
 const TOKEN_KEY = 'cascade.session';
 
 export class ApiError extends Error {
@@ -38,7 +39,7 @@ export async function api<T = unknown>(path: string, init: RequestInit & { json?
   const headers = new Headers(init.headers ?? {});
   headers.set('Accept', 'application/json');
   const token = sessionToken();
-  if (token) headers.set('X-Cascade-Session', token);
+  if (token) headers.set('X-Halyard-Session', token);
   let body = init.body;
   if (init.json !== undefined) {
     headers.set('Content-Type', 'application/json');
@@ -67,7 +68,7 @@ export const get = <T,>(path: string) => api<T>(path);
 export async function getText(path: string): Promise<string> {
   const headers = new Headers();
   const token = sessionToken();
-  if (token) headers.set('X-Cascade-Session', token);
+  if (token) headers.set('X-Halyard-Session', token);
   const response = await fetch(path, { headers, cache: 'no-store' });
   const text = await response.text();
   if (!response.ok) {
@@ -97,7 +98,7 @@ export function startHeartbeat(intervalMs = 5000): () => void {
     try {
       void fetch('/api/heartbeat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Cascade-Session': token },
+        headers: { 'Content-Type': 'application/json', 'X-Halyard-Session': token },
         body: JSON.stringify({ leaving }),
         keepalive: true,
       }).catch(() => {});

@@ -1,8 +1,8 @@
 {
-  "name": "cascade-web",
+  "name": "halyard-web",
   "private": true,
   "version": "1.0.0",
-  "description": "Cascade browser UI. Built to static files; served by the Cascade host on 127.0.0.1. No runtime network access.",
+  "description": "Halyard browser UI. Built to static files; served by the Halyard host on 127.0.0.1. No runtime network access.",
   "type": "module",
   "scripts": {
     "build": "node build.mjs",

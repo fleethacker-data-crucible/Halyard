@@ -29,9 +29,9 @@ jobs:
       - name: Core build and tests (net8.0 + net48)
         shell: powershell
         run: |
-          dotnet build Cascade.sln -c Release --nologo
+          dotnet build Halyard.sln -c Release --nologo
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          dotnet test Cascade.sln -c Release --no-build --nologo --logger "trx;LogFileName=core.trx" --results-directory TestResults
+          dotnet test Halyard.sln -c Release --no-build --nologo --logger "trx;LogFileName=core.trx" --results-directory TestResults
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: UI typecheck, tests, build
@@ -91,12 +91,12 @@ jobs:
 
       - name: Assemble bundle
         shell: powershell
-        run: .\build\Build-Cascade.ps1 -SkipTests -SkipWeb
+        run: .\build\Build-Halyard.ps1 -SkipTests -SkipWeb
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cascade-${{ github.sha }}
+          name: halyard-${{ github.sha }}
           path: |
             dist/*.zip
             TestResults/

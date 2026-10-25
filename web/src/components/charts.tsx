@@ -6,11 +6,11 @@ import { LEVELS, LEVEL_PLURAL, levelVar } from '../lib/levels';
 import type { LevelToken } from '../lib/schemas';
 
 /**
- * The signature chart: hierarchy levels as a cascade. Each level sits one step further right and
+ * The signature chart: hierarchy levels as a staircase. Each level sits one step further right and
  * one hue lighter than its parent, and the bar length is the count. Read top to bottom it says
  * "two lanes, six initiatives, eighteen capabilities, fifty sprint slices, twenty-four tasks".
  */
-export function CascadeBars({ counts, onSelect }: { counts: Record<string, number>; onSelect?: (level: LevelToken) => void }) {
+export function LevelBars({ counts, onSelect }: { counts: Record<string, number>; onSelect?: (level: LevelToken) => void }) {
   const max = Math.max(1, ...LEVELS.map((l) => counts[l] ?? 0));
   const unclassified = counts['UNCLASSIFIED'] ?? 0;
   const bugs = counts['BUG'] ?? 0;
@@ -29,7 +29,7 @@ export function CascadeBars({ counts, onSelect }: { counts: Record<string, numbe
           >
             <span className="text-ink-2 group-hover:text-ink">{LEVEL_PLURAL[level]}</span>
             <span className="h-[18px] w-full overflow-hidden rounded-[3px] bg-surface-2">
-              <span className="cascade-reveal block h-full origin-left rounded-[3px]" style={{ width: `${width}%`, background: levelVar(level), animationDelay: `${i * 60}ms` }} />
+              <span className="halyard-reveal block h-full origin-left rounded-[3px]" style={{ width: `${width}%`, background: levelVar(level), animationDelay: `${i * 60}ms` }} />
             </span>
             <span className="num text-right font-semibold">{n}</span>
           </button>

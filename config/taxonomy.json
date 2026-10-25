@@ -72,7 +72,7 @@
       "id": "THEME-process-improvement",
       "title": "THEME :: Process Improvement",
       "area": "cascade",
-      "purpose": "Agile operating system, Cascade agent, delivery process",
+      "purpose": "Agile operating system, Halyard agent, delivery process",
       "status": "Active"
     },
     {
@@ -149,7 +149,7 @@
   "seed_epics": [
     {
       "id": "EPIC-cascade-agentic-backlog",
-      "title": "EPIC :: Cascade Agentic Backlog Operator",
+      "title": "EPIC :: Halyard Agentic Backlog Operator",
       "theme": "THEME-process-improvement",
       "outcome": "Deliver an AI-native Agile operator on GitLab so the team can intake, structure, and track work with sandbox-safe automation and clear hierarchy.",
       "success_picture": [

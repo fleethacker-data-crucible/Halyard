@@ -2,6 +2,7 @@
 // throw (private windows, cleared site data), so every access is guarded and the UI never depends on it.
 import { useCallback, useState } from 'react';
 
+// Kept from before the rename (Cascade -> Halyard): renaming the prefix would orphan what viewers already saved.
 const PREFIX = 'cascade.';
 
 export function readLocal<T>(key: string, fallback: T): T {

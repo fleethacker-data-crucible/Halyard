@@ -34,7 +34,7 @@ export function SettingsPage({ status, refreshStatus }: { status: Status | undef
       const r = await post<{ remembered?: boolean }>('/api/config', body);
       invalidate('/api/');
       await refreshStatus();
-      toast.push('ok', okText + (r.remembered ? ' Remembered in config/cascade.env.' : ''));
+      toast.push('ok', okText + (r.remembered ? ' Remembered in config/halyard.env.' : ''));
       return true;
     } catch (e) {
       toast.push('err', describeError(e));
@@ -61,7 +61,7 @@ export function SettingsPage({ status, refreshStatus }: { status: Status | undef
   const openai = c?.llmProfiles.find((p) => p.profile === 'openai');
 
   return (
-    <Page title="Settings" lede="Session settings for the local engine. The model key, model name, profile and label filter can change here; repositories, endpoints, write mode and provider tokens come only from the launcher and config/cascade.env.">
+    <Page title="Settings" lede="Session settings for the local engine. The model key, model name, profile and label filter can change here; repositories, endpoints, write mode and provider tokens come only from the launcher and config/halyard.env.">
       <div className="grid gap-5 xl:grid-cols-2">
         <div className="flex flex-col gap-5">
           <Section title="Model API key" aside={openai?.configured ? <Pill tone="ok">key loaded</Pill> : <Pill tone="warn">no key</Pill>}>
@@ -78,7 +78,7 @@ export function SettingsPage({ status, refreshStatus }: { status: Status | undef
               </Field>
               <dl className="grid grid-cols-[120px_1fr] gap-y-1 text-[12.5px]">
                 <dt className="text-ink-2">Resolved</dt><dd>{c?.llmResolvedProfile} · <Mono>{c?.llmModel || '(no model)'}</Mono></dd>
-                <dt className="text-ink-2">Endpoint</dt><dd><Mono>{c?.llmUrl || '(not set)'}</Mono> <span className="text-ink-3">· from config/cascade.env only</span></dd>
+                <dt className="text-ink-2">Endpoint</dt><dd><Mono>{c?.llmUrl || '(not set)'}</Mono> <span className="text-ink-3">· from config/halyard.env only</span></dd>
                 <dt className="text-ink-2">Status</dt><dd>{c?.hasLlmToken ? <Pill tone="ok">ready</Pill> : <span className="text-warn">{c?.llmMissing}</span>}</dd>
               </dl>
               <div className="flex items-center gap-3">
@@ -98,7 +98,7 @@ export function SettingsPage({ status, refreshStatus }: { status: Status | undef
                 <dt className="text-ink-2">Sandbox (write)</dt><dd><Mono>{c?.sandboxRepository || '(not set)'}</Mono></dd>
                 {c && c.protectedRepositories.length > 0 ? <><dt className="text-ink-2">Protected</dt><dd><Mono>{c.protectedRepositories.join(', ')}</Mono></dd></> : null}
               </dl>
-              <Notice tone="info">Where Cascade reads, writes and sends tokens is set only in <Mono>config/cascade.env</Mono> (<Mono>CASCADE_PROVIDER</Mono>, <Mono>CASCADE_SOURCE_REPO</Mono>, <Mono>CASCADE_SANDBOX_REPO</Mono>, API URLs). Edit it and relaunch. The browser cannot change these.</Notice>
+              <Notice tone="info">Where Halyard reads, writes and sends tokens is set only in <Mono>config/halyard.env</Mono> (<Mono>HALYARD_PROVIDER</Mono>, <Mono>HALYARD_SOURCE_REPO</Mono>, <Mono>HALYARD_SANDBOX_REPO</Mono>, API URLs). Edit it and relaunch. The browser cannot change these.</Notice>
               <Field label="Default label filter" hint="Exact label; narrows review and hierarchy views. Leave empty for everything."><Input value={labelFilter} onChange={(e) => setLabelFilter(e.target.value)} placeholder="e.g. team::example" /></Field>
               <div className="flex items-center gap-3">
                 <Button variant="primary" onClick={() => void apply({ labelFilter }, 'Label filter applied for this session.')} busy={saving}><LuSave size={14} />Apply</Button>
@@ -107,7 +107,7 @@ export function SettingsPage({ status, refreshStatus }: { status: Status | undef
           </Section>
           <Section title="Environment">
             <div className="px-4 py-3 text-[12.5px] text-ink-2">
-              <p>Write mode is <Pill tone={c?.writeMode === 'production' ? 'production' : 'sandbox'}>{c?.writeMode}</Pill>{c?.allowProduction ? ' with CASCADE_ALLOW_PRODUCTION set' : ''}. Changing it needs a relaunch with a different <Mono>config/cascade.env</Mono>; the browser cannot do it.</p>
+              <p>Write mode is <Pill tone={c?.writeMode === 'production' ? 'production' : 'sandbox'}>{c?.writeMode}</Pill>{c?.allowProduction ? ' with HALYARD_ALLOW_PRODUCTION set' : ''}. Changing it needs a relaunch with a different <Mono>config/halyard.env</Mono>; the browser cannot do it.</p>
               <p className="mt-2">Root <Mono>{c?.rootDirectory}</Mono> · output <Mono>{c?.outputDirectory}</Mono></p>
               <p className="mt-2">Env file <Mono>{c?.envFile}</Mono> {c?.envFileExists ? <Pill tone="neutral">present</Pill> : <Pill tone="neutral">not created yet</Pill>}</p>
               {status?.launcher && Object.keys(status.launcher).length > 0 ? <p className="mt-2">Launcher: {Object.entries(status.launcher).map(([k, v]) => `${k}=${String(v)}`).join(', ')}</p> : null}
@@ -139,12 +139,12 @@ function ApiKeyForm({ config, saving, onApply, onTest, testing }: { config: Stat
   };
 
   const clear = async () => {
-    await onApply({ llmToken: null, remember: true }, 'API key removed from this session and from config/cascade.env.');
+    await onApply({ llmToken: null, remember: true }, 'API key removed from this session and from config/halyard.env.');
   };
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3">
-      <p className="text-[12.5px] text-ink-2">Paste an OpenAI API key (or a key for any OpenAI-compatible endpoint) to power sizing and refinement proposals. It is held in memory for this session and sent only to <Mono>{openai?.url || 'the configured endpoint'}</Mono>; with "remember" ticked it is also written to the git-ignored <Mono>config/cascade.env</Mono> on this machine so the next launch has it.</p>
+      <p className="text-[12.5px] text-ink-2">Paste an OpenAI API key (or a key for any OpenAI-compatible endpoint) to power sizing and refinement proposals. It is held in memory for this session and sent only to <Mono>{openai?.url || 'the configured endpoint'}</Mono>; with "remember" ticked it is also written to the git-ignored <Mono>config/halyard.env</Mono> on this machine so the next launch has it.</p>
       <Field label="API key" hint={openai?.configured ? 'A key is already loaded; pasting a new one replaces it.' : 'sk-…'}>
         <span className="relative block">
           <Input type={show ? 'text' : 'password'} value={key} onChange={(e) => setKey(e.target.value)} placeholder={openai?.configured ? '•••••••••••••••• (loaded)' : 'sk-...'} autoComplete="off" spellCheck={false} className="pr-9" />
@@ -152,10 +152,10 @@ function ApiKeyForm({ config, saving, onApply, onTest, testing }: { config: Stat
         </span>
       </Field>
       <Field label="Model" hint="Any chat model the endpoint serves.">
-        <Input list="cascade-models" value={model} onChange={(e) => setModel(e.target.value)} placeholder="gpt-4o-mini" spellCheck={false} />
-        <datalist id="cascade-models">{MODEL_SUGGESTIONS.map((m) => <option key={m} value={m} />)}</datalist>
+        <Input list="halyard-models" value={model} onChange={(e) => setModel(e.target.value)} placeholder="gpt-4o-mini" spellCheck={false} />
+        <datalist id="halyard-models">{MODEL_SUGGESTIONS.map((m) => <option key={m} value={m} />)}</datalist>
       </Field>
-      <Checkbox label="Remember on this machine (writes LLM_TOKEN and LLM_MODEL to config/cascade.env)" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+      <Checkbox label="Remember on this machine (writes LLM_TOKEN and LLM_MODEL to config/halyard.env)" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
       <div className="flex flex-wrap items-center gap-2">
         <Button variant="primary" onClick={() => void save()} busy={saving} disabled={!key.trim() && (!model.trim() || model.trim() === openai?.model)}><LuKeyRound size={14} />{key.trim() ? 'Use this key' : 'Update model'}</Button>
         <Button onClick={onTest} busy={testing} disabled={!openai?.configured}><LuSparkles size={14} />Test model</Button>
