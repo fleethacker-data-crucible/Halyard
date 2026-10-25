@@ -53,11 +53,11 @@ export function ReviewPage({ params, status }: { params: URLSearchParams; status
   const exportCsv = () => {
     if (!r) return;
     const rows = items.map((i) => ({ number: i.number, id: i.canonicalId, type: i.type, title: i.title, parent: i.parentId ?? '', points: i.points ?? '', effort: i.effort ?? '', sprint: i.sprint ?? '', state: i.state, missingMeta: i.missingMeta, gaps: i.deficiencies, findings: i.findings.map((f) => f.code), url: i.url ?? '' }));
-    downloadText(`cascade-review-${r.snapshot?.id ?? 'snapshot'}.csv`, `# snapshot ${r.snapshot?.id ?? ''} taken ${r.snapshot?.takenAt ?? ''}; exported ${new Date().toISOString()}\r\n` + toCsv(rows, ['number', 'id', 'type', 'title', 'parent', 'points', 'effort', 'sprint', 'state', 'missingMeta', 'gaps', 'findings', 'url']), 'text/csv');
+    downloadText(`halyard-review-${r.snapshot?.id ?? 'snapshot'}.csv`, `# snapshot ${r.snapshot?.id ?? ''} taken ${r.snapshot?.takenAt ?? ''}; exported ${new Date().toISOString()}\r\n` + toCsv(rows, ['number', 'id', 'type', 'title', 'parent', 'points', 'effort', 'sprint', 'state', 'missingMeta', 'gaps', 'findings', 'url']), 'text/csv');
   };
   const exportMarkdown = () => {
     if (!r) return;
-    downloadText(`cascade-review-${r.snapshot?.id ?? 'snapshot'}.md`, reviewPackMarkdown(r, items), 'text/markdown');
+    downloadText(`halyard-review-${r.snapshot?.id ?? 'snapshot'}.md`, reviewPackMarkdown(r, items), 'text/markdown');
   };
   const visibleNumbers = items.map((i) => i.number);
   const allSelected = visibleNumbers.length > 0 && visibleNumbers.every((n) => selected.has(n));
@@ -192,7 +192,7 @@ function BulkActions({ items, status, onClear }: { items: ReviewItem[]; status: 
 /** A readable review pack for a refinement meeting: summary, gaps by code, then every item that needs attention. */
 export function reviewPackMarkdown(r: Review, items: ReviewItem[]): string {
   const lines: string[] = [];
-  lines.push(`# Cascade review pack`);
+  lines.push(`# Halyard review pack`);
   lines.push('');
   lines.push(`Snapshot ${r.snapshot?.id ?? ''} of ${r.snapshot?.repository ?? ''} taken ${r.snapshot?.takenAt ?? ''}${r.labelFilter ? ` (filter ${r.labelFilter})` : ''}. Exported ${new Date().toISOString()}.`);
   lines.push('');

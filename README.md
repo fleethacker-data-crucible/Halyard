@@ -1,32 +1,43 @@
-# Cascade
+<p align="center"><img src="assets/brand/emblem-light.png" width="280" alt="Halyard"></p>
 
-Cascade is a product owner's assistant that works upward and downward from a backlog. It reads one or
-more repositories on GitHub or GitLab, checks every issue against the Theme → Epic → Feature → Story →
-Task model, and proposes the work a product owner would do: raw tickets triaged into the hierarchy
-(intake), missing sections drafted, metadata repaired, parents inferred, sizes estimated, skills tagged,
-sprints planned against team capacity and skills, a portfolio vision drafted for leadership, and a
+# Halyard
+
+A product owner's assistant that works a backlog upward to leadership and downward to stories and tasks.
+
+Halyard reads one or more repositories on GitHub or GitLab, checks every issue against the Theme → Epic →
+Feature → Story → Task model, and proposes the work a product owner would do: raw tickets triaged into the
+hierarchy (intake), missing sections drafted, metadata repaired, parents inferred, sizes estimated, skills
+tagged, sprints planned against team capacity and skills, a portfolio vision drafted for leadership, and a
 one-page leadership dashboard that can go out by email every week. It writes only what you approve, and
-only to a sandbox repository, never anywhere else.
+only to a sandbox repository ([Halyard Ballast](https://github.com/sun-of-anton/Halyard-Ballast) for the
+owner's own runs), never anywhere else.
 
 It runs locally: a PowerShell launcher, one .NET library, and a browser UI on `127.0.0.1`. Nothing is
 installed on the machine and nothing in the browser talks to the internet except through the engine.
+
+## The name
+
+A halyard is the line that raises and lowers a ship's sails; Halyard works upward to leadership and
+downward to stories and tasks. Its sandbox, Halyard Ballast, is the sand carried in the hold to keep the
+ship steady. Formerly Cascade. Upgrading an existing Cascade install needs no edits first: see
+[Upgrading from Cascade](docs/OPERATIONS.md#upgrading-from-cascade).
 
 ## Quick start (GitHub + an OpenAI-compatible model)
 
 ```powershell
 # one-time, on the build machine: .NET 8 SDK, Node.js 20+
-build\Build-Cascade.ps1                       # tests and builds; bundle in dist\Cascade
-copy config\cascade.env.example config\cascade.env
-gh auth login                                 # or set GITHUB_TOKEN in config\cascade.env
-.\Launch-Cascade.bat
+build\Build-Halyard.ps1                       # tests and builds; bundle in dist\Halyard
+copy config\halyard.env.example config\halyard.env
+gh auth login                                 # or set GITHUB_TOKEN in config\halyard.env
+.\Launch-Halyard.bat
 ```
 
-Later updates: double-click `Update-Cascade.bat` (pull, build, launch).
+Later updates: double-click `Update-Halyard.bat` (pull, build, launch).
 
 In the browser:
 
 1. **Settings** → paste your OpenAI API key (held in memory; tick *remember* to keep it in the
-   git-ignored `config\cascade.env`) and test the model.
+   git-ignored `config\halyard.env`) and test the model.
 2. **Sandbox** → seed 100 items: about 80 are complete, 20 carry one of 21 kinds of gap.
 3. **Connection** → synchronize the sandbox.
 4. **Overview** shows what needs doing; **Review** lists every gap with the path that fixes it; select
@@ -37,8 +48,8 @@ In the browser:
 
 ## On a locked-down workstation (GitLab)
 
-Copy `dist\Cascade` across, set `CASCADE_PROVIDER=gitlab`, `GITLAB_URL` and the project ids in
-`config\cascade.env` (see the example file), and run `Launch-Cascade.bat`. If the vault bridge is
+Copy `dist\Halyard` across, set `HALYARD_PROVIDER=gitlab`, `GITLAB_URL` and the project ids in
+`config\halyard.env` (see the example file), and run `Launch-Halyard.bat`. If the vault bridge is
 configured, it asks for CAC + TOTP in the console once; the console then hides. The source project is
 read-only; only the sandbox project can be written.
 
@@ -46,7 +57,7 @@ read-only; only the sandbox project can be written.
 
 | Page | Purpose |
 |---|---|
-| Overview | The cascade of levels, items needing review, sizing coverage, points by theme and sprint, next actions |
+| Overview | The levels of the hierarchy, items needing review, sizing coverage, points by theme and sprint, next actions |
 | Leadership | Feature % complete, velocity, ready backlog, capacity used, open blockers; downloadable HTML report |
 | Vision | Portfolio vision drafted from the backlog (deterministic or model): themes, priorities, risks, next quarter; theme proposals |
 | Intake | Raw tickets from the source repositories copied into the sandbox as classified work items with a source link |
@@ -59,16 +70,16 @@ read-only; only the sandbox project can be written.
 | Diagnostics | Engine log, every write attempt, background jobs |
 | Settings | Model API key and model name; profile; label filter; the configured repositories (read-only) |
 
-PowerShell equivalents: `Invoke-SandboxSeed.ps1`, `Invoke-SandboxTeardown.ps1`, `Send-CascadeReport.ps1`
-(leadership dashboard by Outlook or SMTP), `Register-CascadeReportSchedule.ps1` (weekly task), and the
-`Cascade` module (`Get-CascadeWorkItem`, `Test-CascadeConnection`, `New-CascadeSyntheticCatalog`).
+PowerShell equivalents: `Invoke-SandboxSeed.ps1`, `Invoke-SandboxTeardown.ps1`, `Send-HalyardReport.ps1`
+(leadership dashboard by Outlook or SMTP), `Register-HalyardReportSchedule.ps1` (weekly task), and the
+`Halyard` module (`Get-HalyardWorkItem`, `Test-HalyardConnection`, `New-HalyardSyntheticCatalog`).
 
-## Team, skills and Synapse
+## Team, skills and Shellback
 
 `config/team.json` holds teams, people, points per sprint and the sprint calendar. `config/skills.json`
-is the shared skill taxonomy, using the same ids as [Synapse](https://github.com/sun-of-anton/synapse),
-so exported Synapse peer cards dropped into `config/synapse/` give each person their consented skills and
-confidence without any translation. Cascade only reads those cards; Synapse stays the owner of people,
+is the shared skill taxonomy, using the same ids as [Shellback](https://github.com/sun-of-anton/Shellback),
+so exported Shellback peer cards dropped into `config/shellback/` give each person their consented skills and
+confidence without any translation. Halyard only reads those cards; Shellback stays the owner of people,
 skills and consent.
 
 ## Documentation
@@ -82,9 +93,9 @@ skills and consent.
 
 ## Safety in one paragraph
 
-Writes default to the sandbox repository only. Production needs `CASCADE_WRITE_MODE=production`,
-`CASCADE_ALLOW_PRODUCTION=1` and an explicit opt-in in code, and the browser can change none of them.
+Writes default to the sandbox repository only. Production needs `HALYARD_WRITE_MODE=production`,
+`HALYARD_ALLOW_PRODUCTION=1` and an explicit opt-in in code, and the browser can change none of them.
 Every proposal, including a hand edit, is previewed as a diff and goes through the same gateway.
 Deletes only touch items labelled `cascade-synthetic`, unless you type the wipe phrase. Every write is
 audited. Provider tokens stay in process memory and never reach the browser, logs or transcripts; the
-model key may be entered in the browser but only ever goes to the endpoint named in `config\cascade.env`.
+model key may be entered in the browser but only ever goes to the endpoint named in `config\halyard.env`.
