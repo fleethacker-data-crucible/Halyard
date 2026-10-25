@@ -315,6 +315,7 @@ export const SeedManifest = z.object({
   target: z.string(),
   startedAt: z.string(),
   finishedAt: Nullable(z.string()),
+  deletedAt: Nullable(z.string()).optional(),
   requested: z.number(),
   items: z.array(z.object({ id: z.string(), type: z.string(), parentId: Nullable(z.string()), number: z.number(), key: z.string(), url: Nullable(z.string()), nativeLinked: z.boolean(), defects: z.array(z.string()), expectedCodes: z.array(z.string()) })),
   errors: z.array(z.string()),

@@ -182,7 +182,8 @@ engine alive after the tab closes. The pattern is written up as a standard in
 4. On **Proposals**, open a row to read the before/after diff and the definition-of-ready state after
    applying. Approve or reject; *Apply approved to sandbox*, or *Apply all approved* across batches.
    A batch made by mistake can be deleted. Refused for batches made from a non-sandbox repository.
-5. Re-synchronize to see the result; the gaps close in **Review** and **Overview**.
+5. Every write (apply, intake, seed, delete) re-synchronizes the snapshot by itself as the last step of its
+   job, so the gaps close in **Review** and **Overview** without a trip to **Connection**.
 
 The synthetic sandbox seeds this workflow: with *gaps* on, about a fifth of the items carry one of 21
 kinds of problem (missing sections, missing or invalid sizes, missing or wrong parents, no metadata, ...),
