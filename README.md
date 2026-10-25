@@ -21,6 +21,8 @@ gh auth login                                 # or set GITHUB_TOKEN in config\ca
 .\Launch-Cascade.bat
 ```
 
+Later updates: double-click `Update-Cascade.bat` (pull, build, launch).
+
 In the browser:
 
 1. **Settings** → paste your OpenAI API key (held in memory; tick *remember* to keep it in the

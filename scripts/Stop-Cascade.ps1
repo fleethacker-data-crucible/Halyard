@@ -9,17 +9,20 @@
   Build-Cascade.ps1 calls it before building so the DLL is never locked.
 .PARAMETER Quiet
   Print nothing unless something was stopped.
+.PARAMETER All
+  Also stop every other PowerShell window that has Cascade.Core.dll loaded (seed, teardown, report or
+  test runs left open), which is what blocks a rebuild.
 .EXAMPLE
   .\scripts\Stop-Cascade.ps1
 #>
 [CmdletBinding()]
-param([switch]$Quiet)
+param([switch]$Quiet, [switch]$All)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
 . (Join-Path $PSScriptRoot 'Cascade-Process.ps1')
-$stopped = Stop-CascadeProcesses -Root $root
+$stopped = Stop-CascadeProcesses -Root $root -IncludeHolders:$All
 if ($stopped.Count -gt 0) {
-    foreach ($p in $stopped) { Write-Host ('Stopped Cascade engine (PID ' + $p + ').') -ForegroundColor Yellow }
+    foreach ($p in $stopped) { Write-Host ('Stopped PID ' + $p + '.') -ForegroundColor Yellow }
 } elseif (-not $Quiet) {
     Write-Host 'No Cascade engine is running.' -ForegroundColor DarkGray
 }

@@ -148,6 +148,12 @@ each team's committed share of `pointsPerSprint`. An owner is suggested where so
 story's skills with room left; stories nobody on the team can cover are listed as skill gaps. *Propose*
 turns the plan into sprint-plan proposals, reviewed and applied like any other.
 
+## Updating Cascade
+
+Double-click `Update-Cascade.bat`: it pulls the latest code, builds (stopping any engine or PowerShell
+window that still holds `Cascade.Core.dll`, and saying which), and launches. If the build cannot stop a
+holder because it was opened as administrator, it names the PID and asks you to close that window.
+
 ## Stopping Cascade
 
 The engine stops itself when its browser tab closes (heartbeat; about 20 seconds, never during a running
