@@ -10,6 +10,7 @@ using Cascade.Core.Planning;
 using Cascade.Core.Providers;
 using Cascade.Core.Safety;
 using Cascade.Core.Schema;
+using Cascade.Core.Snapshots;
 using Cascade.Core.Synthetic;
 using Newtonsoft.Json.Linq;
 
@@ -39,13 +40,13 @@ namespace Cascade.Core.Host
             Router.Get("/api/items/{number}", GetItem);
             Router.Get("/api/item", GetItem);
             Router.Get("/api/leadership", r => Task.FromResult(Json.Ok(LeadershipPayload(Query(r, "label")))));
-            Router.Get("/api/leadership/report.html", r => Task.FromResult(HttpResponse.Text(200, DeliveryHtml.Render(BuildDelivery(Query(r, "label"))), "text/html; charset=utf-8")));
+            Router.Get("/api/leadership/report.html", r => Task.FromResult(HttpResponse.Text(200, DeliveryHtml.Render(BuildDelivery(Query(r, "label")), "Cascade Leadership Dashboard", Settings.BrandLogoBase64()), "text/html; charset=utf-8")));
             Router.Get("/api/team", r => Task.FromResult(Json.Ok(TeamPayload())));
 
             Router.Get("/api/sandbox/preview", PreviewCatalog);
             Router.Post("/api/sandbox/seed", StartSeed);
             Router.Post("/api/sandbox/teardown", StartTeardown);
-            Router.Get("/api/sandbox/runs", r => Task.FromResult(Json.Ok(SandboxSeeder.ReadManifests(Settings.SeedsDirectory))));
+            Router.Get("/api/sandbox/runs", r => Task.FromResult(Json.Ok(SandboxSeeder.ReadManifests(Settings.SeedsDirectory, Query(r, "includeDeleted") == "1"))));
 
             Router.Post("/api/intelligence/estimate", StartEstimate);
             Router.Post("/api/intelligence/parents", ParentProposals);
@@ -273,25 +274,67 @@ namespace Cascade.Core.Host
             var provider = GetProvider();
             var job = Jobs.Start("sync", async ctx =>
             {
-                var all = new List<WorkItem>();
-                var done = 0;
-                foreach (var repo in repos)
-                {
-                    ctx.Cancellation.ThrowIfCancellationRequested();
-                    var reader = provider.ForRepository(repo);
-                    var query = new WorkItemQuery { MaxItems = max, State = includeClosed ? (WorkItemState?)null : WorkItemState.Open };
-                    query.Labels.AddRange(labels.Where(l => !string.IsNullOrWhiteSpace(l)));
-                    ctx.Report(done, repos.Count, "Fetching work items from " + repo.Key);
-                    var progress = new Progress<string>(m => ctx.Report(done, repos.Count, repo.Identifier + ": " + m));
-                    var items = await reader.ListWorkItemsAsync(query, progress, ctx.Cancellation).ConfigureAwait(false);
-                    all.AddRange(items);
-                    done++;
-                }
-                var snap = Snapshots.Save(repos, all, labels.Count == 0 ? null : string.Join(",", labels));
-                ctx.Report(repos.Count, repos.Count, "Snapshot " + snap.Id + " saved with " + all.Count + " items from " + repos.Count + " repositor" + (repos.Count == 1 ? "y" : "ies"));
-                return (object?)new { snap.Id, count = all.Count, snap.TakenAt, repository = snap.Repository, repositories = snap.Repositories };
+                var snap = await SyncInline(ctx, provider, repos, labels, max, includeClosed).ConfigureAwait(false);
+                return (object?)new { snap.Id, count = snap.Items.Count, snap.TakenAt, repository = snap.Repository, repositories = snap.Repositories };
             });
             return Task.FromResult(Json.Accepted(job));
+        }
+
+        private async Task<Snapshot> SyncInline(JobContext ctx, IWorkItemProvider provider, IReadOnlyList<RepositoryRef> repos, List<string> labels, int max, bool includeClosed)
+        {
+            var all = new List<WorkItem>();
+            var done = 0;
+            foreach (var repo in repos)
+            {
+                ctx.Cancellation.ThrowIfCancellationRequested();
+                var reader = provider.ForRepository(repo);
+                var query = new WorkItemQuery { MaxItems = max, State = includeClosed ? (WorkItemState?)null : WorkItemState.Open };
+                query.Labels.AddRange(labels.Where(l => !string.IsNullOrWhiteSpace(l)));
+                ctx.Report(done, repos.Count, "Fetching work items from " + repo.Key);
+                var progress = new Progress<string>(m => ctx.Report(done, repos.Count, repo.Identifier + ": " + m));
+                var items = await reader.ListWorkItemsAsync(query, progress, ctx.Cancellation).ConfigureAwait(false);
+                all.AddRange(items);
+                done++;
+            }
+            var snap = Snapshots.Save(repos, all, labels.Count == 0 ? null : string.Join(",", labels));
+            ctx.Report(repos.Count, repos.Count, "Snapshot " + snap.Id + " saved with " + all.Count + " items from " + repos.Count + " repositor" + (repos.Count == 1 ? "y" : "ies"));
+            return snap;
+        }
+
+        /// <summary>
+        /// After a write to the sandbox (seed, teardown, apply, intake) the snapshot is stale. Re-synchronize inside the
+        /// same job so the pages refresh by themselves: the current snapshot's repositories and label filter when there
+        /// is one, otherwise the sandbox alone. A failure here never fails the write; it is reported in the result.
+        /// </summary>
+        private async Task<object?> ResyncAfterWrite(JobContext ctx, IWorkItemProvider provider, object? writeResult)
+        {
+            try
+            {
+                var current = Snapshots.Current;
+                var repos = current != null && current.Repositories.Count > 0
+                    ? current.Repositories.Select(id => ResolveRepositories(id).First()).ToList()
+                    : new List<RepositoryRef> { SandboxOrThrow() };
+                var labels = string.IsNullOrWhiteSpace(current?.LabelFilter) ? new List<string>() : current!.LabelFilter!.Split(',').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+                ctx.Report(0, 0, "Synchronizing " + string.Join(", ", repos.Select(x => x.Identifier)) + " so the pages reflect the change");
+                var snap = await SyncInline(ctx, provider, repos, labels, Settings.MaxSyncItems, true).ConfigureAwait(false);
+                return WithResync(writeResult, true, null, new { snap.Id, count = snap.Items.Count, snap.TakenAt, repositories = snap.Repositories });
+            }
+            catch (OperationCanceledException) { throw; }
+            catch (Exception ex)
+            {
+                Log.Warn("RESYNC_FAILED", "The write succeeded but re-synchronizing failed: " + ex.Message);
+                return WithResync(writeResult, false, ex.Message, null);
+            }
+        }
+
+        /// <summary>The write's own result, unchanged in shape, with the resync outcome added alongside.</summary>
+        private static object? WithResync(object? writeResult, bool resynced, string? error, object? snapshot)
+        {
+            var o = writeResult == null ? new Newtonsoft.Json.Linq.JObject() : Newtonsoft.Json.Linq.JObject.FromObject(writeResult, Newtonsoft.Json.JsonSerializer.Create(Json.Settings));
+            o["resynced"] = resynced;
+            if (error != null) o["resyncError"] = error;
+            if (snapshot != null) o["snapshot"] = Newtonsoft.Json.Linq.JObject.FromObject(snapshot, Newtonsoft.Json.JsonSerializer.Create(Json.Settings));
+            return o;
         }
 
         private object? SnapshotPayload()
@@ -398,6 +441,8 @@ namespace Cascade.Core.Host
                 blockers = r.Blockers,
                 ready = new { r.Ready.Stories, r.Ready.Points, r.Ready.NotReady, r.Ready.AverageVelocity, r.Ready.Healthy },
                 capacity = new { r.Capacity.TeamCapacity, r.Capacity.PlannedPoints, r.Capacity.DonePoints, r.Capacity.UsedPercent, r.Capacity.Committed, r.Capacity.Allocated, r.Capacity.Experiment, r.Capacity.Teams, r.Capacity.People, r.Capacity.Configured },
+                teamCapacity = r.TeamCapacity.Select(t => new { t.Id, t.Name, t.Capacity, t.Planned, t.Done, t.Committed, t.Allocated, t.Experiment, t.People, t.UsedPercent }),
+                statusHistory = r.StatusHistory.Select(h => new { h.Sprint, h.Number, h.IsCurrent, h.Done, h.OnTrack, h.AtRisk, h.Parked, h.NotStarted, h.Total }),
                 escalationBusinessDays = Delivery.EscalationBusinessDays,
                 r.Notes,
             };
@@ -496,7 +541,7 @@ namespace Cascade.Core.Host
             {
                 var progress = new Progress<SeedProgress>(p => ctx.Report(p.Done, p.Total, p.Message));
                 var manifest = await SandboxSeeder.SeedAsync(provider, Gateway, sandbox, catalog, seedOptions, progress, ctx.Cancellation).ConfigureAwait(false);
-                return (object?)manifest;
+                return await ResyncAfterWrite(ctx, provider, manifest).ConfigureAwait(false);
             });
             return Task.FromResult(Json.Accepted(new { job, runId = seedOptions.RunId, total = catalog.Count, target = sandbox.Key }));
         }
@@ -527,7 +572,9 @@ namespace Cascade.Core.Host
             {
                 var progress = new Progress<SeedProgress>(p => ctx.Report(p.Done, p.Total, p.Message));
                 var result = await SandboxTeardown.RunAsync(provider, Gateway, sandbox, options, progress, ctx.Cancellation).ConfigureAwait(false);
-                return (object?)result;
+                if (options.DryRun) return (object?)result;
+                if (result.Errors.Count == 0) SandboxSeeder.MarkDeleted(Settings.SeedsDirectory, options.Scope == TeardownScope.Run ? options.RunId : null, DateTimeOffset.UtcNow);
+                return await ResyncAfterWrite(ctx, provider, result).ConfigureAwait(false);
             });
             return Task.FromResult(Json.Accepted(new { job, scope = options.Scope, runId = options.RunId, dryRun = options.DryRun, target = sandbox.Key }));
         }
@@ -705,7 +752,7 @@ namespace Cascade.Core.Host
                 var manifest = await Intake.RunAsync(prepared, provider!, Gateway, sandbox, options, progress, ctx.Cancellation).ConfigureAwait(false);
                 manifest.Source = llm == null ? "deterministic" : "llm:" + llm.Model;
                 ctx.Report(manifest.Items.Count, manifest.Requested, manifest.Items.Count + " of " + manifest.Requested + " copied into " + sandbox.Identifier);
-                return (object?)manifest;
+                return await ResyncAfterWrite(ctx, provider!, manifest).ConfigureAwait(false);
             });
             return Task.FromResult(Json.Accepted(new { job, count = drafts.Count, target = sandbox.Key }));
         }
@@ -929,7 +976,7 @@ namespace Cascade.Core.Host
             {
                 var progress = new Progress<string>(m => ctx.Report(0, 0, m));
                 var result = await ProposalApplier.ApplyAsync(batch, Proposals, provider, Gateway, sandbox, progress, ctx.Cancellation).ConfigureAwait(false);
-                return (object?)result;
+                return await ResyncAfterWrite(ctx, provider, result).ConfigureAwait(false);
             });
             return Task.FromResult(Json.Accepted(new { job, batchId = batch.Id, approved = batch.Proposals.Count(p => p.Decision == ProposalDecision.Approved) }));
         }
@@ -968,7 +1015,7 @@ namespace Cascade.Core.Host
                     done += result.Applied + result.Skipped + result.Failed;
                 }
                 ctx.Report(done, approved, "Applied " + totals.Applied + ", skipped " + totals.Skipped + ", failed " + totals.Failed + " across " + batches.Count + " batches");
-                return (object?)new { totals.Applied, totals.Skipped, totals.Failed, totals.Messages, batches = batches.Count };
+                return await ResyncAfterWrite(ctx, provider, new { totals.Applied, totals.Skipped, totals.Failed, totals.Messages, batches = batches.Count }).ConfigureAwait(false);
             });
             return Task.FromResult(Json.Accepted(new { job, batches = batches.Count, approved }));
         }

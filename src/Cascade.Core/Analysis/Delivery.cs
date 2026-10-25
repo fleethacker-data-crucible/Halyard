@@ -89,6 +89,35 @@ namespace Cascade.Core.Analysis
         public bool Configured { get; set; }
     }
 
+    /// <summary>Feature status counts as of the end of one sprint; the series behind "status over time".</summary>
+    public sealed class SprintStatusCount
+    {
+        public string Sprint { get; set; } = string.Empty;
+        public int Number { get; set; }
+        public bool IsCurrent { get; set; }
+        public int Done { get; set; }
+        public int OnTrack { get; set; }
+        public int AtRisk { get; set; }
+        public int Parked { get; set; }
+        public int NotStarted { get; set; }
+        public int Total { get { return Done + OnTrack + AtRisk + Parked + NotStarted; } }
+    }
+
+    /// <summary>One team's share of the current sprint: capacity, what is planned into it, what is done.</summary>
+    public sealed class TeamCapacityView
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public int Capacity { get; set; }
+        public int Planned { get; set; }
+        public int Done { get; set; }
+        public double Committed { get; set; }
+        public double Allocated { get; set; }
+        public double Experiment { get; set; }
+        public int People { get; set; }
+        public int UsedPercent { get { return Capacity > 0 ? (int)Math.Round(100.0 * Planned / Capacity) : 0; } }
+    }
+
     public sealed class ReadyBacklog
     {
         public int Stories { get; set; }
@@ -114,6 +143,9 @@ namespace Cascade.Core.Analysis
         public List<Blocker> Blockers { get; set; } = new List<Blocker>();
         public ReadyBacklog Ready { get; set; } = new ReadyBacklog();
         public CapacityView Capacity { get; set; } = new CapacityView();
+        public List<TeamCapacityView> TeamCapacity { get; set; } = new List<TeamCapacityView>();
+        /// <summary>Feature status at the end of each shown sprint, reconstructed from story sprints, closures, blockers and targets.</summary>
+        public List<SprintStatusCount> StatusHistory { get; set; } = new List<SprintStatusCount>();
         public int FeaturesOnTrack { get { return Features.Count(f => f.Status == FeatureStatus.OnTrack || f.Status == FeatureStatus.Done); } }
         public int FeaturesActive { get { return Features.Count(f => f.Status != FeatureStatus.Done); } }
         public List<string> Notes { get; set; } = new List<string>();
@@ -254,6 +286,55 @@ namespace Cascade.Core.Analysis
                 cap.Allocated = Math.Round(team.Teams.Sum(t => t.Allocated * Math.Max(1, team.TeamCapacity(t))) / weight, 2);
                 cap.Experiment = Math.Round(team.Teams.Sum(t => t.Experiment * Math.Max(1, team.TeamCapacity(t))) / weight, 2);
             }
+            foreach (var t in team.Teams)
+            {
+                var members = team.People.Where(p => string.Equals(p.Team, t.Id, StringComparison.OrdinalIgnoreCase)).ToList();
+                var memberNames = new HashSet<string>(members.SelectMany(m => new[] { m.Id, m.Name }), StringComparer.OrdinalIgnoreCase);
+                var mine = inCurrent.Where(s => s.Meta != null && memberNames.Contains(s.Meta.Get("owner") ?? string.Empty)).ToList();
+                report.TeamCapacity.Add(new TeamCapacityView
+                {
+                    Id = t.Id, Name = string.IsNullOrWhiteSpace(t.Name) ? t.Id : t.Name, Capacity = team.TeamCapacity(t), People = members.Count,
+                    Planned = mine.Sum(pointsOf), Done = mine.Where(done).Sum(pointsOf), Committed = t.Committed, Allocated = t.Allocated, Experiment = t.Experiment,
+                });
+            }
+            var unowned = inCurrent.Where(s => s.Meta == null || string.IsNullOrWhiteSpace(s.Meta.Get("owner")) || team.FindPerson(s.Meta.Get("owner")) == null).ToList();
+            if (team.Teams.Count > 0 && unowned.Count > 0)
+                report.TeamCapacity.Add(new TeamCapacityView { Id = "unassigned", Name = "No owner on a team", Capacity = 0, Planned = unowned.Sum(pointsOf), Done = unowned.Where(done).Sum(pointsOf) });
+
+            // ---- status over time: each feature's status as of the end of each shown sprint ----
+            var features = items.Where(i => i.Type == WorkItemType.Feature).ToList();
+            for (var n = firstShown; n <= current; n++)
+            {
+                var end = calendar.EndOf(n);
+                var count = new SprintStatusCount { Sprint = calendar.Name(n), Number = n, IsCurrent = n == current };
+                if (n == current)
+                {
+                    // The current sprint is the live view itself, so the last column always matches the status pills.
+                    count.Done = report.Features.Count(f => f.Status == FeatureStatus.Done);
+                    count.OnTrack = report.Features.Count(f => f.Status == FeatureStatus.OnTrack);
+                    count.AtRisk = report.Features.Count(f => f.Status == FeatureStatus.AtRisk);
+                    count.Parked = report.Features.Count(f => f.Status == FeatureStatus.Parked);
+                    report.StatusHistory.Add(count);
+                    continue;
+                }
+                foreach (var f in features)
+                {
+                    var children = stories.Where(st => { var p = parent(st); return p != null && p.Key == f.Key; }).ToList();
+                    Func<WorkItem, bool> doneBy = st => done(st) && (sprintOf(st) == null || sprintOf(st) <= n);
+                    var startedBy = children.Any(st => sprintOf(st) != null && sprintOf(st) <= n);
+                    DateTimeOffset target;
+                    var hasTarget = TryParseMonth(f.Meta == null ? null : f.Meta.Get("target"), out target);
+                    bool blockedBy = children.Any(st => blockedKeys.Contains(st.Key) && (report.Blockers.First(b => b.Key.Equals(st.Key, StringComparison.OrdinalIgnoreCase)).Since ?? now) <= end);
+                    if (children.Count > 0 && children.All(doneBy)) count.Done++;
+                    else if (f.State == WorkItemState.Closed && n == current) count.Done++;
+                    else if (!startedBy) count.NotStarted++;
+                    else if (blockedBy || (hasTarget && target < end)) count.AtRisk++;
+                    else if (!children.Any(st => !doneBy(st) && (sprintOf(st) == null || sprintOf(st) >= n))) count.Parked++;
+                    else count.OnTrack++;
+                }
+                report.StatusHistory.Add(count);
+            }
+
             if (!cap.Configured) report.Notes.Add("No teams in config/team.json; capacity is not assessed.");
             if (completed.Count == 0) report.Notes.Add("No completed sprint in the snapshot yet; velocity is the current sprint only.");
             return report;
