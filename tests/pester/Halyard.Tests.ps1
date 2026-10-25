@@ -291,7 +291,7 @@ Describe 'Process helpers (Halyard-Process.ps1)' {
         Remove-Item $root -Recurse -Force
     }
 
-    It 'sees this process as a holder of a file it keeps open (Restart Manager)' -Skip:(-not $IsWindows -and $PSVersionTable.PSEdition -eq 'Core') {
+    It 'sees this process as a holder of a file it keeps open (FileProcessIdsUsingFileInformation)' -Skip:(-not $IsWindows -and $PSVersionTable.PSEdition -eq 'Core') {
         $file = Join-Path ([IO.Path]::GetTempPath()) ('halyard-hold-' + [guid]::NewGuid().ToString('N') + '.dll')
         Set-Content -Path $file -Value 'x'
         $stream = [IO.File]::Open($file, 'Open', 'Read', 'None')
