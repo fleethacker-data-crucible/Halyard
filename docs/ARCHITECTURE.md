@@ -1,6 +1,6 @@
 # Architecture
 
-Cascade reads a backlog from a Git host, checks it against the work-item model, proposes fixes, and
+Halyard reads a backlog from a Git host, checks it against the work-item model, proposes fixes, and
 writes approved fixes to a sandbox. It runs as one local process on the operator's machine and is
 used through a browser on `127.0.0.1`.
 
@@ -9,7 +9,7 @@ used through a browser on `127.0.0.1`.
 | Constraint | Consequence |
 |---|---|
 | Target workstation runs Windows PowerShell 5.1 on .NET Framework 4.8; no installs, no admin | The runtime is PowerShell + one .NET library + static web files. No Node, Python, services or installers on the workstation. |
-| On some workstations, CAC + TOTP happen inside a PowerShell vault (ARC, `pm.ps1`) in a console | PowerShell stays the launcher and owns the vault unlock. Everything after that is C#. |
+| On some workstations, CAC + TOTP happen inside a PowerShell vault (Lazarette, formerly ARC) in a console | PowerShell stays the launcher and owns the vault unlock. Everything after that is C#. |
 | Two Git hosts: github.com for development, a self-hosted GitLab for real work | One provider-agnostic work-item model; hosts are adapters. |
 | Production backlog must never be written by accident | Every write goes through one gateway with a sandbox allow-list. |
 | Build happens off the workstation | Compiled DLLs and built UI ship in a bundle; nothing is fetched at runtime. |
@@ -18,9 +18,9 @@ used through a browser on `127.0.0.1`.
 
 | Layer | Choice | Why |
 |---|---|---|
-| Launcher | `Launch-Cascade.bat` → `powershell.exe -File scripts\Start-Cascade.ps1` | The only entry point the workstation already allows. |
-| Shell | PowerShell module `module/Cascade` | Reads `config/cascade.env`, unlocks ARC once, loads the DLL, opens the browser, hides the console. Nothing else. |
-| Core | C# library `Cascade.Core` (`net48` + `netstandard2.0`) | Types, real concurrency, testable logic, one write gateway. `net48` loads in PowerShell 5.1; `netstandard2.0` serves PowerShell 7 and the test runner. |
+| Launcher | `Launch-Halyard.bat` → `powershell.exe -File scripts\Start-Halyard.ps1` | The only entry point the workstation already allows. |
+| Shell | PowerShell module `module/Halyard` | Reads `config/halyard.env`, unlocks Lazarette once, loads the DLL, opens the browser, hides the console. Nothing else. |
+| Core | C# library `Halyard.Core` (`net48` + `netstandard2.0`) | Types, real concurrency, testable logic, one write gateway. `net48` loads in PowerShell 5.1; `netstandard2.0` serves PowerShell 7 and the test runner. |
 | JSON | Newtonsoft.Json 13 (bundled) | Works identically on .NET Framework and .NET. |
 | Local server | `TcpListener` on 127.0.0.1 inside the core | `HttpListener` needs HTTP.sys URL reservations a standard user lacks. One task per connection; long work runs as background jobs. |
 | UI | React 19 + TypeScript, Tailwind CSS 4, d3 (hierarchy, zoom, shape), zod | Built to static files by esbuild + Tailwind's compiler. Validates every response. |
@@ -34,19 +34,19 @@ IndexedDB as source of truth (the engine owns state), and a dev server (the buil
 ## Components
 
 ```
-Launch-Cascade.bat
-  └─ scripts/Start-Cascade.ps1
-       └─ module/Cascade (PowerShell)
-            ├─ config/cascade.env → process environment
-            ├─ vault bridge (ARC; GitLab only, or CASCADE_USE_ARC=1) → GITLAB_TOKEN, LLM_TOKEN, DATABRICKS_TOKEN
-            └─ Cascade.Core.dll
+Launch-Halyard.bat
+  └─ scripts/Start-Halyard.ps1
+       └─ module/Halyard (PowerShell)
+            ├─ config/halyard.env → process environment
+            ├─ vault bridge (Lazarette; GitLab only, or HALYARD_USE_LAZARETTE=1) → GITLAB_TOKEN, LLM_TOKEN, DATABRICKS_TOKEN
+            └─ Halyard.Core.dll
                  ├─ Host        loopback HTTP server, router, jobs, session token, static UI
                  ├─ Providers   GitHub REST/GraphQL, GitLab REST v4  → IWorkItemProvider
                  ├─ Safety      WritePolicy + WriteGateway (the only path to a writer)
-                 ├─ Model       WorkItem, CascadeMeta, RepositoryRef
+                 ├─ Model       WorkItem, HalyardMeta, RepositoryRef
                  ├─ Schema      taxonomy, sizing policy, definition-of-ready checks, body composer
                  ├─ Analysis    topology audit, hierarchy tree, parent candidates, review report, delivery (feature progress, velocity, blockers) + HTML report
-                 ├─ Planning    team.json / skills.json / Synapse cards, sprint calendar, capacity-and-skills sprint planner
+                 ├─ Planning    team.json / skills.json / Shellback cards, sprint calendar, capacity-and-skills sprint planner
                  ├─ Intelligence sizing, refinement drafts, skill tagging, vision drafting, intake classification (model); metadata repair, parents, planner, deterministic fallbacks; manual edits, proposal store, projection + applier
                  ├─ Llm         OpenAI-compatible and Databricks serving-endpoint client
                  ├─ Synthetic   deterministic catalogue, sandbox seeder, teardown
@@ -69,17 +69,17 @@ The analysis, UI and tests do not change.
 1. `IWorkItemProvider.OpenWriter` is called only by `WriteGateway`, and providers do not implement the writer
    interface themselves, so a provider cannot be cast into a writer (Pester rules enforce both).
 2. `WriteGateway.Open` asks `WritePolicy.Assert` first. Sandbox mode allows only the configured sandbox
-   repository. Production needs `CASCADE_WRITE_MODE=production`, `CASCADE_ALLOW_PRODUCTION=1` **and** a
+   repository. Production needs `HALYARD_WRITE_MODE=production`, `HALYARD_ALLOW_PRODUCTION=1` **and** a
    per-operation opt-in in code; the browser cannot set any of these.
 3. The configured source repository is added to a protected list whenever it differs from the sandbox.
    Every real write run opens through `OpenVerifiedAsync`, which compares the host's numeric repository ids,
    so one project spelled two ways (`group/project` vs its numeric id, or a renamed GitHub repo) is still caught.
-   `CASCADE_PROTECTED_REPOS` adds further never-write repositories.
+   `HALYARD_PROTECTED_REPOS` adds further never-write repositories.
    Repository identifiers are validated (no `.`/`..` segments) and escaped before they reach a URL.
-4. Provider, API URL, source and sandbox come only from `config/cascade.env`. The browser can change the
+4. Provider, API URL, source and sandbox come only from `config/halyard.env`. The browser can change the
    label filter, the model profile, the model name and the model API key, nothing that decides where
-   Cascade reads, writes or sends tokens: the model endpoint URL is file-only, so a key entered in the
-   browser can only go where the file points. The sandbox is read only from `CASCADE_SANDBOX_REPO`.
+   Halyard reads, writes or sends tokens: the model endpoint URL is file-only, so a key entered in the
+   browser can only go where the file points. The sandbox is read only from `HALYARD_SANDBOX_REPO`.
 5. Everything created is stamped with the `cascade` label; synthetic items also get `cascade-synthetic`
    and `cascade-run::<id>`.
 6. Deletes re-read the item first and check `cascade-synthetic` on the live copy, not the caller's. On GitHub
@@ -94,13 +94,13 @@ The analysis, UI and tests do not change.
 ## Local host security
 
 - Binds to `127.0.0.1` only and rejects non-loopback peers and non-loopback `Host` headers.
-- Every `/api` call except `/api/health` needs the random per-session token in the `X-Cascade-Session`
+- Every `/api` call except `/api/health` needs the random per-session token in the `X-Halyard-Session`
   header. The launcher passes it once in the page URL; the UI moves it to `sessionStorage` and removes it
   from the address bar. API URLs never accept it. Other local processes and other browser tabs cannot call
   the API. The token is not written to the runtime file in `logs/`.
 - Cross-origin requests are refused; there are no CORS headers. HTTP redirects are not followed, so a
   token or a write can never be forwarded to a URL nobody configured.
-- Ending the session needs the token and an `X-Cascade-Intent: end-session` header.
+- Ending the session needs the token and an `X-Halyard-Intent: end-session` header.
 - Static files are served from one directory with path normalisation; no directory listing.
 - Tokens live only in process memory. Logs and LLM transcripts redact token-shaped strings.
 
@@ -127,7 +127,7 @@ human approves and applies.
 
 The same snapshot feeds two directions. Downward (`Intelligence`, `Planning`): intake turns raw source
 tickets into typed sandbox copies, repair / draft / size / tag skills bring them to the definition of
-ready, and the planner fills sprints from team capacity and Synapse skills. Upward (`Analysis/Delivery`,
+ready, and the planner fills sprints from team capacity and Shellback skills. Upward (`Analysis/Delivery`,
 `Intelligence/Visionary`): feature progress, velocity, blockers and capacity roll into the leadership
 report and the weekly email, and the visionary drafts the portfolio vision. Every model output is
 validated against the backlog before it becomes a proposal, and every change still goes through the
@@ -136,14 +136,14 @@ same proposal → approve → gateway path.
 A snapshot may hold several repositories (`Snapshot.Repositories`, `repository` per item). Sources are
 read-only; proposals are refused for anything outside the sandbox.
 
-## Synapse boundary
+## Shellback boundary
 
-Cascade reads exported Synapse peer cards from `config/synapse/` and shares its skill ids with Synapse.
-It never writes to Synapse, never stores anything about a person beyond what the card consented to, and
+Halyard reads exported Shellback peer cards from `config/shellback/` and shares its skill ids with Shellback.
+It never writes to Shellback, never stores anything about a person beyond what the card consented to, and
 treats the card as the only source of a person's skills and confidence.
 
 ## Risk to watch
 
-`Cascade.Core.dll` is unsigned. If the workstation's application-control policy (WDAC/AppLocker) blocks
-unsigned DLLs, `Import-CascadeCore` stops with a clear message. The fix is to have IT sign or allow the
+`Halyard.Core.dll` is unsigned. If the workstation's application-control policy (WDAC/AppLocker) blocks
+unsigned DLLs, `Import-HalyardCore` stops with a clear message. The fix is to have IT sign or allow the
 DLL. Do not work around the policy.

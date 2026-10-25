@@ -1,6 +1,6 @@
 import type { LevelToken } from './schemas';
 
-// The hierarchy, top to bottom. Order matters: it drives sorting, indentation and the cascade bar.
+// The hierarchy, top to bottom. Order matters: it drives sorting, indentation and the level bars.
 export const LEVELS: LevelToken[] = ['THEME', 'EPIC', 'FEATURE', 'STORY', 'TASK'];
 
 export const LEVEL_LABEL: Record<LevelToken, string> = {

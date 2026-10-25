@@ -76,7 +76,7 @@ function Shell() {
 
   const endSession = useCallback(async () => {
     try {
-      await post('/api/session/stop', {}, { 'X-Cascade-Intent': 'end-session' });
+      await post('/api/session/stop', {}, { 'X-Halyard-Intent': 'end-session' });
       setStopped(true);
     } catch (e) {
       toast.push('err', e instanceof Error ? e.message : String(e));
@@ -88,8 +88,8 @@ function Shell() {
   if (!sessionToken()) {
     return (
       <main className="mx-auto max-w-[60ch] px-6 py-16">
-        <h1>Open Cascade from the launcher</h1>
-        <p className="mt-3 text-ink-2">This page has no session token, so the local engine will refuse its requests. Run <code>Launch-Cascade.bat</code>; it opens the browser with a one-time link to this session.</p>
+        <h1>Open Halyard from the launcher</h1>
+        <p className="mt-3 text-ink-2">This page has no session token, so the local engine will refuse its requests. Run <code>Launch-Halyard.bat</code>; it opens the browser with a one-time link to this session.</p>
       </main>
     );
   }
@@ -98,7 +98,7 @@ function Shell() {
     return (
       <main className="mx-auto max-w-[60ch] px-6 py-16">
         <h1>Session ended</h1>
-        <p className="mt-3 text-ink-2">The local Cascade engine has stopped. Close this tab, or run the launcher again to start a new session.</p>
+        <p className="mt-3 text-ink-2">The local Halyard engine has stopped. Close this tab, or run the launcher again to start a new session.</p>
       </main>
     );
   }
@@ -125,9 +125,9 @@ function Shell() {
     <div className="grid min-h-screen grid-cols-[216px_minmax(0,1fr)]">
       <nav className="sticky top-0 flex h-screen flex-col border-r border-line-2 bg-surface">
         <div className="flex items-center gap-2.5 px-4 py-4">
-          <CascadeMark />
+          <HalyardMark />
           <div className="leading-tight">
-            <div className="text-[15px] font-semibold tracking-tight">Cascade</div>
+            <div className="text-[15px] font-semibold tracking-tight">Halyard</div>
             <div className="text-[11.5px] text-ink-3">Delivery intelligence</div>
           </div>
         </div>
@@ -142,7 +142,7 @@ function Shell() {
         <StatusStrip status={s} error={status.error} />
         <main className="min-w-0 flex-1">{page}</main>
       </div>
-      <ConfirmDialog open={confirmStop} title="End this Cascade session?" confirmLabel="End session" onConfirm={endSession} onCancel={() => setConfirmStop(false)}>
+      <ConfirmDialog open={confirmStop} title="End this Halyard session?" confirmLabel="End session" onConfirm={endSession} onCancel={() => setConfirmStop(false)}>
         The local engine stops and this page stops working. Snapshots, proposals and seed manifests stay on disk under <code>output/</code>.
       </ConfirmDialog>
     </div>
@@ -173,7 +173,7 @@ function NavGroup({ label, items, route }: { label: string; items: typeof NAV; r
 
 function StatusStrip({ status, error }: { status: Status | undefined; error: string | null }) {
   if (error && !status) {
-    return <Notice tone="err" className="m-3">Cannot reach the local engine: {error}. If you closed the launcher window, start Cascade again.</Notice>;
+    return <Notice tone="err" className="m-3">Cannot reach the local engine: {error}. If you closed the launcher window, start Halyard again.</Notice>;
   }
   if (!status) return <div className="h-9 border-b border-line-2 bg-surface" />;
   const repo = status.config.sourceRepository || status.config.sandboxRepository || 'no repository';
@@ -188,7 +188,7 @@ function StatusStrip({ status, error }: { status: Status | undefined; error: str
   );
 }
 
-function CascadeMark() {
+function HalyardMark() {
   // Three equal arcs forming a "c": theme to epic to story. Top arc follows the theme (navy / light on dark).
   return (
     <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden fill="none" strokeWidth="5" strokeLinecap="round">
