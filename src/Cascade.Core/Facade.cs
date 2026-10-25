@@ -59,7 +59,7 @@ namespace Cascade.Core
             var items = string.IsNullOrWhiteSpace(labelFilter) ? snap.Items : snap.Items.Where(i => i.HasLabel(labelFilter!)).ToList();
             var team = Planning.TeamConfig.Load(settings.TeamPath, settings.SynapseDirectory);
             var report = Analysis.Delivery.Build(items, team, DateTimeOffset.UtcNow, snap.Repository);
-            return Analysis.DeliveryHtml.Render(report, string.IsNullOrWhiteSpace(title) ? "Cascade Leadership Dashboard" : title!);
+            return Analysis.DeliveryHtml.Render(report, string.IsNullOrWhiteSpace(title) ? "Cascade Leadership Dashboard" : title!, settings.BrandLogoBase64());
         }
 
         /// <summary>Synchronizes every configured source (or the sandbox) into a new snapshot without the host; used by scheduled reports.</summary>

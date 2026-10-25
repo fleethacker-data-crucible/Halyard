@@ -106,9 +106,12 @@ secondary rate limits, so 100 items take about two minutes. Deletion is permanen
 ## Weekly leadership report
 
 **Leadership** in the browser shows feature % complete with a status (on track / at risk / parked /
-done and why), velocity over the last six sprints, the ready backlog against velocity, capacity used in
-the current sprint, open blockers with their business-day age (escalated past five days), and points by
-theme. *Download report* saves the same page as one self-contained HTML file, built from the latest
+done and why), then four charts: feature status by sprint (past sprints reconstructed from story sprints,
+closures, blockers and targets; the current one is the live table), velocity with this sprint's plan
+outlined and the three-sprint average, capacity per team as a meter with the committed/allocated
+boundaries, and points by theme. Then the ready backlog against velocity and open blockers with their
+business-day age (escalated past five days). The emailed report carries the same charts drawn as HTML
+tables, which Outlook renders, and the Cascade mark in the header. *Download report* saves the same page as one self-contained HTML file, built from the latest
 sandbox snapshot. `GET /api/leadership/report.html` returns it too.
 
 To send it by email every week without a browser:

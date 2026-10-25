@@ -388,6 +388,8 @@ export const Leadership = z.object({
   velocity: z.array(z.object({ sprint: z.string(), number: z.number(), pointsDone: z.number(), pointsPlanned: z.number(), storiesDone: z.number(), isCurrent: z.boolean(), isPast: z.boolean() })),
   blockers: z.array(z.object({ key: z.string(), number: z.number(), title: z.string(), type: z.string(), reason: Nullable(z.string()), owner: Nullable(z.string()), since: Nullable(z.string()), ageDays: z.number(), ageBusinessDays: z.number(), escalated: z.boolean(), impact: Nullable(z.string()), url: Nullable(z.string()) })),
   ready: z.object({ stories: z.number(), points: z.number(), notReady: z.number(), averageVelocity: z.number(), healthy: z.boolean() }),
+  teamCapacity: z.array(z.object({ id: z.string(), name: z.string(), capacity: z.number(), planned: z.number(), done: z.number(), committed: z.number(), allocated: z.number(), experiment: z.number(), people: z.number(), usedPercent: z.number() })),
+  statusHistory: z.array(z.object({ sprint: z.string(), number: z.number(), isCurrent: z.boolean(), done: z.number(), onTrack: z.number(), atRisk: z.number(), parked: z.number(), notStarted: z.number(), total: z.number() })),
   capacity: z.object({ teamCapacity: z.number(), plannedPoints: z.number(), donePoints: z.number(), usedPercent: z.number(), committed: z.number(), allocated: z.number(), experiment: z.number(), teams: z.number(), people: z.number(), configured: z.boolean() }),
   escalationBusinessDays: z.number(),
   notes: z.array(z.string()),

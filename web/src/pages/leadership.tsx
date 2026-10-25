@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { LuDownload, LuExternalLink } from 'react-icons/lu';
 import { navigate } from '../app';
-import { Button, Empty, LevelChip, Mono, Notice, Page, Pill, Section, Stat, cn, useToast } from '../components/ui';
+import { CapacityMeters, StatusOverTime, ThemeBars, VelocityChart } from '../components/delivery-charts';
+import { Button, Empty, Mono, Notice, Page, Pill, Section, Stat, cn, useToast } from '../components/ui';
 import { describeError, getText } from '../lib/api';
 import { downloadText, relativeTime, shortDate } from '../lib/format';
 import { Leadership, type Status } from '../lib/schemas';
@@ -41,7 +42,6 @@ export function LeadershipPage({ status }: { status: Status | undefined }) {
   const velocityText = d ? d.velocity.filter((v) => v.isPast).slice(-3).map((v) => v.pointsDone).join(' → ') : '';
   const escalated = d?.blockers.filter((b) => b.escalated).length ?? 0;
   const avgAge = d && d.blockers.length ? (d.blockers.reduce((n, b) => n + b.ageBusinessDays, 0) / d.blockers.length).toFixed(1) : '0';
-  const maxVelocity = Math.max(1, ...(d?.velocity.map((v) => Math.max(v.pointsDone, v.pointsPlanned)) ?? [1]));
 
   return (
     <Page
@@ -82,51 +82,19 @@ export function LeadershipPage({ status }: { status: Status | undefined }) {
         )}
       </Section>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
-        <Section title="Velocity (story points completed)">
-          {!d ? <Skeleton rows={5} /> : (
-            <ul className="flex flex-col gap-1.5 px-4 py-3">
-              {d.velocity.map((v) => (
-                <li key={v.sprint} className="grid grid-cols-[88px_minmax(0,1fr)_120px] items-center gap-3 text-[12.5px]">
-                  <span className="text-ink-2">{v.sprint}{v.isCurrent ? <span className="text-ink-3"> (now)</span> : ''}</span>
-                  <span className="relative h-3 w-full overflow-hidden rounded bg-surface-2">
-                    {v.isCurrent ? <span className="absolute inset-y-0 left-0 rounded bg-surface-2 ring-1 ring-inset ring-line" style={{ width: `${(v.pointsPlanned / maxVelocity) * 100}%` }} /> : null}
-                    <span className="absolute inset-y-0 left-0 rounded" style={{ width: `${(v.pointsDone / maxVelocity) * 100}%`, background: 'var(--lv-epic)' }} />
-                  </span>
-                  <span className="num text-ink">{v.pointsDone}{v.isCurrent ? <span className="text-ink-3"> / {v.pointsPlanned} planned</span> : ''}</span>
-                </li>
-              ))}
-            </ul>
-          )}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Section title="Feature status by sprint" aside={<span className="text-[12px] text-ink-3">past sprints reconstructed from the backlog; the current one is the table above</span>}>
+          {!d ? <Skeleton rows={6} /> : <StatusOverTime points={d.statusHistory} />}
         </Section>
-        <div className="flex flex-col gap-5">
-          <Section title={d ? `Sprint ${d.currentSprint} capacity allocation` : 'Capacity allocation'}>
-            {!d ? <Skeleton rows={2} /> : d.capacity.configured ? (
-              <div className="px-4 py-3">
-                <div className="flex h-6 overflow-hidden rounded-ctl text-[11px] text-white">
-                  {([['Committed', d.capacity.committed, 'var(--ok)'], ['Allocated', d.capacity.allocated, 'var(--warn)'], ['Experiment', d.capacity.experiment, 'var(--info)']] as const).map(([label, share, color]) => (
-                    <span key={label} className="flex items-center justify-center overflow-hidden whitespace-nowrap" style={{ width: `${share * 100}%`, background: color }} title={`${label} ${Math.round(share * 100)}%`}>{share >= 0.2 ? `${label} ${Math.round(share * 100)}%` : share >= 0.08 ? `${Math.round(share * 100)}%` : ''}</span>
-                  ))}
-                </div>
-                <div className="mt-1 flex gap-3 text-[11px] text-ink-3"><span>Committed {Math.round(d.capacity.committed * 100)}%</span><span>Allocated {Math.round(d.capacity.allocated * 100)}%</span><span>Experiment {Math.round(d.capacity.experiment * 100)}%</span></div>
-                <p className="mt-2 text-[12px] text-ink-3">{d.capacity.plannedPoints} pts planned of {d.capacity.teamCapacity} capacity across {d.capacity.teams} team{d.capacity.teams === 1 ? '' : 's'}, {d.capacity.people} people; {d.capacity.donePoints} pts done so far. Capacity comes from <Mono>config/team.json</Mono>.</p>
-              </div>
-            ) : <p className="px-4 py-3 text-ink-3">Add teams to <Mono>config/team.json</Mono> to assess capacity.</p>}
-          </Section>
-          <Section title="Themes">
-            {!d ? <Skeleton rows={2} /> : (
-              <ul className="flex flex-col gap-1 px-4 py-3 text-[12.5px]">
-                {d.themes.map((t) => (
-                  <li key={t.key} className="grid grid-cols-[minmax(0,1fr)_120px_60px] items-center gap-3">
-                    <span className="flex items-center gap-2 truncate"><LevelChip type="THEME" compact />{t.title}</span>
-                    <span className="h-2 w-full overflow-hidden rounded-full bg-surface-2"><span className="block h-full rounded-full" style={{ width: `${t.percent}%`, background: 'var(--lv-theme)' }} /></span>
-                    <span className="num text-right">{t.pointsDone}/{t.points}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-        </div>
+        <Section title="Velocity (story points closed)" aside={d ? <span className="text-[12px] text-ink-3">avg of the last 3 completed: {d.averageVelocity}</span> : null}>
+          {!d ? <Skeleton rows={6} /> : <VelocityChart points={d.velocity} average={d.averageVelocity} />}
+        </Section>
+        <Section title={d ? `Sprint ${d.currentSprint} capacity by team` : 'Capacity by team'} aside={<span className="text-[12px] text-ink-3">from <Mono>config/team.json</Mono></span>}>
+          {!d ? <Skeleton rows={3} /> : d.capacity.configured ? <CapacityMeters teams={d.teamCapacity} /> : <p className="px-4 py-3 text-ink-3">Add teams to <Mono>config/team.json</Mono> to assess capacity.</p>}
+        </Section>
+        <Section title="Points by theme">
+          {!d ? <Skeleton rows={3} /> : <ThemeBars themes={d.themes} />}
+        </Section>
       </div>
 
       <Section title="Open blockers (OPS / dependencies)" aside={d ? <span className="text-[12px] text-ink-3">escalated when age &gt; {d.escalationBusinessDays} business days</span> : null}>
