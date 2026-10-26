@@ -70,8 +70,8 @@ Describe 'Initialize-HalyardEnvironment' {
         $r.EnvFile | Should -Be (Join-Path $script:Tmp 'config\halyard.env')
         Test-Path (Join-Path $script:Tmp 'config\halyard.env') | Should -BeTrue
         (Get-Content $legacy -Raw) | Should -Be $before
-        (Get-Content (Join-Path $script:Tmp 'config\halyard.env')) | Should -Contain 'HALYARD_SANDBOX_REPO=sun-of-anton/Halyard-Ballast'
-        $r.Settings.Provider.SandboxRepository | Should -Be 'sun-of-anton/Halyard-Ballast'
+        (Get-Content (Join-Path $script:Tmp 'config\halyard.env')) | Should -Contain 'HALYARD_SANDBOX_REPO=fleethacker-data-crucible/Halyard-Ballast'
+        $r.Settings.Provider.SandboxRepository | Should -Be 'fleethacker-data-crucible/Halyard-Ballast'
         $r.Settings.Provider.SourceRepository | Should -Be 'owner/source'
     }
 

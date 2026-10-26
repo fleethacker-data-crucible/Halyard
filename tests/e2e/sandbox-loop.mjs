@@ -211,7 +211,7 @@ assert(td.deleted === total, `teardown deleted ${td.deleted}/${total}`);
 const blocked = await fetch(base + '/api/sandbox/teardown', { method: 'POST', headers: H, body: JSON.stringify({ scope: 'everything', confirmText: 'yes please' }) });
 assert(blocked.status === 403, 'wipe without the confirmation phrase is refused');
 if (fakeUrl) {
-  const wipe = await waitJob(await call('POST', '/api/sandbox/teardown', { scope: 'everything', confirmText: 'DELETE sun-of-anton/Halyard-Ballast' }), 'wipe');
+  const wipe = await waitJob(await call('POST', '/api/sandbox/teardown', { scope: 'everything', confirmText: 'DELETE fleethacker-data-crucible/Halyard-Ballast' }), 'wipe');
   assert(wipe.deleted >= 4, `wipe with the phrase removed the ${wipe.deleted} remaining (intake) items`);
 }
 
