@@ -1,0 +1,2 @@
+200
+{"plan":{"generatedAt":"<date.f+zz:zz>","sprints":[],"unplaced":[],"skipReasons":[],"skillGaps":{},"candidates":0,"placed":0,"notes":["No teams in config/team.json; add a team with pointsPerSprint to plan."]},"batch":{"id":"<stamp-id>","kind":"sprintPlan","target":"github:fleethacker-data-crucible/Halyard-Ballast","createdAt":"<date.f+zz:zz>","source":"deterministic planner","considered":0,"skipped":0,"warnings":["No teams in config/team.json; add a team with pointsPerSprint to plan."],"total":0,"pending":0,"approved":0,"rejected":0,"applied":0,"failed":0}}
