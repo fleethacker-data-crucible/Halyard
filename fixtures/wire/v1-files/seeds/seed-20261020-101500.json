@@ -1,0 +1,39 @@
+{
+  "RunId": "20261020-101500",
+  "Target": "github:o/r",
+  "StartedAt": "2026-10-20T10:15:00+00:00",
+  "FinishedAt": "2026-10-20T10:18:00+00:00",
+  "DeletedAt": null,
+  "Requested": 2,
+  "Items": [
+    {
+      "Id": "EPIC-1",
+      "Type": "EPIC",
+      "ParentId": null,
+      "Number": 1,
+      "Key": "github:o/r:1",
+      "Url": null,
+      "NativeLinked": false,
+      "Defects": [],
+      "ExpectedCodes": []
+    },
+    {
+      "Id": "STORY-1",
+      "Type": "STORY",
+      "ParentId": "EPIC-1",
+      "Number": 2,
+      "Key": "github:o/r:2",
+      "Url": null,
+      "NativeLinked": false,
+      "Defects": [
+        "missing-points"
+      ],
+      "ExpectedCodes": [
+        "STORY_MISSING_POINTS"
+      ]
+    }
+  ],
+  "Errors": [],
+  "Completed": true,
+  "NeedsReview": 1
+}

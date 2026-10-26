@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Halyard.Core.Model;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Providers
 {
@@ -17,7 +17,7 @@ namespace Halyard.Core.Providers
     {
         private const int PageSize = 100;
 
-        public GitLabProvider(IHttpTransport http, string baseUrl, string? token, RepositoryRef repository, int writeDelayMs = -1)
+        public GitLabProvider(IHttpTransport http, string baseUrl, string token, RepositoryRef repository, int writeDelayMs = -1)
             : base(http, NormalizeBase(baseUrl), token, writeDelayMs)
         {
             if (repository.Provider != ProviderKind.GitLab) throw new ArgumentException("Repository is not a GitLab project.", "repository");
@@ -49,7 +49,7 @@ namespace Halyard.Core.Providers
 
         protected override void Authenticate(HttpCall call)
         {
-            if (!string.IsNullOrWhiteSpace(Token)) call.Headers["PRIVATE-TOKEN"] = Token!.Trim();
+            if (!string.IsNullOrWhiteSpace(Token)) call.Headers["PRIVATE-TOKEN"] = Token.Trim();
         }
 
         public IWorkItemWriter OpenWriter(RepositoryRef target)
@@ -68,7 +68,7 @@ namespace Halyard.Core.Providers
             public Task<WorkItem> CreateAsync(WorkItemDraft draft, CancellationToken c) { return _p.WriteCreateAsync(draft, c); }
             public Task<WorkItem> UpdateAsync(long number, WorkItemPatch patch, CancellationToken c) { return _p.WriteUpdateAsync(number, patch, c); }
             public Task<bool> DeleteAsync(WorkItem item, CancellationToken c) { return _p.WriteDeleteAsync(item, c); }
-            public Task<WorkItem?> GetAsync(long number, CancellationToken c) { return _p.GetWorkItemAsync(number, c); }
+            public Task<WorkItem> GetAsync(long number, CancellationToken c) { return _p.GetWorkItemAsync(number, c); }
             public Task<bool> LinkParentAsync(WorkItem child, WorkItem parent, CancellationToken c) { return _p.WriteLinkParentAsync(child, parent, c); }
         }
 
@@ -84,9 +84,9 @@ namespace Halyard.Core.Providers
             return new ProviderIdentity
             {
                 Provider = Kind,
-                Login = (string?)user["username"] ?? string.Empty,
-                Name = (string?)user["name"],
-                Url = (string?)user["web_url"],
+                Login = (string)user["username"] ?? string.Empty,
+                Name = (string)user["name"],
+                Url = (string)user["web_url"],
                 ApiBase = BaseUrl,
             };
         }
@@ -103,7 +103,7 @@ namespace Halyard.Core.Providers
                 {
                     var id = (long?)p["id"];
                     if (id == null) continue;
-                    result.Add(new RepositoryRef(Kind, id.Value.ToString(), (string?)p["path_with_namespace"] ?? id.Value.ToString(), (string?)p["web_url"]));
+                    result.Add(new RepositoryRef(Kind, id.Value.ToString(), (string)p["path_with_namespace"] ?? id.Value.ToString(), (string)p["web_url"]));
                     if (result.Count >= max) break;
                 }
                 page = NextPage(reply);
@@ -120,15 +120,15 @@ namespace Halyard.Core.Providers
                 var reply = await SendAsync(NewCall("GET", ProjectApi + "/labels?per_page=" + PageSize + "&page=" + page), cancellation).ConfigureAwait(false);
                 foreach (var l in ParseJson(reply.Body))
                 {
-                    var name = (string?)l["name"];
-                    if (!string.IsNullOrWhiteSpace(name)) result.Add(name!);
+                    var name = (string)l["name"];
+                    if (!string.IsNullOrWhiteSpace(name)) result.Add(name);
                 }
                 page = NextPage(reply);
             }
             return result;
         }
 
-        public async Task<IReadOnlyList<WorkItem>> ListWorkItemsAsync(WorkItemQuery query, IProgress<string>? progress, CancellationToken cancellation)
+        public async Task<IReadOnlyList<WorkItem>> ListWorkItemsAsync(WorkItemQuery query, IProgress<string> progress, CancellationToken cancellation)
         {
             var items = new List<WorkItem>();
             var state = query.State == null ? "all" : (query.State == WorkItemState.Open ? "opened" : "closed");
@@ -159,14 +159,15 @@ namespace Halyard.Core.Providers
             return id.Value.ToString();
         }
 
-        public async Task<WorkItem?> GetWorkItemAsync(long number, CancellationToken cancellation)
+        public async Task<WorkItem> GetWorkItemAsync(long number, CancellationToken cancellation)
         {
             try
             {
                 return ToWorkItem(await GetJsonAsync(ProjectApi + "/issues/" + number, cancellation).ConfigureAwait(false));
             }
-            catch (ProviderHttpException ex) when (ex.Status == 404)
+            catch (ProviderHttpException ex)
             {
+                if (ex.Status != 404) throw;
                 return null;
             }
         }
@@ -175,14 +176,15 @@ namespace Halyard.Core.Providers
 
         internal async Task WriteEnsureLabelAsync(LabelDefinition label, CancellationToken cancellation)
         {
-            var payload = new JObject { ["name"] = label.Name, ["color"] = "#" + label.Color };
+            var payload = new JObject { { "name", label.Name }, { "color", "#" + label.Color } };
             if (!string.IsNullOrEmpty(label.Description)) payload["description"] = label.Description;
             try
             {
                 await SendJsonAsync("POST", ProjectApi + "/labels", payload, cancellation).ConfigureAwait(false);
             }
-            catch (ProviderHttpException ex) when (ex.Status == 409 || ex.Status == 400)
+            catch (ProviderHttpException ex)
             {
+                if (ex.Status != 409 && ex.Status != 400) throw;
                 // exists
             }
         }
@@ -190,7 +192,7 @@ namespace Halyard.Core.Providers
         internal async Task<WorkItem> WriteCreateAsync(WorkItemDraft draft, CancellationToken cancellation)
         {
             await PaceWriteAsync(cancellation).ConfigureAwait(false);
-            var payload = new JObject { ["title"] = draft.Title, ["description"] = draft.Body, ["labels"] = string.Join(",", draft.Labels) };
+            var payload = new JObject { { "title", draft.Title }, { "description", draft.Body }, { "labels", string.Join(",", draft.Labels) } };
             var reply = await SendJsonAsync("POST", ProjectApi + "/issues", payload, cancellation).ConfigureAwait(false);
             return ToWorkItem(ParseJson(reply.Body));
         }
@@ -215,8 +217,9 @@ namespace Halyard.Core.Providers
                 await SendAsync(NewCall("DELETE", ProjectApi + "/issues/" + item.Number), cancellation).ConfigureAwait(false);
                 return true;
             }
-            catch (ProviderHttpException ex) when (ex.Status == 404)
+            catch (ProviderHttpException ex)
             {
+                if (ex.Status != 404) throw;
                 return false; // already gone
             }
         }
@@ -231,19 +234,19 @@ namespace Halyard.Core.Providers
             var iid = (long?)j["iid"] ?? 0;
             var item = new WorkItem(Repository, iid)
             {
-                ProviderId = ((long?)j["id"])?.ToString(),
+                ProviderId = (long?)j["id"] == null ? null : ((long?)j["id"]).Value.ToString(),
                 ProviderNumericId = (long?)j["id"],
-                Title = (string?)j["title"] ?? string.Empty,
-                Body = (string?)j["description"] ?? string.Empty,
-                State = StateFromText((string?)j["state"] == "opened" ? "open" : (string?)j["state"]),
-                Url = (string?)j["web_url"],
-                Milestone = j["milestone"] == null || j["milestone"]!.Type == JTokenType.Null ? null : (string?)j["milestone"]!["title"],
+                Title = (string)j["title"] ?? string.Empty,
+                Body = (string)j["description"] ?? string.Empty,
+                State = StateFromText((string)j["state"] == "opened" ? "open" : (string)j["state"]),
+                Url = (string)j["web_url"],
+                Milestone = j["milestone"] == null || j["milestone"].Type == JTokenType.Null ? null : (string)j["milestone"]["title"],
                 CreatedAt = ParseDate(j["created_at"]),
                 UpdatedAt = ParseDate(j["updated_at"]),
             };
             item.Labels.AddRange(ReadLabels(j["labels"]));
             var assignees = j["assignees"] as JArray;
-            if (assignees != null) item.Assignees.AddRange(assignees.Select(a => (string?)a["username"]).Where(a => !string.IsNullOrEmpty(a))!);
+            if (assignees != null) item.Assignees.AddRange(assignees.Select(a => (string)a["username"]).Where(a => !string.IsNullOrEmpty(a)));
             return item;
         }
 

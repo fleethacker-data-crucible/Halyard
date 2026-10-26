@@ -12,7 +12,7 @@ using Halyard.Core.Safety;
 using Halyard.Core.Schema;
 using Halyard.Core.Snapshots;
 using Halyard.Core.Synthetic;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Host
 {
@@ -97,9 +97,9 @@ namespace Halyard.Core.Host
             });
         }
 
-        private static string? Query(HttpRequest r, string name)
+        private static string Query(HttpRequest r, string name)
         {
-            string? v;
+            string v;
             return r.QueryValues.TryGetValue(name, out v) && !string.IsNullOrWhiteSpace(v) ? v : null;
         }
 
@@ -151,7 +151,7 @@ namespace Halyard.Core.Host
         {
             return new
             {
-                types = WorkItemTypes.Classified.Select(t => new { token = WorkItemTypes.ToToken(t), label = WorkItemTypes.ToLabel(t), depth = WorkItemTypes.Depth(t), expectedParent = WorkItemTypes.ExpectedParent(t) == null ? null : WorkItemTypes.ToToken(WorkItemTypes.ExpectedParent(t)!.Value) }),
+                types = WorkItemTypes.Classified.Select(t => new { token = WorkItemTypes.ToToken(t), label = WorkItemTypes.ToLabel(t), depth = WorkItemTypes.Depth(t), expectedParent = WorkItemTypes.ExpectedParent(t) == null ? null : WorkItemTypes.ToToken(WorkItemTypes.ExpectedParent(t).Value) }),
                 requiredMeta = Taxonomy.RequiredMeta.ToDictionary(kv => WorkItemTypes.ToToken(kv.Key), kv => kv.Value),
                 themes = Taxonomy.Themes,
                 deficiencyRules = Deficiencies.Rules.Select(r => new { r.Code, appliesTo = r.AppliesTo == null ? null : WorkItemTypes.ToToken(r.AppliesTo.Value), r.Explanation }),
@@ -180,7 +180,7 @@ namespace Halyard.Core.Host
                 if (body[locked] != null)
                     throw new BadRequestException(locked + " can only be set in config/halyard.env (then relaunch). The browser cannot change where Halyard reads, writes or sends tokens.");
             }
-            if (body["labelFilter"] != null) { var lf = Json.Read<string>(body, "labelFilter"); Settings.LabelFilter = string.IsNullOrWhiteSpace(lf) ? null : lf!.Trim(); changed.Add("labelFilter"); }
+            if (body["labelFilter"] != null) { var lf = Json.Read<string>(body, "labelFilter"); Settings.LabelFilter = string.IsNullOrWhiteSpace(lf) ? null : lf.Trim(); changed.Add("labelFilter"); }
             var llmProfile = Json.Read<string>(body, "llmProfile");
             if (llmProfile != null)
             {
@@ -192,7 +192,7 @@ namespace Halyard.Core.Host
             // The OpenAI-compatible API key and model may be entered in the browser. The key stays in memory;
             // the endpoint URL is deliberately not settable here, so the key can only ever go where
             // config/halyard.env points. "remember" writes both into the git-ignored env file on this machine.
-            var persist = new Dictionary<string, string?>();
+            var persist = new Dictionary<string, string>();
             if (body["llmToken"] != null)
             {
                 var token = Llm.LlmSettings.Clean(Json.Read<string>(body, "llmToken"));
@@ -275,7 +275,7 @@ namespace Halyard.Core.Host
             var job = Jobs.Start("sync", async ctx =>
             {
                 var snap = await SyncInline(ctx, provider, repos, labels, max, includeClosed).ConfigureAwait(false);
-                return (object?)new { snap.Id, count = snap.Items.Count, snap.TakenAt, repository = snap.Repository, repositories = snap.Repositories };
+                return (object)new { snap.Id, count = snap.Items.Count, snap.TakenAt, repository = snap.Repository, repositories = snap.Repositories };
             });
             return Task.FromResult(Json.Accepted(job));
         }
@@ -306,7 +306,7 @@ namespace Halyard.Core.Host
         /// same job so the pages refresh by themselves: the current snapshot's repositories and label filter when there
         /// is one, otherwise the sandbox alone. A failure here never fails the write; it is reported in the result.
         /// </summary>
-        private async Task<object?> ResyncAfterWrite(JobContext ctx, IWorkItemProvider provider, object? writeResult)
+        private async Task<object> ResyncAfterWrite(JobContext ctx, IWorkItemProvider provider, object writeResult)
         {
             try
             {
@@ -314,7 +314,7 @@ namespace Halyard.Core.Host
                 var repos = current != null && current.Repositories.Count > 0
                     ? current.Repositories.Select(id => ResolveRepositories(id).First()).ToList()
                     : new List<RepositoryRef> { SandboxOrThrow() };
-                var labels = string.IsNullOrWhiteSpace(current?.LabelFilter) ? new List<string>() : current!.LabelFilter!.Split(',').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
+                var labels = current == null || string.IsNullOrWhiteSpace(current.LabelFilter) ? new List<string>() : current.LabelFilter.Split(',').Select(l => l.Trim()).Where(l => l.Length > 0).ToList();
                 ctx.Report(0, 0, "Synchronizing " + string.Join(", ", repos.Select(x => x.Identifier)) + " so the pages reflect the change");
                 var snap = await SyncInline(ctx, provider, repos, labels, Settings.MaxSyncItems, true).ConfigureAwait(false);
                 return WithResync(writeResult, true, null, new { snap.Id, count = snap.Items.Count, snap.TakenAt, repositories = snap.Repositories });
@@ -328,16 +328,16 @@ namespace Halyard.Core.Host
         }
 
         /// <summary>The write's own result, unchanged in shape, with the resync outcome added alongside.</summary>
-        private static object? WithResync(object? writeResult, bool resynced, string? error, object? snapshot)
+        private static object WithResync(object writeResult, bool resynced, string error, object snapshot)
         {
-            var o = writeResult == null ? new Newtonsoft.Json.Linq.JObject() : Newtonsoft.Json.Linq.JObject.FromObject(writeResult, Newtonsoft.Json.JsonSerializer.Create(Json.Settings));
+            var o = writeResult == null ? new JObject() : JObject.FromObject(writeResult, Json.Settings);
             o["resynced"] = resynced;
             if (error != null) o["resyncError"] = error;
-            if (snapshot != null) o["snapshot"] = Newtonsoft.Json.Linq.JObject.FromObject(snapshot, Newtonsoft.Json.JsonSerializer.Create(Json.Settings));
+            if (snapshot != null) o["snapshot"] = JObject.FromObject(snapshot, Json.Settings);
             return o;
         }
 
-        private object? SnapshotPayload()
+        private object SnapshotPayload()
         {
             var snap = Snapshots.Current;
             if (snap == null) return null;
@@ -359,7 +359,7 @@ namespace Halyard.Core.Host
             };
         }
 
-        private object ReviewPayload(string? label)
+        private object ReviewPayload(string label)
         {
             List<WorkItem> all;
             var visible = VisibleItems(label ?? Settings.LabelFilter, out all);
@@ -386,18 +386,18 @@ namespace Halyard.Core.Host
             };
         }
 
-        private object HierarchyPayload(string? label)
+        private object HierarchyPayload(string label)
         {
             List<WorkItem> all;
             var visible = VisibleItems(label ?? Settings.LabelFilter, out all);
             var audit = TopologyAudit.Run(visible, all, label);
             var forest = HierarchyTree.Build(visible, audit.ParentEdges);
-            Func<HierarchyNode, object>? toJson = null;
+            Func<HierarchyNode, object> toJson = null;
             toJson = n => new
             {
                 key = n.Item.Key, number = n.Item.Number, repository = n.Item.Repository.Identifier, canonicalId = n.Item.CanonicalId, type = WorkItemTypes.ToToken(n.Item.Type), title = Descriptions.ShortName(n.Item.Title), fullTitle = n.Item.Title,
                 url = n.Item.Url, state = n.Item.State, points = n.Item.Meta == null ? null : n.Item.Meta.Points, effort = n.Item.Meta == null ? null : n.Item.Meta.Effort, sprint = n.Item.Meta == null ? null : n.Item.Meta.Sprint,
-                rolledUpPoints = n.RolledUpPoints(), descendantCount = n.Descendants().Count(), children = n.Children.Select(c => toJson!(c)).ToList(),
+                rolledUpPoints = n.RolledUpPoints(), descendantCount = n.Descendants().Count(), children = n.Children.Select(c => toJson(c)).ToList(),
             };
             return new
             {
@@ -417,7 +417,7 @@ namespace Halyard.Core.Host
             return first < 0 || last <= first ? key : key.Substring(first + 1, last - first - 1);
         }
 
-        private DeliveryReport BuildDelivery(string? label)
+        private DeliveryReport BuildDelivery(string label)
         {
             List<WorkItem> all;
             var visible = VisibleItems(label ?? Settings.LabelFilter, out all);
@@ -425,7 +425,7 @@ namespace Halyard.Core.Host
             return Delivery.Build(visible, Team, DateTimeOffset.UtcNow, snap == null ? null : snap.Repository);
         }
 
-        private object LeadershipPayload(string? label)
+        private object LeadershipPayload(string label)
         {
             var snap = Snapshots.Current;
             if (snap == null) throw new BadRequestException("Synchronize a repository first; the leadership view reads the snapshot.");
@@ -461,7 +461,7 @@ namespace Halyard.Core.Host
 
         private Task<HttpResponse> GetItem(HttpRequest r)
         {
-            string? which;
+            string which;
             if (!r.RouteValues.TryGetValue("number", out which) || string.IsNullOrWhiteSpace(which)) which = Query(r, "key");
             var snap = Snapshots.Current;
             var item = FindItem(which);
@@ -506,7 +506,7 @@ namespace Halyard.Core.Host
         }
 
         /// <summary>A defect share between 0 and 0.5, given as a fraction (0.2) or a percentage (20).</summary>
-        private static double? ReadRate(string? text)
+        private static double? ReadRate(string text)
         {
             double v;
             if (!double.TryParse(text, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out v)) return null;
@@ -572,7 +572,7 @@ namespace Halyard.Core.Host
             {
                 var progress = new Progress<SeedProgress>(p => ctx.Report(p.Done, p.Total, p.Message));
                 var result = await SandboxTeardown.RunAsync(provider, Gateway, sandbox, options, progress, ctx.Cancellation).ConfigureAwait(false);
-                if (options.DryRun) return (object?)result;
+                if (options.DryRun) return (object)result;
                 if (result.Errors.Count == 0) SandboxSeeder.MarkDeleted(Settings.SeedsDirectory, options.Scope == TeardownScope.Run ? options.RunId : null, DateTimeOffset.UtcNow);
                 return await ResyncAfterWrite(ctx, provider, result).ConfigureAwait(false);
             });
@@ -608,7 +608,7 @@ namespace Halyard.Core.Host
                 var batch = await Estimator.RunAsync(items, llm, options, target, progress, ctx.Cancellation).ConfigureAwait(false);
                 Proposals.Save(batch);
                 ctx.Report(batch.Proposals.Count, batch.Proposals.Count, batch.Proposals.Count + " proposals saved in batch " + batch.Id);
-                return (object?)BatchSummary(batch);
+                return (object)BatchSummary(batch);
             });
             return Task.FromResult(Json.Accepted(new { job, profile = llm.Profile, model = llm.Model, candidates = items.Count }));
         }
@@ -644,7 +644,7 @@ namespace Halyard.Core.Host
         }
 
         /// <summary>Optional <c>numbers: [..]</c> selection from a bulk action; null means every eligible item.</summary>
-        private static HashSet<long>? ReadNumbers(JObject body)
+        private static HashSet<long> ReadNumbers(JObject body)
         {
             var list = Json.Read<List<long>>(body, "numbers");
             if (list == null || list.Count == 0) return null;
@@ -677,7 +677,7 @@ namespace Halyard.Core.Host
                 var batch = await Refiner.RunAsync(visible, report, llm, options, target, progress, ctx.Cancellation).ConfigureAwait(false);
                 Proposals.Save(batch);
                 ctx.Report(batch.Proposals.Count, batch.Proposals.Count, batch.Proposals.Count + " refinement proposals saved in batch " + batch.Id);
-                return (object?)BatchSummary(batch);
+                return (object)BatchSummary(batch);
             });
             return Task.FromResult(Json.Accepted(new { job, profile = llm.Profile, model = llm.Model, candidates, sending = Math.Min(candidates, options.MaxItems) }));
         }
@@ -715,7 +715,7 @@ namespace Halyard.Core.Host
                 items = sources.Select(i =>
                 {
                     string reason; var type = Intake.GuessType(i, out reason);
-                    WorkItem? copy; copied.TryGetValue(i.Repository.Identifier + "#" + i.Number, out copy);
+                    WorkItem copy; copied.TryGetValue(i.Repository.Identifier + "#" + i.Number, out copy);
                     return new { key = i.Key, number = i.Number, repository = i.Repository.Identifier, title = i.Title, state = i.State, labels = i.Labels, url = i.Url, updatedAt = i.UpdatedAt, hasMeta = i.HasMeta, guessedType = WorkItemTypes.ToToken(type), guessReason = reason, copiedAs = copy == null ? null : copy.Key, bodyLength = (i.Body ?? string.Empty).Length };
                 }),
             };
@@ -734,9 +734,9 @@ namespace Halyard.Core.Host
             var sandbox = SandboxOrThrow();
             var drafts = Intake.Prepare(snap.Items, sandbox, options, Taxonomy);
             if (drafts.Count == 0) throw new BadRequestException("None of the selected keys are source items in the snapshot.");
-            ILlmClient? llm = useModel ? CreateLlm(Json.Read<string>(body, "profile")) : null;
+            ILlmClient llm = useModel ? CreateLlm(Json.Read<string>(body, "profile")) : null;
             if (!run && llm == null) return Task.FromResult(Json.Ok(new { drafts, count = drafts.Count, alreadyCopied = drafts.Count(d => d.ExistingKey != null) }));
-            IWorkItemProvider? provider = run ? GetProvider() : null;
+            IWorkItemProvider provider = run ? GetProvider() : null;
             if (run) Gateway.Policy.Assert(sandbox, new WriteIntent("intake", "preflight", null));
             var items = snap.Items;
             var job = Jobs.Start(run ? "intake" : "intake-preview", async ctx =>
@@ -747,12 +747,12 @@ namespace Halyard.Core.Host
                     ctx.Report(0, 0, "Classifying " + drafts.Count + " tickets with " + llm.Model);
                     prepared = await Intake.ClassifyAsync(drafts, items, sandbox, llm, options, Taxonomy, ctx.Cancellation).ConfigureAwait(false);
                 }
-                if (!run) return (object?)new { drafts = prepared, count = prepared.Count, alreadyCopied = prepared.Count(d => d.ExistingKey != null) };
+                if (!run) return (object)new { drafts = prepared, count = prepared.Count, alreadyCopied = prepared.Count(d => d.ExistingKey != null) };
                 var progress = new Progress<string>(m => ctx.Report(0, 0, m));
-                var manifest = await Intake.RunAsync(prepared, provider!, Gateway, sandbox, options, progress, ctx.Cancellation).ConfigureAwait(false);
+                var manifest = await Intake.RunAsync(prepared, provider, Gateway, sandbox, options, progress, ctx.Cancellation).ConfigureAwait(false);
                 manifest.Source = llm == null ? "deterministic" : "llm:" + llm.Model;
                 ctx.Report(manifest.Items.Count, manifest.Requested, manifest.Items.Count + " of " + manifest.Requested + " copied into " + sandbox.Identifier);
-                return await ResyncAfterWrite(ctx, provider!, manifest).ConfigureAwait(false);
+                return await ResyncAfterWrite(ctx, provider, manifest).ConfigureAwait(false);
             });
             return Task.FromResult(Json.Accepted(new { job, count = drafts.Count, target = sandbox.Key }));
         }
@@ -779,7 +779,7 @@ namespace Halyard.Core.Host
             var sandbox = Settings.Provider.Sandbox;
             var sandboxKeys = sandbox == null ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : new HashSet<string>(visible.Where(i => i.Repository.Equals(sandbox)).Select(i => i.Key), StringComparer.OrdinalIgnoreCase);
             var repository = snap.Repository;
-            ILlmClient? llm = useModel ? CreateLlm(Json.Read<string>(body, "profile")) : null;
+            ILlmClient llm = useModel ? CreateLlm(Json.Read<string>(body, "profile")) : null;
             var job = Jobs.Start("vision", async ctx =>
             {
                 ctx.Report(0, 0, llm == null ? "Summarizing the backlog" : "Asking " + llm.Model + " for a portfolio vision");
@@ -791,7 +791,7 @@ namespace Halyard.Core.Host
                 }
                 Visions.Save(draft);
                 ctx.Report(1, 1, "Vision " + draft.Id + " saved" + (draft.ProposalBatchId != null ? " with theme proposals in batch " + draft.ProposalBatchId : string.Empty));
-                return (object?)VisionSummary(draft);
+                return (object)VisionSummary(draft);
             });
             return Task.FromResult(Json.Accepted(new { job, source = llm == null ? "deterministic" : llm.Model }));
         }
@@ -818,7 +818,7 @@ namespace Halyard.Core.Host
             options.OnlyKeys = new HashSet<string>(items.Select(i => i.Key), StringComparer.OrdinalIgnoreCase);
             var report = Review.Run(visible, Taxonomy, label, all);
             var plan = SprintPlanner.Plan(visible, report, Team, DateTimeOffset.UtcNow, options);
-            ProposalBatch? batch = null;
+            ProposalBatch batch = null;
             if (save)
             {
                 batch = SprintPlanner.ToProposals(plan, target);
@@ -862,7 +862,7 @@ namespace Halyard.Core.Host
                 var batch = await SkillTagger.RunAsync(visible, report, taxonomy, llm, options, target, progress, ctx.Cancellation).ConfigureAwait(false);
                 Proposals.Save(batch);
                 ctx.Report(batch.Proposals.Count, batch.Proposals.Count, batch.Proposals.Count + " skill proposals saved in batch " + batch.Id);
-                return (object?)BatchSummary(batch);
+                return (object)BatchSummary(batch);
             });
             return Task.FromResult(Json.Accepted(new { job, profile = llm.Profile, model = llm.Model, candidates = SkillTagger.Candidates(visible, options).Count }));
         }
@@ -870,7 +870,7 @@ namespace Halyard.Core.Host
         private Task<HttpResponse> ManualProposal(HttpRequest r)
         {
             var body = Json.Body(r);
-            var reference = Json.Read<string>(body, "key") ?? (Json.Read<long?>(body, "number") == null ? null : Json.Read<long?>(body, "number")!.Value.ToString());
+            var reference = Json.Read<string>(body, "key") ?? (Json.Read<long?>(body, "number") == null ? null : Json.Read<long?>(body, "number").Value.ToString());
             if (reference == null) throw new BadRequestException("key (or number) is required.");
             var kindText = (Json.Read<string>(body, "kind") ?? string.Empty).Trim().ToLowerInvariant();
             ProposalKind kind;
@@ -916,7 +916,7 @@ namespace Halyard.Core.Host
                 current = new { body = item.Body, narrative = Descriptions.Narrative(item.Body), meta = item.Meta == null ? null : item.Meta.Entries.Select(e => new { key = e.Key, value = e.Value }), deficiencies = Deficiencies.Evaluate(item) },
                 proposed = new { body = projection.Body, narrative = Descriptions.Narrative(projection.Body), meta = projection.Meta.Entries.Select(e => new { key = e.Key, value = e.Value }), deficiencies = Deficiencies.Evaluate(after) },
                 unchanged = projection.Body == item.Body,
-                snapshotStale = snap!.Age.TotalMinutes > 30,
+                snapshotStale = snap.Age.TotalMinutes > 30,
             }));
         }
 
@@ -958,7 +958,7 @@ namespace Halyard.Core.Host
             }
             var proposalId = Json.Read<string>(body, "proposalId");
             if (string.IsNullOrWhiteSpace(proposalId)) throw new BadRequestException("proposalId (or all=true) is required.");
-            var p = Proposals.Decide(batchId, proposalId!, decision, Json.Read<string>(body, "note"));
+            var p = Proposals.Decide(batchId, proposalId, decision, Json.Read<string>(body, "note"));
             if (p == null) throw new NotFoundException("No such proposal.");
             return Task.FromResult(Json.Ok(p));
         }

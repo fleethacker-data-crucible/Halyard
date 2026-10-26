@@ -1,0 +1,67 @@
+{
+  "Id": "20261020-101500-1a2b",
+  "Kind": 1,
+  "Target": "github:o/r",
+  "CreatedAt": "2026-10-20T10:15:00+00:00",
+  "Source": "deterministic",
+  "Considered": 2,
+  "Skipped": 0,
+  "SkipReasons": [],
+  "Proposals": [
+    {
+      "Id": "aaaaaaaaaaaa",
+      "BatchId": "20261020-101500-1a2b",
+      "Kind": 1,
+      "ItemKey": "github:o/r:1",
+      "ItemNumber": 1,
+      "ItemCanonicalId": "STORY-1",
+      "ItemTitle": "STORY :: one",
+      "CurrentValue": "3",
+      "ProposedValue": "5",
+      "Confidence": "high",
+      "Reason": "r",
+      "Source": "deterministic",
+      "Decision": 3,
+      "DecisionNote": null,
+      "CreatedAt": "2026-10-20T10:15:00+00:00",
+      "DecidedAt": "2026-10-20T10:15:00+00:00",
+      "AppliedAt": "2026-10-20T10:16:00+00:00",
+      "Error": null,
+      "ProposedMeta": null,
+      "Addresses": [],
+      "Remaining": [],
+      "MetaKey": "points"
+    },
+    {
+      "Id": "bbbbbbbbbbbb",
+      "BatchId": "20261020-101500-1a2b",
+      "Kind": 5,
+      "ItemKey": "github:o/r:2",
+      "ItemNumber": 2,
+      "ItemCanonicalId": "STORY-2",
+      "ItemTitle": "STORY :: two",
+      "CurrentValue": null,
+      "ProposedValue": "meta",
+      "Confidence": "medium",
+      "Reason": "",
+      "Source": "",
+      "Decision": 0,
+      "DecisionNote": null,
+      "CreatedAt": "2026-10-20T10:15:00+00:00",
+      "DecidedAt": null,
+      "AppliedAt": null,
+      "Error": null,
+      "ProposedMeta": {
+        "points": "TBD",
+        "effort": null
+      },
+      "Addresses": [
+        "STORY_MISSING_POINTS"
+      ],
+      "Remaining": [],
+      "MetaKey": "parent"
+    }
+  ],
+  "RawModelOutput": null,
+  "Warnings": []
+}

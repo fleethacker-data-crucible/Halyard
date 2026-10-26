@@ -12,11 +12,17 @@ namespace Halyard.Core.Intelligence
 {
     public sealed class ApplyResult
     {
-        public string BatchId { get; set; } = string.Empty;
+        public string BatchId { get; set; }
         public int Applied { get; set; }
         public int Skipped { get; set; }
         public int Failed { get; set; }
-        public List<string> Messages { get; set; } = new List<string>();
+        public List<string> Messages { get; set; }
+
+        public ApplyResult()
+        {
+            BatchId = string.Empty;
+            Messages = new List<string>();
+        }
     }
 
     /// <summary>What a proposal would turn an item into: the new meta and the full new body.</summary>
@@ -82,14 +88,14 @@ namespace Halyard.Core.Intelligence
             }
         }
 
-        private static void ApplyMeta(HalyardMeta meta, Dictionary<string, string?>? changes)
+        private static void ApplyMeta(HalyardMeta meta, Dictionary<string, string> changes)
         {
             if (changes == null) return;
             foreach (var kv in changes) meta.Set(kv.Key, kv.Value);
         }
 
         public static async Task<ApplyResult> ApplyAsync(ProposalBatch batch, ProposalStore store, IWorkItemProvider provider, WriteGateway gateway, RepositoryRef target,
-            IProgress<string>? progress, CancellationToken cancellation)
+            IProgress<string> progress, CancellationToken cancellation)
         {
             if (batch == null) throw new ArgumentNullException("batch");
             var result = new ApplyResult { BatchId = batch.Id };

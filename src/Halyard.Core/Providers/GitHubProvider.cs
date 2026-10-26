@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Halyard.Core.Model;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Providers
 {
@@ -18,7 +18,7 @@ namespace Halyard.Core.Providers
         private static readonly Regex NextLink = new Regex(@"<(?<url>[^>]+)>;\s*rel=""next""", RegexOptions.Compiled);
         private const int PageSize = 100;
 
-        public GitHubProvider(IHttpTransport http, string baseUrl, string? token, RepositoryRef repository, int writeDelayMs = -1)
+        public GitHubProvider(IHttpTransport http, string baseUrl, string token, RepositoryRef repository, int writeDelayMs = -1)
             : base(http, baseUrl, token, writeDelayMs)
         {
             if (repository.Provider != ProviderKind.GitHub) throw new ArgumentException("Repository is not a GitHub repository.", "repository");
@@ -43,7 +43,7 @@ namespace Halyard.Core.Providers
 
         protected override void Authenticate(HttpCall call)
         {
-            if (!string.IsNullOrWhiteSpace(Token)) call.Headers["Authorization"] = "Bearer " + Token!.Trim();
+            if (!string.IsNullOrWhiteSpace(Token)) call.Headers["Authorization"] = "Bearer " + Token.Trim();
             call.Headers["Accept"] = "application/vnd.github+json";
             call.Headers["X-GitHub-Api-Version"] = "2022-11-28";
         }
@@ -64,7 +64,7 @@ namespace Halyard.Core.Providers
             public Task<WorkItem> CreateAsync(WorkItemDraft draft, CancellationToken c) { return _p.WriteCreateAsync(draft, c); }
             public Task<WorkItem> UpdateAsync(long number, WorkItemPatch patch, CancellationToken c) { return _p.WriteUpdateAsync(number, patch, c); }
             public Task<bool> DeleteAsync(WorkItem item, CancellationToken c) { return _p.WriteDeleteAsync(item, c); }
-            public Task<WorkItem?> GetAsync(long number, CancellationToken c) { return _p.GetWorkItemAsync(number, c); }
+            public Task<WorkItem> GetAsync(long number, CancellationToken c) { return _p.GetWorkItemAsync(number, c); }
             public Task<bool> LinkParentAsync(WorkItem child, WorkItem parent, CancellationToken c) { return _p.WriteLinkParentAsync(child, parent, c); }
         }
 
@@ -81,9 +81,9 @@ namespace Halyard.Core.Providers
             return new ProviderIdentity
             {
                 Provider = Kind,
-                Login = (string?)user["login"] ?? string.Empty,
-                Name = (string?)user["name"],
-                Url = (string?)user["html_url"],
+                Login = (string)user["login"] ?? string.Empty,
+                Name = (string)user["name"],
+                Url = (string)user["html_url"],
                 ApiBase = BaseUrl,
             };
         }
@@ -97,9 +97,9 @@ namespace Halyard.Core.Providers
                 var reply = await SendAsync(NewCall("GET", url), cancellation).ConfigureAwait(false);
                 foreach (var r in ParseJson(reply.Body))
                 {
-                    var full = (string?)r["full_name"];
+                    var full = (string)r["full_name"];
                     if (string.IsNullOrWhiteSpace(full)) continue;
-                    result.Add(new RepositoryRef(Kind, full!, full, (string?)r["html_url"]));
+                    result.Add(new RepositoryRef(Kind, full, full, (string)r["html_url"]));
                     if (result.Count >= max) break;
                 }
                 url = Next(reply);
@@ -116,15 +116,15 @@ namespace Halyard.Core.Providers
                 var reply = await SendAsync(NewCall("GET", url), cancellation).ConfigureAwait(false);
                 foreach (var l in ParseJson(reply.Body))
                 {
-                    var name = (string?)l["name"];
-                    if (!string.IsNullOrWhiteSpace(name)) result.Add(name!);
+                    var name = (string)l["name"];
+                    if (!string.IsNullOrWhiteSpace(name)) result.Add(name);
                 }
                 url = Next(reply);
             }
             return result;
         }
 
-        public async Task<IReadOnlyList<WorkItem>> ListWorkItemsAsync(WorkItemQuery query, IProgress<string>? progress, CancellationToken cancellation)
+        public async Task<IReadOnlyList<WorkItem>> ListWorkItemsAsync(WorkItemQuery query, IProgress<string> progress, CancellationToken cancellation)
         {
             var items = new List<WorkItem>();
             var state = query.State == null ? "all" : (query.State == WorkItemState.Open ? "open" : "closed");
@@ -157,15 +157,16 @@ namespace Halyard.Core.Providers
             return id.Value.ToString();
         }
 
-        public async Task<WorkItem?> GetWorkItemAsync(long number, CancellationToken cancellation)
+        public async Task<WorkItem> GetWorkItemAsync(long number, CancellationToken cancellation)
         {
             try
             {
                 var j = await GetJsonAsync(RepoApi + "/issues/" + number, cancellation).ConfigureAwait(false);
                 return j["pull_request"] != null ? null : ToWorkItem(j);
             }
-            catch (ProviderHttpException ex) when (ex.Status == 404)
+            catch (ProviderHttpException ex)
             {
+                if (ex.Status != 404) throw;
                 return null;
             }
         }
@@ -174,14 +175,15 @@ namespace Halyard.Core.Providers
 
         internal async Task WriteEnsureLabelAsync(LabelDefinition label, CancellationToken cancellation)
         {
-            var payload = new JObject { ["name"] = label.Name, ["color"] = label.Color };
-            if (!string.IsNullOrEmpty(label.Description)) payload["description"] = Truncate(label.Description!, 100);
+            var payload = new JObject { { "name", label.Name }, { "color", label.Color } };
+            if (!string.IsNullOrEmpty(label.Description)) payload["description"] = Truncate(label.Description, 100);
             try
             {
                 await SendJsonAsync("POST", RepoApi + "/labels", payload, cancellation).ConfigureAwait(false);
             }
-            catch (ProviderHttpException ex) when (ex.Status == 422 || ex.Status == 409)
+            catch (ProviderHttpException ex)
             {
+                if (ex.Status != 422 && ex.Status != 409) throw;
                 // already exists
             }
         }
@@ -189,7 +191,7 @@ namespace Halyard.Core.Providers
         internal async Task<WorkItem> WriteCreateAsync(WorkItemDraft draft, CancellationToken cancellation)
         {
             await PaceWriteAsync(cancellation).ConfigureAwait(false);
-            var payload = new JObject { ["title"] = draft.Title, ["body"] = draft.Body, ["labels"] = new JArray(draft.Labels) };
+            var payload = new JObject { { "title", draft.Title }, { "body", draft.Body }, { "labels", new JArray(draft.Labels) } };
             var reply = await SendJsonAsync("POST", RepoApi + "/issues", payload, cancellation).ConfigureAwait(false);
             return ToWorkItem(ParseJson(reply.Body));
         }
@@ -215,30 +217,34 @@ namespace Halyard.Core.Providers
         {
             var fresh = await GetWorkItemAsync(item.Number, cancellation).ConfigureAwait(false);
             if (fresh == null || string.IsNullOrEmpty(fresh.ProviderId)) return false;
-            var nodeId = fresh.ProviderId!;
+            var nodeId = fresh.ProviderId;
             var check = new JObject
             {
-                ["query"] = "query($id: ID!) { node(id: $id) { ... on Issue { number repository { nameWithOwner } } } }",
-                ["variables"] = new JObject { ["id"] = nodeId },
+                { "query", "query($id: ID!) { node(id: $id) { ... on Issue { number repository { nameWithOwner } } } }" },
+                { "variables", new JObject { { "id", nodeId } } },
             };
             var checkReply = await SendJsonAsync("POST", BaseUrl + "/graphql", check, cancellation).ConfigureAwait(false);
-            var node = (ParseJson(checkReply.Body) as JObject)?["data"]?["node"];
-            var owner = (string?)node?["repository"]?["nameWithOwner"];
-            var number = (long?)node?["number"];
+            var checkJson = ParseJson(checkReply.Body) as JObject;
+            var data = checkJson == null ? null : checkJson["data"];
+            var node = data == null ? null : data["node"];
+            var repository = node == null ? null : node["repository"];
+            var owner = repository == null ? null : (string)repository["nameWithOwner"];
+            var number = node == null ? null : (long?)node["number"];
             if (node == null || node.Type == JTokenType.Null) return false;
             if (!string.Equals(owner, Repository.Identifier, StringComparison.OrdinalIgnoreCase) || number != item.Number)
-                throw new ProviderHttpException(409, "Refusing to delete: node " + nodeId + " is " + (owner ?? "?") + "#" + (number?.ToString() ?? "?") + ", not " + Repository.Identifier + "#" + item.Number + ".", null);
+                throw new ProviderHttpException(409, "Refusing to delete: node " + nodeId + " is " + (owner ?? "?") + "#" + (number.HasValue ? number.Value.ToString() : "?") + ", not " + Repository.Identifier + "#" + item.Number + ".", null);
             await PaceWriteAsync(cancellation).ConfigureAwait(false);
             var payload = new JObject
             {
-                ["query"] = "mutation($id: ID!) { deleteIssue(input: { issueId: $id }) { clientMutationId } }",
-                ["variables"] = new JObject { ["id"] = nodeId },
+                { "query", "mutation($id: ID!) { deleteIssue(input: { issueId: $id }) { clientMutationId } }" },
+                { "variables", new JObject { { "id", nodeId } } },
             };
             var reply = await SendJsonAsync("POST", BaseUrl + "/graphql", payload, cancellation).ConfigureAwait(false);
-            var errors = (ParseJson(reply.Body) as JObject)?["errors"] as JArray;
+            var replyJson = ParseJson(reply.Body) as JObject;
+            var errors = replyJson == null ? null : replyJson["errors"] as JArray;
             if (errors != null && errors.Count > 0)
             {
-                var msg = string.Join("; ", errors.Select(e => (string?)e["message"] ?? "unknown"));
+                var msg = string.Join("; ", errors.Select(e => (string)e["message"] ?? "unknown"));
                 if (msg.IndexOf("Could not resolve", StringComparison.OrdinalIgnoreCase) >= 0) return false;
                 throw new ProviderHttpException(reply.Status, "GitHub refused to delete issue #" + item.Number + ": " + msg, reply.Body);
             }
@@ -257,12 +263,13 @@ namespace Halyard.Core.Providers
             try
             {
                 await PaceWriteAsync(cancellation).ConfigureAwait(false);
-                var payload = new JObject { ["sub_issue_id"] = childId.Value };
+                var payload = new JObject { { "sub_issue_id", childId.Value } };
                 await SendJsonAsync("POST", RepoApi + "/issues/" + parent.Number + "/sub_issues", payload, cancellation).ConfigureAwait(false);
                 return true;
             }
-            catch (ProviderHttpException ex) when (ex.Status == 404 || ex.Status == 422 || ex.Status == 403 || ex.Status == 410)
+            catch (ProviderHttpException ex)
             {
+                if (ex.Status != 404 && ex.Status != 422 && ex.Status != 403 && ex.Status != 410) throw;
                 return false; // sub-issues unavailable on this repo/plan, or already linked
             }
         }
@@ -272,27 +279,27 @@ namespace Halyard.Core.Providers
             var number = (long?)j["number"] ?? 0;
             var item = new WorkItem(Repository, number)
             {
-                ProviderId = (string?)j["node_id"],
-                Title = (string?)j["title"] ?? string.Empty,
-                Body = (string?)j["body"] ?? string.Empty,
-                State = StateFromText((string?)j["state"]),
-                Url = (string?)j["html_url"],
-                Milestone = j["milestone"] == null || j["milestone"]!.Type == JTokenType.Null ? null : (string?)j["milestone"]!["title"],
+                ProviderId = (string)j["node_id"],
+                Title = (string)j["title"] ?? string.Empty,
+                Body = (string)j["body"] ?? string.Empty,
+                State = StateFromText((string)j["state"]),
+                Url = (string)j["html_url"],
+                Milestone = j["milestone"] == null || j["milestone"].Type == JTokenType.Null ? null : (string)j["milestone"]["title"],
                 CreatedAt = ParseDate(j["created_at"]),
                 UpdatedAt = ParseDate(j["updated_at"]),
             };
             item.Labels.AddRange(ReadLabels(j["labels"]));
             var assignees = j["assignees"] as JArray;
-            if (assignees != null) item.Assignees.AddRange(assignees.Select(a => (string?)a["login"]).Where(a => !string.IsNullOrEmpty(a))!);
+            if (assignees != null) item.Assignees.AddRange(assignees.Select(a => (string)a["login"]).Where(a => !string.IsNullOrEmpty(a)));
             item.ProviderNumericId = (long?)j["id"];
             return item;
         }
 
-        private static string? Next(HttpReply reply)
+        private static string Next(HttpReply reply)
         {
             var link = reply.Header("Link");
             if (string.IsNullOrEmpty(link)) return null;
-            var m = NextLink.Match(link!);
+            var m = NextLink.Match(link);
             return m.Success ? m.Groups["url"].Value : null;
         }
 

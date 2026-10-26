@@ -18,14 +18,14 @@ namespace Halyard.Core.Analysis
 
     public sealed class FeatureProgress
     {
-        public string Key { get; set; } = string.Empty;
+        public string Key { get; set; }
         public long Number { get; set; }
-        public string Title { get; set; } = string.Empty;
-        public string CanonicalId { get; set; } = string.Empty;
-        public string? Epic { get; set; }
-        public string? Theme { get; set; }
-        public string? Owner { get; set; }
-        public string? Target { get; set; }
+        public string Title { get; set; }
+        public string CanonicalId { get; set; }
+        public string Epic { get; set; }
+        public string Theme { get; set; }
+        public string Owner { get; set; }
+        public string Target { get; set; }
         public int Stories { get; set; }
         public int StoriesDone { get; set; }
         public int Points { get; set; }
@@ -33,46 +33,72 @@ namespace Halyard.Core.Analysis
         public int Blocked { get; set; }
         public int Percent { get { return Points > 0 ? (int)Math.Round(100.0 * PointsDone / Points) : Stories > 0 ? (int)Math.Round(100.0 * StoriesDone / Stories) : 0; } }
         public FeatureStatus Status { get; set; }
-        public string Reason { get; set; } = string.Empty;
-        public string? Url { get; set; }
+        public string Reason { get; set; }
+        public string Url { get; set; }
+
+        public FeatureProgress()
+        {
+            Key = string.Empty;
+            Title = string.Empty;
+            CanonicalId = string.Empty;
+            Reason = string.Empty;
+        }
     }
 
     public sealed class SprintVelocity
     {
-        public string Sprint { get; set; } = string.Empty;
+        public string Sprint { get; set; }
         public int Number { get; set; }
         public int PointsDone { get; set; }
         public int PointsPlanned { get; set; }
         public int StoriesDone { get; set; }
         public bool IsCurrent { get; set; }
         public bool IsPast { get; set; }
+
+        public SprintVelocity()
+        {
+            Sprint = string.Empty;
+        }
     }
 
     public sealed class Blocker
     {
-        public string Key { get; set; } = string.Empty;
+        public string Key { get; set; }
         public long Number { get; set; }
-        public string Title { get; set; } = string.Empty;
-        public string Type { get; set; } = "other";
-        public string? Reason { get; set; }
-        public string? Owner { get; set; }
+        public string Title { get; set; }
+        public string Type { get; set; }
+        public string Reason { get; set; }
+        public string Owner { get; set; }
         public DateTimeOffset? Since { get; set; }
         public int AgeDays { get; set; }
         public int AgeBusinessDays { get; set; }
         public bool Escalated { get; set; }
-        public string? Impact { get; set; }
-        public string? Url { get; set; }
+        public string Impact { get; set; }
+        public string Url { get; set; }
+
+        public Blocker()
+        {
+            Key = string.Empty;
+            Title = string.Empty;
+            Type = "other";
+        }
     }
 
     public sealed class ThemeProgress
     {
-        public string Key { get; set; } = string.Empty;
-        public string Title { get; set; } = string.Empty;
+        public string Key { get; set; }
+        public string Title { get; set; }
         public int Points { get; set; }
         public int PointsDone { get; set; }
         public int Features { get; set; }
         public int FeaturesDone { get; set; }
         public int Percent { get { return Points > 0 ? (int)Math.Round(100.0 * PointsDone / Points) : 0; } }
+
+        public ThemeProgress()
+        {
+            Key = string.Empty;
+            Title = string.Empty;
+        }
     }
 
     public sealed class CapacityView
@@ -92,7 +118,7 @@ namespace Halyard.Core.Analysis
     /// <summary>Feature status counts as of the end of one sprint; the series behind "status over time".</summary>
     public sealed class SprintStatusCount
     {
-        public string Sprint { get; set; } = string.Empty;
+        public string Sprint { get; set; }
         public int Number { get; set; }
         public bool IsCurrent { get; set; }
         public int Done { get; set; }
@@ -101,13 +127,18 @@ namespace Halyard.Core.Analysis
         public int Parked { get; set; }
         public int NotStarted { get; set; }
         public int Total { get { return Done + OnTrack + AtRisk + Parked + NotStarted; } }
+
+        public SprintStatusCount()
+        {
+            Sprint = string.Empty;
+        }
     }
 
     /// <summary>One team's share of the current sprint: capacity, what is planned into it, what is done.</summary>
     public sealed class TeamCapacityView
     {
-        public string Id { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
+        public string Id { get; set; }
+        public string Name { get; set; }
         public int Capacity { get; set; }
         public int Planned { get; set; }
         public int Done { get; set; }
@@ -116,6 +147,12 @@ namespace Halyard.Core.Analysis
         public double Experiment { get; set; }
         public int People { get; set; }
         public int UsedPercent { get { return Capacity > 0 ? (int)Math.Round(100.0 * Planned / Capacity) : 0; } }
+
+        public TeamCapacityView()
+        {
+            Id = string.Empty;
+            Name = string.Empty;
+        }
     }
 
     public sealed class ReadyBacklog
@@ -130,25 +167,40 @@ namespace Halyard.Core.Analysis
     /// <summary>The leadership view: progress, velocity, readiness, capacity and blockers, from one snapshot.</summary>
     public sealed class DeliveryReport
     {
-        public DateTimeOffset GeneratedAt { get; set; } = DateTimeOffset.UtcNow;
-        public string? Repository { get; set; }
-        public string CurrentSprint { get; set; } = string.Empty;
+        public DateTimeOffset GeneratedAt { get; set; }
+        public string Repository { get; set; }
+        public string CurrentSprint { get; set; }
         public int CurrentSprintNumber { get; set; }
         public DateTimeOffset SprintStart { get; set; }
         public DateTimeOffset SprintEnd { get; set; }
-        public List<FeatureProgress> Features { get; set; } = new List<FeatureProgress>();
-        public List<ThemeProgress> Themes { get; set; } = new List<ThemeProgress>();
-        public List<SprintVelocity> Velocity { get; set; } = new List<SprintVelocity>();
+        public List<FeatureProgress> Features { get; set; }
+        public List<ThemeProgress> Themes { get; set; }
+        public List<SprintVelocity> Velocity { get; set; }
         public double AverageVelocity { get; set; }
-        public List<Blocker> Blockers { get; set; } = new List<Blocker>();
-        public ReadyBacklog Ready { get; set; } = new ReadyBacklog();
-        public CapacityView Capacity { get; set; } = new CapacityView();
-        public List<TeamCapacityView> TeamCapacity { get; set; } = new List<TeamCapacityView>();
+        public List<Blocker> Blockers { get; set; }
+        public ReadyBacklog Ready { get; set; }
+        public CapacityView Capacity { get; set; }
+        public List<TeamCapacityView> TeamCapacity { get; set; }
         /// <summary>Feature status at the end of each shown sprint, reconstructed from story sprints, closures, blockers and targets.</summary>
-        public List<SprintStatusCount> StatusHistory { get; set; } = new List<SprintStatusCount>();
+        public List<SprintStatusCount> StatusHistory { get; set; }
         public int FeaturesOnTrack { get { return Features.Count(f => f.Status == FeatureStatus.OnTrack || f.Status == FeatureStatus.Done); } }
         public int FeaturesActive { get { return Features.Count(f => f.Status != FeatureStatus.Done); } }
-        public List<string> Notes { get; set; } = new List<string>();
+        public List<string> Notes { get; set; }
+
+        public DeliveryReport()
+        {
+            GeneratedAt = DateTimeOffset.UtcNow;
+            CurrentSprint = string.Empty;
+            Features = new List<FeatureProgress>();
+            Themes = new List<ThemeProgress>();
+            Velocity = new List<SprintVelocity>();
+            Blockers = new List<Blocker>();
+            Ready = new ReadyBacklog();
+            Capacity = new CapacityView();
+            TeamCapacity = new List<TeamCapacityView>();
+            StatusHistory = new List<SprintStatusCount>();
+            Notes = new List<string>();
+        }
     }
 
     /// <summary>
@@ -159,7 +211,7 @@ namespace Halyard.Core.Analysis
     {
         public const int EscalationBusinessDays = 5;
 
-        public static DeliveryReport Build(IReadOnlyList<WorkItem> items, TeamConfig team, DateTimeOffset now, string? repository = null)
+        public static DeliveryReport Build(IReadOnlyList<WorkItem> items, TeamConfig team, DateTimeOffset now, string repository = null)
         {
             var report = new DeliveryReport { GeneratedAt = now, Repository = repository };
             var calendar = team.Sprint;
@@ -172,8 +224,8 @@ namespace Halyard.Core.Analysis
             var audit = TopologyAudit.Run(items, items, null);
             var byKey = items.ToDictionary(i => i.Key, i => i, StringComparer.OrdinalIgnoreCase);
             var parentOf = audit.ParentEdges;
-            Func<WorkItem, WorkItem?> parent = w => { string? pk; WorkItem? p; return parentOf.TryGetValue(w.Key, out pk) && pk != null && byKey.TryGetValue(pk, out p) ? p : null; };
-            Func<WorkItem, WorkItemType, WorkItem?> ancestor = (w, t) =>
+            Func<WorkItem, WorkItem> parent = w => { string pk; WorkItem p; return parentOf.TryGetValue(w.Key, out pk) && pk != null && byKey.TryGetValue(pk, out p) ? p : null; };
+            Func<WorkItem, WorkItemType, WorkItem> ancestor = (w, t) =>
             {
                 var cursor = parent(w);
                 var guard = 0;
@@ -340,12 +392,12 @@ namespace Halyard.Core.Analysis
             return report;
         }
 
-        public static bool TryParseMonth(string? text, out DateTimeOffset end)
+        public static bool TryParseMonth(string text, out DateTimeOffset end)
         {
             end = default(DateTimeOffset);
             if (string.IsNullOrWhiteSpace(text)) return false;
             DateTimeOffset d;
-            if (DateTimeOffset.TryParseExact(text!.Trim(), new[] { "yyyy-MM", "yyyy-MM-dd", "MMM yyyy", "MMMM yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out d))
+            if (DateTimeOffset.TryParseExact(text.Trim(), new[] { "yyyy-MM", "yyyy-MM-dd", "MMM yyyy", "MMMM yyyy" }, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out d))
             {
                 end = text.Length <= 7 || !text.Contains("-") || text.Count(c => c == '-') == 1 ? new DateTimeOffset(d.Year, d.Month, DateTime.DaysInMonth(d.Year, d.Month), 23, 59, 59, TimeSpan.Zero) : d;
                 return true;
