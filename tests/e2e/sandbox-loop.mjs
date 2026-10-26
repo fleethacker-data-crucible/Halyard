@@ -188,7 +188,7 @@ if (fakeUrl) {
   const rerun = await call('POST', '/api/intake/preview', { keys });
   assert(rerun.alreadyCopied === raw.length, 'a second intake would copy nothing twice');
   const copies = (await call('GET', '/api/review')).items.filter((i) => i.labels.includes('halyard-intake'));
-  assert(copies.length === raw.length && copies.every((i) => i.hasMeta && i.type !== 'UNCLASSIFIED'), 'copies are classified work items with halyard-meta');
+  assert(copies.length === raw.length && copies.every((i) => i.hasMeta && i.type !== 'UNCLASSIFIED'), 'copies are categorized work items with halyard-meta');
   const sourceWrites = (await call('GET', '/api/writes')).entries.filter((w) => w.target.includes('raw-backlog'));
   assert(sourceWrites.length === 0, 'the source repository was never written');
   // back to a run-scoped sandbox snapshot for the teardown checks

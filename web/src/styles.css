@@ -48,7 +48,7 @@
   --sandbox: #6d28d9;
 }
 
-/* Night watch: the same roles, lightened to read on the ink-navy field. */
+/* Night watch: the same roles, lightened to read on the ink-dark-blue field. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --lv-theme: #5eead4;

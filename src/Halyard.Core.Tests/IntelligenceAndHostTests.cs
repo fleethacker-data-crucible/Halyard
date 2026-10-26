@@ -580,7 +580,7 @@ namespace Halyard.Core.Tests
         {
             using (var other = new HttpClient())
             {
-                other.DefaultRequestHeaders.Add("X-Cascade-Session", _info.SessionToken);
+                other.DefaultRequestHeaders.Add("X-Other-Session", _info.SessionToken);
                 Assert.Equal(401, (int)(await other.GetAsync(_info.Url + "api/status")).StatusCode);
             }
         }

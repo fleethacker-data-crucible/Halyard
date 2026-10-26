@@ -1,4 +1,4 @@
-// One-time copy-forward of browser storage from the name before the rename (Cascade -> Halyard).
+// One-time copy-forward of browser storage from the name before the rename (previous name -> Halyard).
 // Keys `cascade.<x>` are copied to `halyard.<x>` when the new key is missing. The old keys are left in place
 // (UNIFIED-UI §9: copy forward, leave the original untouched), and a marker key makes later runs a no-op.
 
