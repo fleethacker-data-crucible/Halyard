@@ -53,8 +53,8 @@ Open **Review**. Every item is checked against its definition of ready. Select r
 
 Open **Proposals**, open a row to read its before and after diff, and approve it with the check-mark button. Then select **Apply approved to sandbox**. Delete the run from **Sandbox** when you are done.
 
-![Halyard Proposals page with a metadata repair proposal open, showing its diff of added lines and the check-mark approve and X reject buttons.](../assets/walkthrough/07-proposal-diff.png)
+![Halyard Proposals page with a metadata repair proposal open, showing its diff of added lines, approved with the check-mark button, and Apply 1 approved to sandbox ready.](../assets/walkthrough/07-proposal-diff.png)
 
 ## About these images
 
-Images live in [`docs/assets/walkthrough/`](../assets/walkthrough/), named `NN-<screen>.png` after the step they belong to. They are 1440x900 at 100% scale in the Night watch (dark) theme, and show demo data only.
+Images live in [`docs/assets/walkthrough/`](../assets/walkthrough/), named `NN-<screen>.png` after the step they belong to. They are 1440x900 at 100% scale in the Night watch (dark) theme, and show demo data only. `tests/e2e/Capture-Screenshots.ps1` retakes them (with the README pair) through `tests/e2e/screenshots.mjs`, against the fake GitHub and a fresh engine.
