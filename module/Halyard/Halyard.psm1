@@ -68,13 +68,13 @@ function Import-HalyardCore {
     $candidates = Get-HalyardCoreCandidates -Root $Root
     $dll = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
     if (-not $dll) {
-        throw ("Halyard.Core.dll was not found. Build it with build\Build-Halyard.ps1, or use a release bundle. Searched:`n  " + ($candidates -join "`n  "))
+        throw ("Halyard.Core.dll was not found. Download the release bundle (Halyard-<version>.zip from https://github.com/sun-of-anton/Halyard/releases) and run Launch-Halyard.bat from it, or build with build\Build-Halyard.ps1. Searched:`n  " + ($candidates -join "`n  "))
     }
     $dir = Split-Path $dll -Parent
     $json = Join-Path $dir 'Newtonsoft.Json.dll'
     if (-not ('Newtonsoft.Json.JsonConvert' -as [type])) {
         if (-not (Test-Path -LiteralPath $json)) {
-            throw ('Newtonsoft.Json.dll must sit next to ' + $dll + '. Rebuild with build\Build-Halyard.ps1 or use a release bundle.')
+            throw ('Newtonsoft.Json.dll must sit next to ' + $dll + '. Use the release bundle from https://github.com/sun-of-anton/Halyard/releases or rebuild with build\Build-Halyard.ps1.')
         }
         Add-Type -LiteralPath $json -ErrorAction Stop
     }
@@ -264,7 +264,7 @@ function Invoke-HalyardTeardown {
     .EXAMPLE
       Invoke-HalyardTeardown -AllSynthetic -DryRun
     .EXAMPLE
-      Invoke-HalyardTeardown -Everything -ConfirmText 'DELETE sun-of-anton/Halyard-Ballast'
+      Invoke-HalyardTeardown -Everything -ConfirmText 'DELETE fleethacker-data-crucible/Halyard-Ballast'
     #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High', DefaultParameterSetName = 'Run')]
     param(
