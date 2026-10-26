@@ -16,21 +16,21 @@ namespace Halyard.Core.Config
     /// </summary>
     public sealed class HalyardSettings
     {
-        public string RootDirectory { get; set; } = Directory.GetCurrentDirectory();
+        public string RootDirectory { get; set; }
         public string OutputDirectory { get { return Path.Combine(RootDirectory, "output"); } }
         public string LogDirectory { get { return Path.Combine(RootDirectory, "logs"); } }
         public string ConfigDirectory { get { return Path.Combine(RootDirectory, "config"); } }
-        public string WebRootDirectory { get; set; } = string.Empty;
+        public string WebRootDirectory { get; set; }
 
-        public ProviderSettings Provider { get; set; } = new ProviderSettings();
-        public LlmSettings Llm { get; set; } = new LlmSettings();
-        public WriteMode WriteMode { get; set; } = WriteMode.Sandbox;
+        public ProviderSettings Provider { get; set; }
+        public LlmSettings Llm { get; set; }
+        public WriteMode WriteMode { get; set; }
         public bool AllowProduction { get; set; }
-        public string? LabelFilter { get; set; }
-        public int PreferredPort { get; set; } = 8773;
+        public string LabelFilter { get; set; }
+        public int PreferredPort { get; set; }
         /// <summary>Stop the engine when the browser tab is gone (HALYARD_AUTO_STOP=0 disables).</summary>
-        public bool AutoStop { get; set; } = true;
-        public int MaxSyncItems { get; set; } = 2000;
+        public bool AutoStop { get; set; }
+        public int MaxSyncItems { get; set; }
 
         public string TaxonomyPath { get { return Path.Combine(ConfigDirectory, "taxonomy.json"); } }
         public string TeamPath { get { return Path.Combine(ConfigDirectory, "team.json"); } }
@@ -42,7 +42,7 @@ namespace Halyard.Core.Config
         public string VisionDirectory { get { return Path.Combine(OutputDirectory, "vision"); } }
         public string ReportsDirectory { get { return Path.Combine(OutputDirectory, "reports"); } }
         /// <summary>The Halyard mark as a 64 px PNG for the emailed report (assets/brand/mark-64.png), or null when the file is absent.</summary>
-        public string? BrandLogoBase64()
+        public string BrandLogoBase64()
         {
             var path = Path.Combine(RootDirectory, "assets", "brand", "mark-64.png");
             try { return File.Exists(path) ? Convert.ToBase64String(File.ReadAllBytes(path)) : null; }
@@ -56,7 +56,7 @@ namespace Halyard.Core.Config
         public string TranscriptsDirectory { get { return Path.Combine(OutputDirectory, "llm_transcripts"); } }
 
         /// <summary>Extra repositories that must never be written, whatever the mode (HALYARD_PROTECTED_REPOS, comma-separated).</summary>
-        public List<string> ProtectedRepositories { get; set; } = new List<string>();
+        public List<string> ProtectedRepositories { get; set; }
 
         public WritePolicy BuildWritePolicy()
         {
@@ -85,16 +85,16 @@ namespace Halyard.Core.Config
         }
 
         /// <summary>Same as <see cref="FromEnvironment(string)"/> with an explicit variable lookup (tests).</summary>
-        public static HalyardSettings FromEnvironment(string rootDirectory, Func<string, string?> lookup)
+        public static HalyardSettings FromEnvironment(string rootDirectory, Func<string, string> lookup)
         {
             var s = new HalyardSettings { RootDirectory = rootDirectory };
-            Func<string, string?> env = name =>
+            Func<string, string> env = name =>
             {
                 var v = lookup(name);
-                return string.IsNullOrWhiteSpace(v) ? null : v!.Trim();
+                return string.IsNullOrWhiteSpace(v) ? null : v.Trim();
             };
             // HALYARD_* first. The former CASCADE_* names are read as a fallback for one release after the rename, then removed.
-            Func<string, string?> app = suffix => env("HALYARD_" + suffix) ?? env("CASCADE_" + suffix);
+            Func<string, string> app = suffix => env("HALYARD_" + suffix) ?? env("CASCADE_" + suffix);
 
             var kindText = app("PROVIDER") ?? "github";
             s.Provider.Kind = kindText.Equals("gitlab", StringComparison.OrdinalIgnoreCase) ? ProviderKind.GitLab : ProviderKind.GitHub;
@@ -175,10 +175,10 @@ namespace Halyard.Core.Config
         /// Writes or replaces KEY=VALUE lines in an env file (created when missing). Used to remember an API
         /// key entered in the browser; the file is git-ignored and lives only on this machine.
         /// </summary>
-        public static void UpsertEnvFile(string path, IDictionary<string, string?> values)
+        public static void UpsertEnvFile(string path, IDictionary<string, string> values)
         {
             var dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir!);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
             var lines = File.Exists(path) ? File.ReadAllLines(path).ToList() : new List<string> { "# Halyard settings (git-ignored). Never commit real tokens." };
             foreach (var kv in values)
             {
@@ -200,6 +200,19 @@ namespace Halyard.Core.Config
         public const string EnvFileName = "halyard.env";
         /// <summary>The env file name before the rename. Read only by <see cref="MigrateLegacyEnvFile"/>.</summary>
         public const string LegacyEnvFileName = "cascade.env";
+
+        public HalyardSettings()
+        {
+            RootDirectory = Directory.GetCurrentDirectory();
+            WebRootDirectory = string.Empty;
+            Provider = new ProviderSettings();
+            Llm = new LlmSettings();
+            WriteMode = WriteMode.Sandbox;
+            PreferredPort = 8773;
+            AutoStop = true;
+            MaxSyncItems = 2000;
+            ProtectedRepositories = new List<string>();
+        }
 
         /// <summary>
         /// First launch after the rename: when <c>config/halyard.env</c> does not exist and <c>config/cascade.env</c> does,
@@ -238,10 +251,10 @@ namespace Halyard.Core.Config
         }
 
         /// <summary>Non-secret view for the UI and diagnostics.</summary>
-        public Dictionary<string, object?> ToPublicDictionary()
+        public Dictionary<string, object> ToPublicDictionary()
         {
             var resolved = Llm.Resolve();
-            return new Dictionary<string, object?>
+            return new Dictionary<string, object>
             {
                 { "provider", Provider.Kind.ToString().ToLowerInvariant() },
                 { "baseUrl", Provider.EffectiveBaseUrl },
@@ -262,7 +275,7 @@ namespace Halyard.Core.Config
                 { "llmUrl", Llm.Url(resolved) },
                 { "hasLlmToken", Llm.IsConfigured(resolved) },
                 { "llmMissing", Llm.MissingFor(resolved) },
-                { "llmProfiles", LlmSettings.Concrete.Select(p => new Dictionary<string, object?> { { "profile", LlmSettings.ProfileToken(p) }, { "model", Llm.Model(p) }, { "url", Llm.Url(p) }, { "configured", Llm.IsConfigured(p) }, { "missing", Llm.MissingFor(p) } }).ToList() },
+                { "llmProfiles", LlmSettings.Concrete.Select(p => new Dictionary<string, object> { { "profile", LlmSettings.ProfileToken(p) }, { "model", Llm.Model(p) }, { "url", Llm.Url(p) }, { "configured", Llm.IsConfigured(p) }, { "missing", Llm.MissingFor(p) } }).ToList() },
                 { "envFile", EnvFilePath },
                 { "envFileExists", File.Exists(EnvFilePath) },
                 { "rootDirectory", RootDirectory },

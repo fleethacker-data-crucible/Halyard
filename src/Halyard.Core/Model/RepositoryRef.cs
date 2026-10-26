@@ -15,19 +15,19 @@ namespace Halyard.Core.Model
     /// </summary>
     public sealed class RepositoryRef : IEquatable<RepositoryRef>
     {
-        public RepositoryRef(ProviderKind provider, string identifier, string? displayName = null, string? url = null)
+        public RepositoryRef(ProviderKind provider, string identifier, string displayName = null, string url = null)
         {
             if (string.IsNullOrWhiteSpace(identifier)) throw new ArgumentException("Repository identifier is required.", "identifier");
             Provider = provider;
             Identifier = identifier.Trim().Trim('/');
-            DisplayName = string.IsNullOrWhiteSpace(displayName) ? Identifier : displayName!.Trim();
+            DisplayName = string.IsNullOrWhiteSpace(displayName) ? Identifier : displayName.Trim();
             Url = url;
         }
 
         public ProviderKind Provider { get; private set; }
         public string Identifier { get; private set; }
         public string DisplayName { get; private set; }
-        public string? Url { get; private set; }
+        public string Url { get; private set; }
 
         public string ProviderToken { get { return Provider.ToString().ToLowerInvariant(); } }
 
@@ -39,13 +39,13 @@ namespace Halyard.Core.Model
             return new RepositoryRef(provider, identifier);
         }
 
-        public bool Equals(RepositoryRef? other)
+        public bool Equals(RepositoryRef other)
         {
             if (other == null) return false;
             return Provider == other.Provider && string.Equals(Identifier, other.Identifier, StringComparison.OrdinalIgnoreCase);
         }
 
-        public override bool Equals(object? obj)
+        public override bool Equals(object obj)
         {
             return Equals(obj as RepositoryRef);
         }

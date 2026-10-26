@@ -9,11 +9,20 @@ namespace Halyard.Core.Schema
 {
     public sealed class TaxonomyTheme
     {
-        public string Id { get; set; } = string.Empty;
-        public string Title { get; set; } = string.Empty;
-        public string Area { get; set; } = string.Empty;
-        public string Purpose { get; set; } = string.Empty;
-        public string Status { get; set; } = "Active";
+        public string Id { get; set; }
+        public string Title { get; set; }
+        public string Area { get; set; }
+        public string Purpose { get; set; }
+        public string Status { get; set; }
+
+        public TaxonomyTheme()
+        {
+            Id = string.Empty;
+            Title = string.Empty;
+            Area = string.Empty;
+            Purpose = string.Empty;
+            Status = "Active";
+        }
     }
 
     /// <summary>
@@ -22,13 +31,15 @@ namespace Halyard.Core.Schema
     /// </summary>
     public sealed class Taxonomy
     {
-        public string Version { get; private set; } = "1.0";
+        public string Version { get; private set; }
         public Dictionary<WorkItemType, string[]> RequiredMeta { get; private set; }
         public List<TaxonomyTheme> Themes { get; private set; }
-        public string IdPattern { get; private set; } = "{TYPE}-{slug}";
+        public string IdPattern { get; private set; }
 
         public Taxonomy()
         {
+            Version = "1.0";
+            IdPattern = "{TYPE}-{slug}";
             RequiredMeta = DefaultRequiredMeta();
             Themes = new List<TaxonomyTheme>();
         }
@@ -67,12 +78,12 @@ namespace Halyard.Core.Schema
 
         public string[] RequiredFor(WorkItemType type)
         {
-            string[]? keys;
+            string[] keys;
             if (RequiredMeta.TryGetValue(type, out keys) && keys != null) return keys;
             return type == WorkItemType.Unclassified ? new[] { "type", "id" } : new[] { "type", "id", "state", "area" };
         }
 
-        public IEnumerable<string> MissingKeys(WorkItemType type, HalyardMeta? meta)
+        public IEnumerable<string> MissingKeys(WorkItemType type, HalyardMeta meta)
         {
             foreach (var key in RequiredFor(type))
             {
@@ -90,8 +101,8 @@ namespace Halyard.Core.Schema
         {
             var root = JObject.Parse(json);
             var t = new Taxonomy();
-            t.Version = (string?)root["version"] ?? "1.0";
-            t.IdPattern = (string?)root["id_pattern"] ?? t.IdPattern;
+            t.Version = (string)root["version"] ?? "1.0";
+            t.IdPattern = (string)root["id_pattern"] ?? t.IdPattern;
             var required = root["required_meta"] as JObject;
             if (required != null)
             {
@@ -99,7 +110,7 @@ namespace Halyard.Core.Schema
                 {
                     WorkItemType type;
                     if (!WorkItemTypes.TryParse(prop.Name, out type)) continue;
-                    var keys = prop.Value.Select(v => ((string?)v ?? string.Empty).Trim().ToLowerInvariant()).Where(k => k.Length > 0).ToArray();
+                    var keys = prop.Value.Select(v => ((string)v ?? string.Empty).Trim().ToLowerInvariant()).Where(k => k.Length > 0).ToArray();
                     t.RequiredMeta[type] = keys;
                 }
             }
@@ -110,11 +121,11 @@ namespace Halyard.Core.Schema
                 {
                     t.Themes.Add(new TaxonomyTheme
                     {
-                        Id = (string?)th["id"] ?? string.Empty,
-                        Title = (string?)th["title"] ?? string.Empty,
-                        Area = (string?)th["area"] ?? string.Empty,
-                        Purpose = (string?)th["purpose"] ?? string.Empty,
-                        Status = (string?)th["status"] ?? "Active",
+                        Id = (string)th["id"] ?? string.Empty,
+                        Title = (string)th["title"] ?? string.Empty,
+                        Area = (string)th["area"] ?? string.Empty,
+                        Purpose = (string)th["purpose"] ?? string.Empty,
+                        Status = (string)th["status"] ?? "Active",
                     });
                 }
             }
@@ -125,17 +136,17 @@ namespace Halyard.Core.Schema
         {
             var root = new JObject
             {
-                ["version"] = Version,
-                ["hierarchy"] = new JArray(WorkItemTypes.Hierarchy.Select(WorkItemTypes.ToToken)),
-                ["id_pattern"] = IdPattern,
-                ["meta_fence"] = HalyardMeta.Fence,
-                ["effort_values"] = new JArray(Sizing.EffortScale),
-                ["story_points"] = new JArray(Sizing.StoryPointScale),
-                ["required_meta"] = new JObject(RequiredMeta.Select(kv => new JProperty(WorkItemTypes.ToToken(kv.Key), new JArray(kv.Value)))),
-                ["themes"] = new JArray(Themes.Select(th => new JObject
+                { "version", Version },
+                { "hierarchy", new JArray(WorkItemTypes.Hierarchy.Select(WorkItemTypes.ToToken)) },
+                { "id_pattern", IdPattern },
+                { "meta_fence", HalyardMeta.Fence },
+                { "effort_values", new JArray(Sizing.EffortScale) },
+                { "story_points", new JArray(Sizing.StoryPointScale) },
+                { "required_meta", new JObject(RequiredMeta.Select(kv => new JProperty(WorkItemTypes.ToToken(kv.Key), new JArray(kv.Value)))) },
+                { "themes", new JArray(Themes.Select(th => new JObject
                 {
-                    ["id"] = th.Id, ["title"] = th.Title, ["area"] = th.Area, ["purpose"] = th.Purpose, ["status"] = th.Status,
-                })),
+                    { "id", th.Id }, { "title", th.Title }, { "area", th.Area }, { "purpose", th.Purpose }, { "status", th.Status },
+                })) },
             };
             return root.ToString(Formatting.Indented);
         }

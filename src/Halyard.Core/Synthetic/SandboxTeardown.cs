@@ -21,12 +21,17 @@ namespace Halyard.Core.Synthetic
 
     public sealed class TeardownOptions
     {
-        public TeardownScope Scope { get; set; } = TeardownScope.Run;
-        public string? RunId { get; set; }
+        public TeardownScope Scope { get; set; }
+        public string RunId { get; set; }
         /// <summary>Must equal <c>DELETE &lt;repository identifier&gt;</c> for <see cref="TeardownScope.Everything"/>.</summary>
-        public string? ConfirmText { get; set; }
+        public string ConfirmText { get; set; }
         /// <summary>List what would be deleted without deleting.</summary>
         public bool DryRun { get; set; }
+
+        public TeardownOptions()
+        {
+            Scope = TeardownScope.Run;
+        }
 
         public static string ConfirmationPhrase(RepositoryRef target)
         {
@@ -36,18 +41,26 @@ namespace Halyard.Core.Synthetic
 
     public sealed class TeardownResult
     {
-        public string Target { get; set; } = string.Empty;
+        public string Target { get; set; }
         public TeardownScope Scope { get; set; }
-        public string? RunId { get; set; }
+        public string RunId { get; set; }
         public bool DryRun { get; set; }
         public int Matched { get; set; }
         public int Deleted { get; set; }
         public int Skipped { get; set; }
-        public List<string> SkippedKeys { get; set; } = new List<string>();
-        public List<string> DeletedKeys { get; set; } = new List<string>();
-        public List<string> Errors { get; set; } = new List<string>();
+        public List<string> SkippedKeys { get; set; }
+        public List<string> DeletedKeys { get; set; }
+        public List<string> Errors { get; set; }
         public DateTimeOffset StartedAt { get; set; }
         public DateTimeOffset? FinishedAt { get; set; }
+
+        public TeardownResult()
+        {
+            Target = string.Empty;
+            SkippedKeys = new List<string>();
+            DeletedKeys = new List<string>();
+            Errors = new List<string>();
+        }
     }
 
     /// <summary>
@@ -58,7 +71,7 @@ namespace Halyard.Core.Synthetic
     public static class SandboxTeardown
     {
         public static async Task<TeardownResult> RunAsync(IWorkItemProvider provider, WriteGateway gateway, RepositoryRef target, TeardownOptions options,
-            IProgress<SeedProgress>? progress, CancellationToken cancellation)
+            IProgress<SeedProgress> progress, CancellationToken cancellation)
         {
             if (provider == null) throw new ArgumentNullException("provider");
             if (gateway == null) throw new ArgumentNullException("gateway");
@@ -72,7 +85,7 @@ namespace Halyard.Core.Synthetic
                 case TeardownScope.Run:
                     if (string.IsNullOrWhiteSpace(options.RunId)) throw new ArgumentException("RunId is required for a run-scoped teardown.");
                     query.Labels.Add(Labels.Synthetic);
-                    query.Labels.Add(Labels.Run(options.RunId!));
+                    query.Labels.Add(Labels.Run(options.RunId));
                     break;
                 case TeardownScope.AllSynthetic:
                     query.Labels.Add(Labels.Synthetic);
@@ -138,7 +151,7 @@ namespace Halyard.Core.Synthetic
             switch (options.Scope)
             {
                 case TeardownScope.Run:
-                    return item.HasLabel(Labels.Synthetic) && item.HasLabel(Labels.Run(options.RunId!));
+                    return item.HasLabel(Labels.Synthetic) && item.HasLabel(Labels.Run(options.RunId));
                 case TeardownScope.AllSynthetic:
                     return item.HasLabel(Labels.Synthetic);
                 default:
@@ -146,7 +159,7 @@ namespace Halyard.Core.Synthetic
             }
         }
 
-        private static void Report(IProgress<SeedProgress>? progress, int done, int total, string message)
+        private static void Report(IProgress<SeedProgress> progress, int done, int total, string message)
         {
             if (progress != null) progress.Report(new SeedProgress { Done = done, Total = total, Message = message });
         }

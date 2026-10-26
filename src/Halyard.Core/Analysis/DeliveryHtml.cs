@@ -17,10 +17,10 @@ namespace Halyard.Core.Analysis
         }
 
         /// <param name="logoPngBase64">The brand mark as a base64 PNG (Outlook does not render SVG); omitted when null.</param>
-        public static string Render(DeliveryReport r, string title, string? logoPngBase64)
+        public static string Render(DeliveryReport r, string title, string logoPngBase64)
         {
             var sb = new StringBuilder();
-            Func<string?, string> h = s => WebUtility.HtmlEncode(s ?? string.Empty);
+            Func<string, string> h = s => WebUtility.HtmlEncode(s ?? string.Empty);
             var velocityText = string.Join(" → ", r.Velocity.Where(v => v.IsPast).Skip(Math.Max(0, r.Velocity.Count(v => v.IsPast) - 3)).Select(v => v.PointsDone.ToString()));
             var escalated = r.Blockers.Count(b => b.Escalated);
             var avgAge = r.Blockers.Count == 0 ? 0 : Math.Round(r.Blockers.Average(b => b.AgeBusinessDays), 1);
@@ -123,7 +123,7 @@ namespace Halyard.Core.Analysis
         /// <summary>Stacked columns, one per sprint: an outer table with bottom-aligned cells; each segment is a row with a fixed height.</summary>
         private static void StatusColumns(StringBuilder sb, DeliveryReport r)
         {
-            var h = new Func<string?, string>(x => WebUtility.HtmlEncode(x ?? string.Empty));
+            var h = new Func<string, string>(x => WebUtility.HtmlEncode(x ?? string.Empty));
             if (r.StatusHistory.Count == 0) { sb.Append("<div style=\"color:").Append(Muted).Append("\">No sprints to show.</div>"); return; }
             const int plotHeight = 150;
             var max = Math.Max(1, r.StatusHistory.Max(c => c.Total));
@@ -150,7 +150,7 @@ namespace Halyard.Core.Analysis
 
         private static void VelocityColumns(StringBuilder sb, DeliveryReport r)
         {
-            var h = new Func<string?, string>(x => WebUtility.HtmlEncode(x ?? string.Empty));
+            var h = new Func<string, string>(x => WebUtility.HtmlEncode(x ?? string.Empty));
             if (r.Velocity.Count == 0) { sb.Append("<div style=\"color:").Append(Muted).Append("\">No sprints to show.</div>"); return; }
             const int plotHeight = 150;
             var max = Math.Max(1.0, Math.Max(r.AverageVelocity, r.Velocity.Max(v => Math.Max(v.PointsDone, v.PointsPlanned))));
@@ -174,7 +174,7 @@ namespace Halyard.Core.Analysis
 
         private static void CapacityMeters(StringBuilder sb, DeliveryReport r)
         {
-            var h = new Func<string?, string>(x => WebUtility.HtmlEncode(x ?? string.Empty));
+            var h = new Func<string, string>(x => WebUtility.HtmlEncode(x ?? string.Empty));
             if (!r.Capacity.Configured || r.TeamCapacity.Count == 0) { sb.Append("<div style=\"color:").Append(Muted).Append("\">No team configuration.</div>"); return; }
             var max = Math.Max(1, r.TeamCapacity.Max(t => Math.Max(t.Capacity, t.Planned)));
             const int trackWidth = 300;
@@ -205,7 +205,7 @@ namespace Halyard.Core.Analysis
 
         private static void ThemeBars(StringBuilder sb, DeliveryReport r)
         {
-            var h = new Func<string?, string>(x => WebUtility.HtmlEncode(x ?? string.Empty));
+            var h = new Func<string, string>(x => WebUtility.HtmlEncode(x ?? string.Empty));
             if (r.Themes.Count == 0) { sb.Append("<div style=\"color:").Append(Muted).Append("\">No themes in the snapshot.</div>"); return; }
             var max = Math.Max(1, r.Themes.Max(t => t.Points));
             const int trackWidth = 300;
