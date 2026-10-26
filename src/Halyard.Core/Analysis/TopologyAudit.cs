@@ -30,7 +30,7 @@ namespace Halyard.Core.Analysis
         public string Key { get; private set; }
         public long Number { get; private set; }
         public string Title { get; private set; }
-        public string? Url { get; private set; }
+        public string Url { get; private set; }
         public WorkItemType Type { get; private set; }
         public string CanonicalId { get; private set; }
         public string Code { get; private set; }
@@ -40,7 +40,7 @@ namespace Halyard.Core.Analysis
 
     public sealed class TopologyAuditResult
     {
-        public TopologyAuditResult(IReadOnlyList<Finding> findings, IReadOnlyDictionary<string, string> parentEdges, int visibleCount, int sourceCount, int classifiedCount, string? labelFilter)
+        public TopologyAuditResult(IReadOnlyList<Finding> findings, IReadOnlyDictionary<string, string> parentEdges, int visibleCount, int sourceCount, int classifiedCount, string labelFilter)
         {
             Findings = findings;
             ParentEdges = parentEdges;
@@ -56,7 +56,7 @@ namespace Halyard.Core.Analysis
         public int VisibleCount { get; private set; }
         public int SourceCount { get; private set; }
         public int ClassifiedCount { get; private set; }
-        public string? LabelFilter { get; private set; }
+        public string LabelFilter { get; private set; }
         public int ErrorCount { get { return Findings.Count(f => f.Severity == Severity.Error); } }
         public int WarningCount { get { return Findings.Count(f => f.Severity == Severity.Warning); } }
         public int InfoCount { get { return Findings.Count(f => f.Severity == Severity.Info); } }
@@ -85,7 +85,7 @@ namespace Halyard.Core.Analysis
         public const string ParentCycle = "PARENT_CYCLE";
         public const string ThemeHasParent = "THEME_HAS_PARENT";
 
-        public static TopologyAuditResult Run(IEnumerable<WorkItem> visibleItems, IEnumerable<WorkItem>? sourceItems = null, string? labelFilter = null)
+        public static TopologyAuditResult Run(IEnumerable<WorkItem> visibleItems, IEnumerable<WorkItem> sourceItems = null, string labelFilter = null)
         {
             var visible = visibleItems.Where(i => i != null).ToList();
             var source = sourceItems == null ? visible : sourceItems.Where(i => i != null).ToList();
@@ -96,7 +96,7 @@ namespace Halyard.Core.Analysis
             {
                 foreach (var key in new[] { item.CanonicalId, item.Key }.Distinct(StringComparer.OrdinalIgnoreCase))
                 {
-                    List<WorkItem>? list;
+                    List<WorkItem> list;
                     if (!index.TryGetValue(key, out list) || list == null) index[key] = list = new List<WorkItem>();
                     if (!list.Contains(item)) list.Add(item);
                 }
@@ -123,7 +123,7 @@ namespace Halyard.Core.Analysis
                     findings.Add(new Finding(item, NoCanonicalId, Severity.Info, "No stable halyard-meta id; the provider number is used for display only."));
                 else
                 {
-                    List<WorkItem>? same;
+                    List<WorkItem> same;
                     if (index.TryGetValue(item.CanonicalId, out same) && same != null && same.Count > 1)
                         findings.Add(new Finding(item, DuplicateCanonicalId, Severity.Error, "This stable id belongs to " + same.Count + " imported work items and cannot identify a unique parent."));
                 }
@@ -143,8 +143,8 @@ namespace Halyard.Core.Analysis
                     findings.Add(new Finding(item, SelfParent, Severity.Error, "This work item refers to itself as its parent."));
                     continue;
                 }
-                List<WorkItem>? matches;
-                if (!index.TryGetValue(parentId!, out matches) || matches == null)
+                List<WorkItem> matches;
+                if (!index.TryGetValue(parentId, out matches) || matches == null)
                 {
                     findings.Add(new Finding(item, ParentUnresolved, Severity.Warning, "Declared parent '" + parentId + "' was not found in the imported source."));
                     continue;

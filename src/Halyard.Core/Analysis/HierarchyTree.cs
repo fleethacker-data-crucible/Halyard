@@ -14,7 +14,7 @@ namespace Halyard.Core.Analysis
         }
 
         public WorkItem Item { get; private set; }
-        public HierarchyNode? Parent { get; internal set; }
+        public HierarchyNode Parent { get; internal set; }
         public List<HierarchyNode> Children { get; private set; }
         public int Depth { get { return Parent == null ? 0 : Parent.Depth + 1; } }
 
@@ -67,9 +67,9 @@ namespace Halyard.Core.Analysis
             var orphans = new List<HierarchyNode>();
             foreach (var node in nodes.Values)
             {
-                string? parentKey;
-                HierarchyNode? parent;
-                if (parentEdges.TryGetValue(node.Item.Key, out parentKey) && nodes.TryGetValue(parentKey!, out parent) && parent != null && parent != node)
+                string parentKey;
+                HierarchyNode parent;
+                if (parentEdges.TryGetValue(node.Item.Key, out parentKey) && nodes.TryGetValue(parentKey, out parent) && parent != null && parent != node)
                 {
                     node.Parent = parent;
                     parent.Children.Add(node);
@@ -84,7 +84,7 @@ namespace Halyard.Core.Analysis
                 {
                     if (!seen.Add(cursor))
                     {
-                        node.Parent!.Children.Remove(node);
+                        node.Parent.Children.Remove(node);
                         node.Parent = null;
                         break;
                     }

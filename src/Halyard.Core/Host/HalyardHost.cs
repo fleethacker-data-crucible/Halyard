@@ -19,35 +19,52 @@ namespace Halyard.Core.Host
 {
     public sealed class HostOptions
     {
-        public HalyardSettings Settings { get; set; } = new HalyardSettings();
+        public HalyardSettings Settings { get; set; }
         /// <summary>Directory holding the built UI (index.html). When missing, the API still runs and / returns a notice.</summary>
-        public string? WebRoot { get; set; }
-        public int PreferredPort { get; set; } = 8773;
+        public string WebRoot { get; set; }
+        public int PreferredPort { get; set; }
         /// <summary>Random per-session token the UI must send as X-Halyard-Session. Generated when null.</summary>
-        public string? SessionToken { get; set; }
+        public string SessionToken { get; set; }
         /// <summary>Free-form state from the PowerShell launcher (Lazarette vault unlocked, console hidden...).</summary>
-        public Dictionary<string, object?> LauncherState { get; set; } = new Dictionary<string, object?>();
-        public IHttpTransport? Transport { get; set; }
+        public Dictionary<string, object> LauncherState { get; set; }
+        public IHttpTransport Transport { get; set; }
         /// <summary>
         /// Stop the engine once the browser tab that drives it has gone: the UI sends a heartbeat every few seconds
         /// and a "leaving" beacon on unload; with no heartbeat for <see cref="HeartbeatTimeout"/> (and no job running)
         /// the host stops itself. HALYARD_AUTO_STOP=0 or --stay turns this off.
         /// </summary>
-        public bool AutoStop { get; set; } = true;
-        public TimeSpan HeartbeatTimeout { get; set; } = TimeSpan.FromSeconds(20);
+        public bool AutoStop { get; set; }
+        public TimeSpan HeartbeatTimeout { get; set; }
         /// <summary>Grace after a "leaving" beacon before stopping; a reload sends a new heartbeat well inside it.</summary>
-        public TimeSpan LeavingGrace { get; set; } = TimeSpan.FromSeconds(5);
+        public TimeSpan LeavingGrace { get; set; }
+
+        public HostOptions()
+        {
+            Settings = new HalyardSettings();
+            PreferredPort = 8773;
+            LauncherState = new Dictionary<string, object>();
+            AutoStop = true;
+            HeartbeatTimeout = TimeSpan.FromSeconds(20);
+            LeavingGrace = TimeSpan.FromSeconds(5);
+        }
     }
 
     public sealed class HostInfo
     {
         public int Port { get; set; }
-        public string Url { get; set; } = string.Empty;
-        public string SessionToken { get; set; } = string.Empty;
+        public string Url { get; set; }
+        public string SessionToken { get; set; }
         /// <summary>URL with the session token, for opening the browser once.</summary>
-        public string LaunchUrl { get; set; } = string.Empty;
-        public string? LogFile { get; set; }
-        public string? RuntimeFile { get; set; }
+        public string LaunchUrl { get; set; }
+        public string LogFile { get; set; }
+        public string RuntimeFile { get; set; }
+
+        public HostInfo()
+        {
+            Url = string.Empty;
+            SessionToken = string.Empty;
+            LaunchUrl = string.Empty;
+        }
     }
 
     /// <summary>
@@ -61,15 +78,16 @@ namespace Halyard.Core.Host
         public const string Version = "1.0.0";
         private readonly ManualResetEventSlim _stopped = new ManualResetEventSlim(false);
         private readonly object _providerLock = new object();
-        private HttpServer? _server;
-        private IWorkItemProvider? _provider;
-        private ProviderIdentity? _identity;
-        private string? _providerError;
-        private string? _runtimeFile;
+        private HttpServer _server;
+        private IWorkItemProvider _provider;
+        private ProviderIdentity _identity;
+        private string _providerError;
+        private string _runtimeFile;
 
         public HalyardHost(HostOptions options)
         {
-            Options = options ?? throw new ArgumentNullException("options");
+            if (options == null) throw new ArgumentNullException("options");
+            Options = options;
             Settings = options.Settings;
             Log = new Diagnostics(Settings.LogDirectory);
             Jobs = new JobManager(Log);
@@ -78,7 +96,7 @@ namespace Halyard.Core.Host
             Proposals = new ProposalStore(Settings.ProposalsDirectory);
             Visions = new VisionStore(Settings.VisionDirectory);
             Taxonomy = Schema.Taxonomy.Load(Settings.TaxonomyPath);
-            SessionToken = string.IsNullOrEmpty(options.SessionToken) ? NewToken() : options.SessionToken!;
+            SessionToken = string.IsNullOrEmpty(options.SessionToken) ? NewToken() : options.SessionToken;
             Router = new Router();
             StartedAt = DateTimeOffset.UtcNow;
             RegisterRoutes();
@@ -105,7 +123,7 @@ namespace Halyard.Core.Host
         private readonly object _presenceLock = new object();
         private DateTimeOffset? _lastHeartbeat;
         private DateTimeOffset? _leavingAt;
-        private System.Threading.Timer? _presenceTimer;
+        private System.Threading.Timer _presenceTimer;
 
         /// <summary>Recorded by the UI's heartbeat. <paramref name="leaving"/> marks the tab as unloading.</summary>
         public void RecordPresence(bool leaving)
@@ -136,7 +154,7 @@ namespace Halyard.Core.Host
             }
         }
 
-        private void PresenceTick(object? state)
+        private void PresenceTick(object state)
         {
             if (StopRequested) return;
             if (!BrowserGone(DateTimeOffset.UtcNow)) return;
@@ -170,8 +188,8 @@ namespace Halyard.Core.Host
             if (StopRequested) return;
             StopRequested = true;
             Log.Info("HOST_STOP", "Stop requested.");
-            try { _presenceTimer?.Dispose(); } catch (ObjectDisposedException) { }
-            try { _server?.Stop(); } finally { _stopped.Set(); }
+            try { if (_presenceTimer != null) _presenceTimer.Dispose(); } catch (ObjectDisposedException) { }
+            try { if (_server != null) _server.Stop(); } finally { _stopped.Set(); }
             if (_runtimeFile != null)
             {
                 try { File.Delete(_runtimeFile); } catch (IOException) { }
@@ -193,7 +211,7 @@ namespace Halyard.Core.Host
         public void Dispose()
         {
             Stop();
-            _server?.Dispose();
+            if (_server != null) _server.Dispose();
             _stopped.Dispose();
         }
 
@@ -233,13 +251,17 @@ namespace Halyard.Core.Host
                     _provider = ProviderFactory.Create(Settings.Provider, Options.Transport);
                     _providerError = null;
                 }
-                catch (Exception ex) when (ex is ArgumentException || ex is InvalidOperationException || ex is NotSupportedException)
-                {
-                    _providerError = ex.Message;
-                    throw new ProviderNotReadyException(ex.Message);
-                }
+                catch (ArgumentException ex) { throw NotReady(ex); }
+                catch (InvalidOperationException ex) { throw NotReady(ex); }
+                catch (NotSupportedException ex) { throw NotReady(ex); }
                 return _provider;
             }
+        }
+
+        private ProviderNotReadyException NotReady(Exception ex)
+        {
+            _providerError = ex.Message;
+            return new ProviderNotReadyException(ex.Message);
         }
 
         public void ResetProvider()
@@ -253,7 +275,7 @@ namespace Halyard.Core.Host
             }
         }
 
-        public RepositoryRef ResolveRepository(string? which)
+        public RepositoryRef ResolveRepository(string which)
         {
             return ResolveRepositories(which)[0];
         }
@@ -262,7 +284,7 @@ namespace Halyard.Core.Host
         /// "source" = every configured source repository, "sandbox" = the sandbox, "all" = both, or one exact
         /// identifier that is among the configured repositories (never an arbitrary repo from the browser).
         /// </summary>
-        public List<RepositoryRef> ResolveRepositories(string? which)
+        public List<RepositoryRef> ResolveRepositories(string which)
         {
             var w = (which ?? "source").Trim();
             var lower = w.ToLowerInvariant();
@@ -296,11 +318,11 @@ namespace Halyard.Core.Host
         }
 
         /// <summary>Finds a snapshot item by key (<c>github:owner/repo:12</c>) or, within the sandbox, by number.</summary>
-        public WorkItem? FindItem(string? keyOrNumber)
+        public WorkItem FindItem(string keyOrNumber)
         {
             var snap = Snapshots.Current;
             if (snap == null || string.IsNullOrWhiteSpace(keyOrNumber)) return null;
-            var text = keyOrNumber!.Trim().TrimStart('#');
+            var text = keyOrNumber.Trim().TrimStart('#');
             var byKey = snap.Items.FirstOrDefault(i => string.Equals(i.Key, text, StringComparison.OrdinalIgnoreCase));
             if (byKey != null) return byKey;
             long number;
@@ -318,7 +340,7 @@ namespace Halyard.Core.Host
             return sandbox;
         }
 
-        public ILlmClient CreateLlm(string? profileText)
+        public ILlmClient CreateLlm(string profileText)
         {
             LlmProfile? profile = null;
             if (!string.IsNullOrWhiteSpace(profileText))
@@ -335,12 +357,12 @@ namespace Halyard.Core.Host
         }
 
         /// <summary>Items in the current snapshot, optionally narrowed to one exact label.</summary>
-        public List<WorkItem> VisibleItems(string? label, out List<WorkItem> all)
+        public List<WorkItem> VisibleItems(string label, out List<WorkItem> all)
         {
             var snap = Snapshots.Current;
             all = snap == null ? new List<WorkItem>() : snap.Items;
             if (string.IsNullOrWhiteSpace(label)) return all.ToList();
-            return all.Where(i => i.HasLabel(label!)).ToList();
+            return all.Where(i => i.HasLabel(label)).ToList();
         }
 
         // ---- request pipeline ----
@@ -381,7 +403,7 @@ namespace Halyard.Core.Host
             var webRoot = Options.WebRoot ?? Settings.WebRootDirectory;
             if (!string.IsNullOrEmpty(webRoot))
             {
-                var files = new StaticFiles(webRoot!);
+                var files = new StaticFiles(webRoot);
                 var served = files.Serve(request);
                 if (served != null) return served;
             }
@@ -402,7 +424,7 @@ namespace Halyard.Core.Host
             {
                 var body = Json.Body(request);
                 var token = Json.Read<string>(body, "session");
-                return !string.IsNullOrEmpty(token) && FixedTimeEquals(token!, SessionToken);
+                return !string.IsNullOrEmpty(token) && FixedTimeEquals(token, SessionToken);
             }
             catch (JsonException) { return false; }
         }
@@ -412,7 +434,7 @@ namespace Halyard.Core.Host
             // Header only: the launch link's ?session= is read by the page and removed from the address bar,
             // and API URLs never carry the token, so it does not end up in history or logs.
             var token = request.Header(SessionHeader);
-            return !string.IsNullOrEmpty(token) && FixedTimeEquals(token!, SessionToken);
+            return !string.IsNullOrEmpty(token) && FixedTimeEquals(token, SessionToken);
         }
 
         private bool IsOwnOrigin(string origin)

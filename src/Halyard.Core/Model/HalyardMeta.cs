@@ -33,7 +33,7 @@ namespace Halyard.Core.Model
 
         public IReadOnlyList<KeyValuePair<string, string>> Entries { get { return _entries; } }
 
-        public string? this[string key]
+        public string this[string key]
         {
             get { return Get(key); }
             set { Set(key, value); }
@@ -44,7 +44,7 @@ namespace Halyard.Core.Model
             return !string.IsNullOrWhiteSpace(Get(key));
         }
 
-        public string? Get(string key)
+        public string Get(string key)
         {
             var k = Normalize(key);
             foreach (var e in _entries)
@@ -55,7 +55,7 @@ namespace Halyard.Core.Model
         }
 
         /// <summary>Sets a value. A null value removes the key; an empty string keeps the key with an empty value (used for TBD placeholders).</summary>
-        public HalyardMeta Set(string key, string? value)
+        public HalyardMeta Set(string key, string value)
         {
             var k = Normalize(key);
             if (value == null)
@@ -83,18 +83,18 @@ namespace Halyard.Core.Model
 
         // Typed accessors for the well-known keys.
         public WorkItemType Type { get { return WorkItemTypes.Parse(Get("type")); } set { Set("type", WorkItemTypes.ToToken(value)); } }
-        public string? Id { get { return Get("id"); } set { Set("id", value); } }
-        public string? Parent { get { return Get("parent"); } set { Set("parent", value); } }
-        public string? Theme { get { return Get("theme"); } set { Set("theme", value); } }
-        public string? State { get { return Get("state"); } set { Set("state", value); } }
-        public string? Status { get { return Get("status"); } set { Set("status", value); } }
-        public string? Area { get { return Get("area"); } set { Set("area", value); } }
-        public string? Effort { get { return Get("effort"); } set { Set("effort", value); } }
-        public string? Points { get { return Get("points") ?? Get("story_points"); } set { Set("points", value); } }
-        public string? Sprint { get { return Get("sprint"); } set { Set("sprint", value); } }
-        public string? Milestone { get { return Get("milestone"); } set { Set("milestone", value); } }
-        public string? SourceProject { get { return Get("source_project"); } set { Set("source_project", value); } }
-        public string? SourceRef { get { return Get("source_iid") ?? Get("source_ref"); } set { Set("source_iid", value); } }
+        public string Id { get { return Get("id"); } set { Set("id", value); } }
+        public string Parent { get { return Get("parent"); } set { Set("parent", value); } }
+        public string Theme { get { return Get("theme"); } set { Set("theme", value); } }
+        public string State { get { return Get("state"); } set { Set("state", value); } }
+        public string Status { get { return Get("status"); } set { Set("status", value); } }
+        public string Area { get { return Get("area"); } set { Set("area", value); } }
+        public string Effort { get { return Get("effort"); } set { Set("effort", value); } }
+        public string Points { get { return Get("points") ?? Get("story_points"); } set { Set("points", value); } }
+        public string Sprint { get { return Get("sprint"); } set { Set("sprint", value); } }
+        public string Milestone { get { return Get("milestone"); } set { Set("milestone", value); } }
+        public string SourceProject { get { return Get("source_project"); } set { Set("source_project", value); } }
+        public string SourceRef { get { return Get("source_iid") ?? Get("source_ref"); } set { Set("source_iid", value); } }
 
         /// <summary>True when the block identifies a work item: a known type and a non-empty id.</summary>
         public bool IsValid
@@ -106,11 +106,11 @@ namespace Halyard.Core.Model
         /// Parses the first halyard-meta fence in a body; falls back to the legacy HTML-comment block.
         /// Returns null when no block with a <c>type</c> or <c>id</c> key is present.
         /// </summary>
-        public static HalyardMeta? Parse(string? body)
+        public static HalyardMeta Parse(string body)
         {
             if (string.IsNullOrWhiteSpace(body)) return null;
             var m = FenceRegex.Match(body);
-            string? block = null;
+            string block = null;
             if (m.Success) block = m.Groups["body"].Value;
             else
             {
@@ -155,16 +155,16 @@ namespace Halyard.Core.Model
         }
 
         /// <summary>Removes any halyard-meta fence or leading HTML-comment block from a body.</summary>
-        public static string StripFromBody(string? body)
+        public static string StripFromBody(string body)
         {
             if (string.IsNullOrEmpty(body)) return string.Empty;
-            var text = FenceRegex.Replace(body!, string.Empty, 1);
+            var text = FenceRegex.Replace(body, string.Empty, 1);
             text = Regex.Replace(text, @"\A\s*<!--.*?-->\s*", string.Empty, RegexOptions.Singleline);
             return text.Trim();
         }
 
         /// <summary>Replaces (or inserts at the top) the fence in a body, preserving the rest of the text.</summary>
-        public static string ApplyToBody(string? body, HalyardMeta meta)
+        public static string ApplyToBody(string body, HalyardMeta meta)
         {
             var rest = StripFromBody(body);
             return rest.Length == 0 ? meta.ToFence() : meta.ToFence() + "\n\n" + rest;

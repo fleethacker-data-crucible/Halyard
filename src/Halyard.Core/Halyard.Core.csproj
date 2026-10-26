@@ -2,28 +2,38 @@
 
   <PropertyGroup>
     <!--
-      net48: loaded by Windows PowerShell 5.1 on the workstation (Add-Type -Path).
-      netstandard2.0: consumed by the .NET 8 test project and by PowerShell 7.
-      Both builds come from the same source; keep the API surface to what
-      netstandard2.0 offers so the net48 build never drifts.
+      Halyard ships this folder as SOURCE: the workstation blocks loading custom DLL files, so Windows PowerShell 5.1
+      compiles these .cs files in memory at launch (Import-HalyardCore: Add-Type -Path ... -CompilerParameters), with
+      the .NET Framework 4.8 CodeDom compiler. That compiler accepts C# 5 only, and the code may reference framework
+      assemblies only (no NuGet packages, no third-party DLLs).
+
+      This project exists to check exactly that on any machine: LangVersion 5, net48 reference assemblies, the same
+      framework references as the launcher. Its DLL is never shipped or loaded. The tests compile the same files
+      into Halyard.Core.Tests.
     -->
-    <TargetFrameworks>net48;netstandard2.0</TargetFrameworks>
-    <LangVersion>12</LangVersion>
-    <Nullable>annotations</Nullable>
+    <TargetFramework>net48</TargetFramework>
+    <LangVersion>5</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <AssemblyName>Halyard.Core</AssemblyName>
     <RootNamespace>Halyard.Core</RootNamespace>
+    <!-- The release version. HalyardHost.Version must match (a test checks). -->
     <Version>1.0.0</Version>
     <Deterministic>true</Deterministic>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
     <Description>Halyard delivery-intelligence core: provider-agnostic work items, write gateway, synthetic sandbox, local host.</Description>
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Reference assemblies only (compile-time); lets this build run without a .NET Framework targeting pack. -->
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
+  <ItemGroup>
+    <!-- Keep in step with $HalyardCoreReferences in module\Halyard\Halyard.psm1. -->
     <Reference Include="System.Net.Http" />
   </ItemGroup>
 

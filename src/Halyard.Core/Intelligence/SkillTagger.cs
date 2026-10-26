@@ -17,12 +17,20 @@ namespace Halyard.Core.Intelligence
     public sealed class SkillTagOptions
     {
         /// <summary>Only items without a <c>skills:</c> entry. Default true.</summary>
-        public bool OnlyUntagged { get; set; } = true;
-        public int MaxItems { get; set; } = 40;
-        public int BatchSize { get; set; } = 12;
-        public int MaxSkillsPerItem { get; set; } = 3;
-        public HashSet<long>? OnlyNumbers { get; set; }
-        public HashSet<string>? OnlyKeys { get; set; }
+        public bool OnlyUntagged { get; set; }
+        public int MaxItems { get; set; }
+        public int BatchSize { get; set; }
+        public int MaxSkillsPerItem { get; set; }
+        public HashSet<long> OnlyNumbers { get; set; }
+        public HashSet<string> OnlyKeys { get; set; }
+
+        public SkillTagOptions()
+        {
+            OnlyUntagged = true;
+            MaxItems = 40;
+            BatchSize = 12;
+            MaxSkillsPerItem = 3;
+        }
     }
 
     /// <summary>
@@ -39,7 +47,7 @@ namespace Halyard.Core.Intelligence
         {
             var text = item.Meta == null ? null : item.Meta.Get("skills");
             if (string.IsNullOrWhiteSpace(text)) return new string[0];
-            return text!.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim().ToLowerInvariant()).Where(s => s.Length > 0).Distinct().ToList();
+            return text.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(s => s.Trim().ToLowerInvariant()).Where(s => s.Length > 0).Distinct().ToList();
         }
 
         public static List<WorkItem> Candidates(IReadOnlyList<WorkItem> items, SkillTagOptions options)
@@ -52,7 +60,7 @@ namespace Halyard.Core.Intelligence
         }
 
         /// <summary>Deterministic suggestion: parent's skills first, then name matches against title and narrative.</summary>
-        public static List<KeyValuePair<string, double>> Suggest(WorkItem item, WorkItem? parent, SkillsTaxonomy taxonomy, int max = 3)
+        public static List<KeyValuePair<string, double>> Suggest(WorkItem item, WorkItem parent, SkillsTaxonomy taxonomy, int max = 3)
         {
             var scores = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
             var title = Descriptions.ShortName(item.Title).ToLowerInvariant();
@@ -84,7 +92,7 @@ namespace Halyard.Core.Intelligence
             foreach (var item in Candidates(items, options))
             {
                 batch.Considered++;
-                string? pk; WorkItem? parent = null;
+                string pk; WorkItem parent = null;
                 if (parentKey.TryGetValue(item.Key, out pk) && pk != null) byKey.TryGetValue(pk, out parent);
                 var suggested = Suggest(item, parent, taxonomy, options.MaxSkillsPerItem);
                 if (suggested.Count == 0) { batch.Skipped++; batch.SkipReasons.Add(item.CanonicalId + ": no skill name matches the text and the parent has no skills"); continue; }
@@ -107,14 +115,14 @@ namespace Halyard.Core.Intelligence
             return sb.ToString();
         }
 
-        public static string UserPrompt(IReadOnlyList<WorkItem> items, IReadOnlyDictionary<string, WorkItem?> parents)
+        public static string UserPrompt(IReadOnlyList<WorkItem> items, IReadOnlyDictionary<string, WorkItem> parents)
         {
             var sb = new StringBuilder();
             foreach (var item in items)
             {
                 sb.Append("### id: ").Append(item.CanonicalId).Append('\n');
                 sb.Append("Type: ").Append(WorkItemTypes.ToToken(item.Type)).Append(" · Title: ").Append(Descriptions.ShortName(item.Title)).Append('\n');
-                WorkItem? parent;
+                WorkItem parent;
                 if (parents.TryGetValue(item.Key, out parent) && parent != null)
                     sb.Append("Parent: ").Append(Descriptions.ShortName(parent.Title)).Append(CurrentSkills(parent).Count > 0 ? " (skills: " + string.Join(", ", CurrentSkills(parent)) + ")" : string.Empty).Append('\n');
                 var narrative = Descriptions.Narrative(item.Body);
@@ -125,13 +133,13 @@ namespace Halyard.Core.Intelligence
             return sb.ToString();
         }
 
-        public static async Task<ProposalBatch> RunAsync(IReadOnlyList<WorkItem> items, ReviewReport report, SkillsTaxonomy taxonomy, ILlmClient llm, SkillTagOptions options, RepositoryRef target, IProgress<string>? progress, CancellationToken cancellation)
+        public static async Task<ProposalBatch> RunAsync(IReadOnlyList<WorkItem> items, ReviewReport report, SkillsTaxonomy taxonomy, ILlmClient llm, SkillTagOptions options, RepositoryRef target, IProgress<string> progress, CancellationToken cancellation)
         {
             options = options ?? new SkillTagOptions();
             var batch = new ProposalBatch { Kind = ProposalKind.Skills, Target = target.Key, Source = "llm:" + LlmSettings.ProfileToken(llm.Profile) + "/" + llm.Model };
             var byKey = items.ToDictionary(i => i.Key, i => i, StringComparer.OrdinalIgnoreCase);
-            var parents = new Dictionary<string, WorkItem?>(StringComparer.OrdinalIgnoreCase);
-            foreach (var r in report.Items) { WorkItem? p = null; if (r.ResolvedParentKey != null) byKey.TryGetValue(r.ResolvedParentKey, out p); parents[r.Key] = p; }
+            var parents = new Dictionary<string, WorkItem>(StringComparer.OrdinalIgnoreCase);
+            foreach (var r in report.Items) { WorkItem p = null; if (r.ResolvedParentKey != null) byKey.TryGetValue(r.ResolvedParentKey, out p); parents[r.Key] = p; }
             var candidates = Candidates(items, options);
             batch.Considered = candidates.Count;
             if (candidates.Count == 0) { batch.Warnings.Add("No untagged stories or features in scope."); return batch; }
@@ -147,21 +155,21 @@ namespace Halyard.Core.Intelligence
                 try { response = await llm.ChatAsync(new[] { LlmMessage.System(SystemPrompt(taxonomy)), LlmMessage.User(UserPrompt(slice, parents)) }, cancellation).ConfigureAwait(false); }
                 catch (Providers.ProviderHttpException ex) { batch.Warnings.Add("Model call failed: " + ex.Message); break; }
                 raw.Append(response.Text).Append("\n\n");
-                JArray? rows = ParseArray(response.Text);
+                JArray rows = ParseArray(response.Text);
                 if (rows == null) { batch.Warnings.Add("Model reply for " + slice.Count + " items could not be parsed."); continue; }
                 var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var row in rows.OfType<JObject>())
                 {
-                    WorkItem? item;
-                    var id = (string?)row["id"] ?? string.Empty;
+                    WorkItem item;
+                    var id = (string)row["id"] ?? string.Empty;
                     if (!byId.TryGetValue(id, out item) || item == null || !seen.Add(item.Key)) continue;
-                    var skills = (row["skills"] as JArray ?? new JArray()).Select(s => ((string?)s ?? string.Empty).Trim().ToLowerInvariant()).Where(s => s.Length > 0).Distinct().ToList();
+                    var skills = (row["skills"] as JArray ?? new JArray()).Select(s => ((string)s ?? string.Empty).Trim().ToLowerInvariant()).Where(s => s.Length > 0).Distinct().ToList();
                     var unknown = skills.Where(s => !taxonomy.Contains(s)).ToList();
                     skills = skills.Where(taxonomy.Contains).Take(options.MaxSkillsPerItem).ToList();
                     if (skills.Count == 0) { batch.Skipped++; batch.SkipReasons.Add(item.CanonicalId + ": model named no skill from the taxonomy" + (unknown.Count > 0 ? " (" + string.Join(", ", unknown) + ")" : string.Empty)); continue; }
-                    var confidence = ((string?)row["confidence"] ?? "medium").Trim().ToLowerInvariant();
+                    var confidence = ((string)row["confidence"] ?? "medium").Trim().ToLowerInvariant();
                     if (confidence != "high" && confidence != "low") confidence = "medium";
-                    var reason = ((string?)row["reason"] ?? string.Empty).Trim();
+                    var reason = ((string)row["reason"] ?? string.Empty).Trim();
                     if (unknown.Count > 0) reason += " [dropped unknown ids: " + string.Join(", ", unknown) + "]";
                     batch.Proposals.Add(Make(item, skills, confidence, reason, batch.Source + " json", batch));
                 }
@@ -177,22 +185,22 @@ namespace Halyard.Core.Intelligence
             {
                 BatchId = batch.Id, Kind = ProposalKind.Skills, ItemKey = item.Key, ItemNumber = item.Number, ItemCanonicalId = item.CanonicalId, ItemTitle = item.Title,
                 CurrentValue = current.Count == 0 ? null : string.Join(", ", current), ProposedValue = string.Join(", ", skills),
-                ProposedMeta = new Dictionary<string, string?> { { "skills", string.Join(", ", skills) } },
+                ProposedMeta = new Dictionary<string, string> { { "skills", string.Join(", ", skills) } },
                 Confidence = confidence, Reason = reason, Source = source,
             };
         }
 
-        private static JArray? ParseArray(string? text)
+        private static JArray ParseArray(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return null;
-            var t = text!;
+            var t = text;
             var fence = Regex.Match(t, @"```(?:json)?\s*([\s\S]*?)```");
             if (fence.Success) t = fence.Groups[1].Value;
             var start = t.IndexOf('[');
             var end = t.LastIndexOf(']');
             if (start < 0 || end <= start)
             {
-                try { var obj = JObject.Parse(t.Trim()); foreach (var p in obj.Properties()) if (p.Value is JArray a) return a; } catch (JsonException) { }
+                try { var obj = JObject.Parse(t.Trim()); foreach (var p in obj.Properties()) { var a = p.Value as JArray; if (a != null) return a; } } catch (JsonException) { }
                 return null;
             }
             try { return JArray.Parse(t.Substring(start, end - start + 1)); } catch (JsonException) { return null; }

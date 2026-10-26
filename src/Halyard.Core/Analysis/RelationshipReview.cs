@@ -43,7 +43,7 @@ namespace Halyard.Core.Analysis
         public string CanonicalId { get; private set; }
         public string Title { get; private set; }
         public WorkItemType Type { get; private set; }
-        public string? DeclaredParent { get; private set; }
+        public string DeclaredParent { get; private set; }
         public WorkItemType? ExpectedParentType { get; private set; }
         public IReadOnlyList<ParentCandidate> Candidates { get; private set; }
     }
@@ -62,11 +62,11 @@ namespace Halyard.Core.Analysis
             "fix","implement","enable","build","add","improve","system","service","data","test","tests","sample","example",
         };
 
-        public static IReadOnlyList<string> Keywords(string? title)
+        public static IReadOnlyList<string> Keywords(string title)
         {
             var words = new List<string>();
             if (string.IsNullOrWhiteSpace(title)) return words;
-            foreach (Match m in Regex.Matches(title!.ToLowerInvariant(), "[a-z0-9]{3,}"))
+            foreach (Match m in Regex.Matches(title.ToLowerInvariant(), "[a-z0-9]{3,}"))
             {
                 var w = m.Value;
                 if (w.Length > 5 && w.EndsWith("s")) w = w.Substring(0, w.Length - 1);
@@ -123,7 +123,7 @@ namespace Halyard.Core.Analysis
                         evidence.Add("declared parent id matches");
                     }
                     var narrative = Schema.Descriptions.Narrative(item.Body);
-                    if (!string.IsNullOrWhiteSpace(parent.ExplicitId) && narrative.IndexOf(parent.ExplicitId!, StringComparison.OrdinalIgnoreCase) >= 0)
+                    if (!string.IsNullOrWhiteSpace(parent.ExplicitId) && narrative.IndexOf(parent.ExplicitId, StringComparison.OrdinalIgnoreCase) >= 0)
                     {
                         score += 4.0;
                         evidence.Add("body references " + parent.ExplicitId);
@@ -146,7 +146,7 @@ namespace Halyard.Core.Analysis
             return reviews;
         }
 
-        private static string Descriptions_ShortName(string? title)
+        private static string Descriptions_ShortName(string title)
         {
             return Schema.Descriptions.ShortName(title);
         }
