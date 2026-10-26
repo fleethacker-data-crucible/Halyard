@@ -17,7 +17,7 @@ provider-agnostic. Last updated 2026-10-24.
 | Team | `team.json` capacity and sprint calendar, `skills.json` taxonomy shared with Shellback, Shellback peer cards imported read-only (consent, confidence, availability) |
 | Intelligence | Model drafts for missing sections, sizing with definability gate, skill tagging, vision drafting, intake classification; every model output validated against the backlog; deterministic fallbacks throughout |
 | Planning | Sprint planner: ready stories by feature target and progress, first-fit into committed capacity, owners by skill match, skill gaps; becomes proposals |
-| Intake | Raw source tickets classified and copied into the sandbox with a link back; de-duplicated; source never written |
+| Intake | Raw source tickets categorized and copied into the sandbox with a link back; de-duplicated; source never written |
 | Proposals | Eight kinds behind one projection for preview and apply; diff per row; approve, reject, apply, apply all, delete batch |
 | Tests | xUnit (145), Pester (16), UI unit tests, offline end-to-end loop over every flow above, CI on the Windows runner |
 

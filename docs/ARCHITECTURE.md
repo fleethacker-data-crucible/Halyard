@@ -9,7 +9,7 @@ used through a browser on `127.0.0.1`.
 | Constraint | Consequence |
 |---|---|
 | Target workstation runs Windows PowerShell 5.1 on .NET Framework 4.8; no installs, no admin | The runtime is PowerShell + one .NET library + static web files. No Node, Python, services or installers on the workstation. |
-| On some workstations, CAC + TOTP happen inside a PowerShell vault (Lazarette) in a console | PowerShell stays the launcher and owns the vault unlock. Everything after that is C#. |
+| On some workstations, smart card + TOTP happen inside a PowerShell vault (Lazarette) in a console | PowerShell stays the launcher and owns the vault unlock. Everything after that is C#. |
 | Two Git hosts: github.com for development, a self-hosted GitLab for real work | One provider-agnostic work-item model; hosts are adapters. |
 | Production backlog must never be written by accident | Every write goes through one gateway with a sandbox allow-list. |
 | Build happens off the workstation | Compiled DLLs and built UI ship in a bundle; nothing is fetched at runtime. |
