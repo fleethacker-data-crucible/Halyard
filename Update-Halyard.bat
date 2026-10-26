@@ -1,5 +1,7 @@
 @echo off
-rem Pulls the latest Halyard from git, builds it (stopping anything that holds the DLL) and launches it.
+rem DEVELOPMENT PC ONLY. Pulls the latest Halyard from git, builds it (stopping any running engine first) and
+rem launches it. Needs git, the .NET 8 SDK and Node.js, none of which belong on the workstation; it is not part
+rem of the release bundle. On the workstation, update by downloading the new Halyard-<version>.zip from Releases.
 rem Double-click this in Explorer; no terminal needed. The window stays open if anything fails.
 setlocal
 cd /d "%~dp0"
