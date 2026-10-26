@@ -35,6 +35,8 @@ The overview of a synthetic 100-item backlog seeded into an offline fake GitHub
 
 ## Quick start (GitHub + an OpenAI-compatible model)
 
+> **Intelligence router:** the model endpoint (default `https://api.openai.com/v1/chat/completions`) and the GitHub API host (default `https://api.github.com`) will move behind the Fleet intelligence router, [Fairlead](https://github.com/fleethacker-data-crucible/Fairlead), so Halyard defaults to the router instead of a hard-coded endpoint. Until then the settings below stay as they are. See [TechStack](TechStack), "Intelligence router".
+
 On the workstation (no .NET SDK or Node.js needed):
 
 1. Download `Halyard-<version>.zip` from [Releases](https://github.com/sun-of-anton/Halyard/releases) and
