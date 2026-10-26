@@ -16,36 +16,66 @@ namespace Halyard.Core.Intelligence
 {
     public sealed class VisionTheme
     {
-        public string Id { get; set; } = string.Empty;
-        public string Title { get; set; } = string.Empty;
-        public string Purpose { get; set; } = string.Empty;
-        public List<string> Epics { get; set; } = new List<string>();
+        public string Id { get; set; }
+        public string Title { get; set; }
+        public string Purpose { get; set; }
+        public List<string> Epics { get; set; }
         public bool IsNew { get; set; }
+
+        public VisionTheme()
+        {
+            Id = string.Empty;
+            Title = string.Empty;
+            Purpose = string.Empty;
+            Epics = new List<string>();
+        }
     }
 
     public sealed class VisionPriority
     {
         public int Rank { get; set; }
-        public string Epic { get; set; } = string.Empty;
-        public string Title { get; set; } = string.Empty;
-        public string Why { get; set; } = string.Empty;
+        public string Epic { get; set; }
+        public string Title { get; set; }
+        public string Why { get; set; }
+
+        public VisionPriority()
+        {
+            Epic = string.Empty;
+            Title = string.Empty;
+            Why = string.Empty;
+        }
     }
 
     /// <summary>A drafted portfolio vision: the document plus the structured parts the proposals are built from.</summary>
     public sealed class VisionDraft
     {
-        public string Id { get; set; } = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
-        public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
-        public string Source { get; set; } = string.Empty;
-        public string Repository { get; set; } = string.Empty;
-        public string Vision { get; set; } = string.Empty;
-        public string Markdown { get; set; } = string.Empty;
-        public List<VisionTheme> Themes { get; set; } = new List<VisionTheme>();
-        public List<VisionPriority> Priorities { get; set; } = new List<VisionPriority>();
-        public List<string> Risks { get; set; } = new List<string>();
-        public List<string> NextQuarter { get; set; } = new List<string>();
-        public string? ProposalBatchId { get; set; }
-        public List<string> Warnings { get; set; } = new List<string>();
+        public string Id { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
+        public string Source { get; set; }
+        public string Repository { get; set; }
+        public string Vision { get; set; }
+        public string Markdown { get; set; }
+        public List<VisionTheme> Themes { get; set; }
+        public List<VisionPriority> Priorities { get; set; }
+        public List<string> Risks { get; set; }
+        public List<string> NextQuarter { get; set; }
+        public string ProposalBatchId { get; set; }
+        public List<string> Warnings { get; set; }
+
+        public VisionDraft()
+        {
+            Id = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
+            CreatedAt = DateTimeOffset.UtcNow;
+            Source = string.Empty;
+            Repository = string.Empty;
+            Vision = string.Empty;
+            Markdown = string.Empty;
+            Themes = new List<VisionTheme>();
+            Priorities = new List<VisionPriority>();
+            Risks = new List<string>();
+            NextQuarter = new List<string>();
+            Warnings = new List<string>();
+        }
     }
 
     public sealed class VisionStore
@@ -72,7 +102,7 @@ namespace Halyard.Core.Intelligence
             return list.OrderByDescending(d => d.CreatedAt).ToList();
         }
 
-        public VisionDraft? Load(string id)
+        public VisionDraft Load(string id)
         {
             var path = Path.Combine(_directory, "vision-" + id + ".json");
             if (!File.Exists(path)) return null;
@@ -125,7 +155,7 @@ namespace Halyard.Core.Intelligence
             return sb.ToString();
         }
 
-        private static string Excerpt(string? body, string heading, int max)
+        private static string Excerpt(string body, string heading, int max)
         {
             var narrative = Descriptions.Narrative(body);
             var m = Regex.Match(narrative, @"(?im)^##\s*" + Regex.Escape(heading) + @"\s*\r?\n(?<t>(?:(?!^#).*\r?\n?)*)");
@@ -179,40 +209,44 @@ namespace Halyard.Core.Intelligence
             if (obj == null) { draft.Warnings.Add("The model reply could not be parsed; this is the deterministic summary."); draft.Source = "deterministic (reply unparsed)"; return draft; }
             var themeIds = new HashSet<string>(items.Where(i => i.Type == WorkItemType.Theme).Select(i => i.CanonicalId), StringComparer.OrdinalIgnoreCase);
             var epicIds = new HashSet<string>(items.Where(i => i.Type == WorkItemType.Epic).Select(i => i.CanonicalId), StringComparer.OrdinalIgnoreCase);
-            var vision = (string?)obj["vision"];
-            if (!string.IsNullOrWhiteSpace(vision)) draft.Vision = vision!.Trim();
-            if (obj["themes"] is JArray themes && themes.Count > 0)
+            var vision = (string)obj["vision"];
+            if (!string.IsNullOrWhiteSpace(vision)) draft.Vision = vision.Trim();
+            var themes = obj["themes"] as JArray;
+            if (themes != null && themes.Count > 0)
             {
                 draft.Themes.Clear();
                 foreach (var t in themes.OfType<JObject>())
                 {
-                    var id = ((string?)t["id"] ?? "NEW").Trim();
-                    var vt = new VisionTheme { Id = themeIds.Contains(id) ? id : "NEW", IsNew = !themeIds.Contains(id), Title = ((string?)t["title"] ?? id).Trim(), Purpose = ((string?)t["purpose"] ?? string.Empty).Trim() };
-                    vt.Epics = (t["epics"] as JArray ?? new JArray()).Select(e => ((string?)e ?? string.Empty).Trim()).Where(e => epicIds.Contains(e)).ToList();
+                    var id = ((string)t["id"] ?? "NEW").Trim();
+                    var vt = new VisionTheme { Id = themeIds.Contains(id) ? id : "NEW", IsNew = !themeIds.Contains(id), Title = ((string)t["title"] ?? id).Trim(), Purpose = ((string)t["purpose"] ?? string.Empty).Trim() };
+                    vt.Epics = (t["epics"] as JArray ?? new JArray()).Select(e => ((string)e ?? string.Empty).Trim()).Where(e => epicIds.Contains(e)).ToList();
                     draft.Themes.Add(vt);
                 }
             }
-            if (obj["priorities"] is JArray pr && pr.Count > 0)
+            var pr = obj["priorities"] as JArray;
+            if (pr != null && pr.Count > 0)
             {
                 draft.Priorities.Clear();
                 var rank = 0;
                 foreach (var p in pr.OfType<JObject>())
                 {
-                    var epic = ((string?)p["epic"] ?? string.Empty).Trim();
+                    var epic = ((string)p["epic"] ?? string.Empty).Trim();
                     if (!epicIds.Contains(epic)) continue;
                     var item = items.First(i => string.Equals(i.CanonicalId, epic, StringComparison.OrdinalIgnoreCase));
-                    draft.Priorities.Add(new VisionPriority { Rank = ++rank, Epic = item.CanonicalId, Title = Descriptions.ShortName(item.Title), Why = ((string?)p["why"] ?? string.Empty).Trim() });
+                    draft.Priorities.Add(new VisionPriority { Rank = ++rank, Epic = item.CanonicalId, Title = Descriptions.ShortName(item.Title), Why = ((string)p["why"] ?? string.Empty).Trim() });
                 }
             }
-            if (obj["risks"] is JArray risks && risks.Count > 0) draft.Risks = risks.Select(r => ((string?)r ?? string.Empty).Trim()).Where(r => r.Length > 0).ToList();
-            if (obj["nextQuarter"] is JArray nq && nq.Count > 0) draft.NextQuarter = nq.Select(r => ((string?)r ?? string.Empty).Trim()).Where(r => r.Length > 0).ToList();
-            var narrative = (string?)obj["narrative"];
-            draft.Markdown = string.IsNullOrWhiteSpace(narrative) ? RenderMarkdown(draft, delivery) : "# Portfolio vision\n\n_Drafted by " + draft.Source + " on " + draft.CreatedAt.ToString("yyyy-MM-dd") + " from " + repository + "._\n\n" + narrative!.Trim() + "\n\n" + Appendix(draft, delivery);
+            var risks = obj["risks"] as JArray;
+            if (risks != null && risks.Count > 0) draft.Risks = risks.Select(r => ((string)r ?? string.Empty).Trim()).Where(r => r.Length > 0).ToList();
+            var nq = obj["nextQuarter"] as JArray;
+            if (nq != null && nq.Count > 0) draft.NextQuarter = nq.Select(r => ((string)r ?? string.Empty).Trim()).Where(r => r.Length > 0).ToList();
+            var narrative = (string)obj["narrative"];
+            draft.Markdown = string.IsNullOrWhiteSpace(narrative) ? RenderMarkdown(draft, delivery) : "# Portfolio vision\n\n_Drafted by " + draft.Source + " on " + draft.CreatedAt.ToString("yyyy-MM-dd") + " from " + repository + "._\n\n" + narrative.Trim() + "\n\n" + Appendix(draft, delivery);
             return draft;
         }
 
         /// <summary>Theme-membership proposals for epics the draft places under an existing theme that differs from their declared one.</summary>
-        public static ProposalBatch ThemeProposals(VisionDraft draft, IReadOnlyList<WorkItem> items, RepositoryRef target, HashSet<string>? onlyKeys = null)
+        public static ProposalBatch ThemeProposals(VisionDraft draft, IReadOnlyList<WorkItem> items, RepositoryRef target, HashSet<string> onlyKeys = null)
         {
             var batch = new ProposalBatch { Kind = ProposalKind.ThemeLink, Target = target.Key, Source = draft.Source };
             var epics = items.Where(i => i.Type == WorkItemType.Epic).ToDictionary(i => i.CanonicalId, i => i, StringComparer.OrdinalIgnoreCase);
@@ -220,7 +254,7 @@ namespace Halyard.Core.Intelligence
             {
                 foreach (var epicId in theme.Epics)
                 {
-                    WorkItem? epic;
+                    WorkItem epic;
                     if (!epics.TryGetValue(epicId, out epic) || epic == null) continue;
                     if (onlyKeys != null && !onlyKeys.Contains(epic.Key)) continue;
                     batch.Considered++;
@@ -228,7 +262,7 @@ namespace Halyard.Core.Intelligence
                     batch.Proposals.Add(new Proposal
                     {
                         BatchId = batch.Id, Kind = ProposalKind.ThemeLink, ItemKey = epic.Key, ItemNumber = epic.Number, ItemCanonicalId = epic.CanonicalId, ItemTitle = epic.Title,
-                        CurrentValue = epic.ThemeId, ProposedValue = theme.Id, ProposedMeta = new Dictionary<string, string?> { { "theme", theme.Id }, { "parent", theme.Id } },
+                        CurrentValue = epic.ThemeId, ProposedValue = theme.Id, ProposedMeta = new Dictionary<string, string> { { "theme", theme.Id }, { "parent", theme.Id } },
                         Confidence = string.IsNullOrWhiteSpace(epic.ThemeId) ? "medium" : "low",
                         Reason = "The vision draft places this epic under " + theme.Title + (string.IsNullOrWhiteSpace(epic.ThemeId) ? " (no theme declared today)." : " instead of " + epic.ThemeId + "."),
                         Source = draft.Source,
@@ -267,10 +301,10 @@ namespace Halyard.Core.Intelligence
             return sb.ToString();
         }
 
-        private static JObject? ParseObject(string? text)
+        private static JObject ParseObject(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return null;
-            var t = text!;
+            var t = text;
             var fence = Regex.Match(t, @"```(?:json)?\s*([\s\S]*?)```");
             if (fence.Success) t = fence.Groups[1].Value;
             var start = t.IndexOf('{');

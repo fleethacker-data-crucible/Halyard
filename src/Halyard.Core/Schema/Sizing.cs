@@ -17,10 +17,10 @@ namespace Halyard.Core.Schema
         private static readonly Regex PointsNoise = new Regex(@"(STORY|POINTS?|PTS?)", RegexOptions.IgnoreCase | RegexOptions.Compiled);
 
         /// <summary>Normalises any points text to 1|2|3|5|8|TBD.</summary>
-        public static string ClampPoints(string? raw)
+        public static string ClampPoints(string raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return Tbd;
-            var p = PointsNoise.Replace(raw!.Trim().Trim('"', '\'', '*'), string.Empty).Trim().ToUpperInvariant();
+            var p = PointsNoise.Replace(raw.Trim().Trim('"', '\'', '*'), string.Empty).Trim().ToUpperInvariant();
             if (p == Tbd) return Tbd;
             int n;
             if (!int.TryParse(p, out n))
@@ -35,20 +35,20 @@ namespace Halyard.Core.Schema
             return "8";
         }
 
-        public static bool IsValidPoints(string? value)
+        public static bool IsValidPoints(string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return false;
-            var v = value!.Trim();
+            var v = value.Trim();
             if (v.Equals(Tbd, StringComparison.OrdinalIgnoreCase)) return true;
             int n;
             return int.TryParse(v, out n) && Array.IndexOf(StoryPointScale, n) >= 0;
         }
 
         /// <summary>Normalises effort text to Small|Medium|Large|TBD. XS→Small, XL/XXL→Large (policy: three bands only).</summary>
-        public static string ClampEffort(string? raw)
+        public static string ClampEffort(string raw)
         {
             if (string.IsNullOrWhiteSpace(raw)) return Tbd;
-            var e = raw!.Trim().Trim('"', '\'', '*').ToUpperInvariant();
+            var e = raw.Trim().Trim('"', '\'', '*').ToUpperInvariant();
             if (e == Tbd) return Tbd;
             if (Regex.IsMatch(e, @"^(XS|X-SMALL|EXTRA\s*SMALL|S|SMALL)$")) return "Small";
             if (Regex.IsMatch(e, @"^(M|MEDIUM|MED)$")) return "Medium";
@@ -59,10 +59,10 @@ namespace Halyard.Core.Schema
             return Tbd;
         }
 
-        public static bool IsValidEffort(string? value)
+        public static bool IsValidEffort(string value)
         {
             if (string.IsNullOrWhiteSpace(value)) return false;
-            var v = value!.Trim();
+            var v = value.Trim();
             if (v.Equals(Tbd, StringComparison.OrdinalIgnoreCase)) return true;
             foreach (var band in EffortScale)
             {

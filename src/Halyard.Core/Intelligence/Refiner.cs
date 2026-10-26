@@ -15,20 +15,33 @@ namespace Halyard.Core.Intelligence
 {
     public sealed class RefineOptions
     {
-        public int MaxItems { get; set; } = 10;
+        public int MaxItems { get; set; }
         /// <summary>Restrict to these item numbers (bulk action from the Review page). Null = every eligible item.</summary>
-        public HashSet<long>? OnlyNumbers { get; set; }
+        public HashSet<long> OnlyNumbers { get; set; }
         /// <summary>Restrict to these item keys (the sandbox items of a multi-repository snapshot). Null = no restriction.</summary>
-        public HashSet<string>? OnlyKeys { get; set; }
+        public HashSet<string> OnlyKeys { get; set; }
+
+        public RefineOptions()
+        {
+            MaxItems = 10;
+        }
     }
 
     /// <summary>One parsed model reply for a refinement.</summary>
     public sealed class RefinementDraft
     {
-        public string Narrative { get; set; } = string.Empty;
-        public Dictionary<string, string?> Meta { get; set; } = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
-        public string Note { get; set; } = string.Empty;
-        public string Source { get; set; } = "json";
+        public string Narrative { get; set; }
+        public Dictionary<string, string> Meta { get; set; }
+        public string Note { get; set; }
+        public string Source { get; set; }
+
+        public RefinementDraft()
+        {
+            Narrative = string.Empty;
+            Meta = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Note = string.Empty;
+            Source = "json";
+        }
     }
 
     /// <summary>
@@ -72,13 +85,13 @@ namespace Halyard.Core.Intelligence
                    "- Return ONLY a JSON object: {\"narrative\": \"<full markdown>\", \"meta\": {<optional halyard-meta keys to set, e.g. \"points\": \"TBD\">}, \"note\": \"<one sentence on what you added>\"}.";
         }
 
-        public static string UserPrompt(WorkItem item, IReadOnlyList<string> gaps, WorkItem? parent, IReadOnlyList<WorkItem> siblings)
+        public static string UserPrompt(WorkItem item, IReadOnlyList<string> gaps, WorkItem parent, IReadOnlyList<WorkItem> siblings)
         {
             var sb = new StringBuilder();
             sb.Append("Type: ").Append(WorkItemTypes.ToToken(item.Type)).Append('\n');
             sb.Append("Title: ").Append(Descriptions.ShortName(item.Title)).Append('\n');
             sb.Append("Id: ").Append(item.CanonicalId).Append('\n');
-            sb.Append("Gaps to close: ").Append(string.Join(", ", gaps.Select(g => g + " (" + (Deficiencies.Find(g)?.Explanation ?? string.Empty) + ")"))).Append("\n\n");
+            sb.Append("Gaps to close: ").Append(string.Join(", ", gaps.Select(g => g + " (" + (Deficiencies.Find(g) == null ? string.Empty : Deficiencies.Find(g).Explanation ?? string.Empty) + ")"))).Append("\n\n");
             if (parent != null)
             {
                 sb.Append("Parent ").Append(WorkItemTypes.ToToken(parent.Type)).Append(": ").Append(Descriptions.ShortName(parent.Title)).Append('\n');
@@ -110,7 +123,7 @@ namespace Halyard.Core.Intelligence
         }
 
         public static async Task<ProposalBatch> RunAsync(IReadOnlyList<WorkItem> items, ReviewReport report, ILlmClient llm, RefineOptions options, RepositoryRef target,
-            IProgress<string>? progress, CancellationToken cancellation)
+            IProgress<string> progress, CancellationToken cancellation)
         {
             options = options ?? new RefineOptions();
             var batch = new ProposalBatch { Kind = ProposalKind.Refinement, Target = target.Key, Source = "llm:" + LlmSettings.ProfileToken(llm.Profile) + "/" + llm.Model };
@@ -131,12 +144,12 @@ namespace Halyard.Core.Intelligence
             {
                 cancellation.ThrowIfCancellationRequested();
                 done++;
-                WorkItem? item;
+                WorkItem item;
                 if (!byKey.TryGetValue(review.Key, out item) || item == null) continue;
                 var gaps = review.Deficiencies.Where(IsContentGap).ToList();
-                WorkItem? parent = null;
+                WorkItem parent = null;
                 if (review.ResolvedParentKey != null) byKey.TryGetValue(review.ResolvedParentKey, out parent);
-                var siblings = parent == null ? new List<WorkItem>() : report.Items.Where(x => x.ResolvedParentKey == parent.Key && x.Key != item.Key).Select(x => byKey.TryGetValue(x.Key, out var w) ? w : null).Where(w => w != null).Select(w => w!).ToList();
+                var siblings = parent == null ? new List<WorkItem>() : report.Items.Where(x => x.ResolvedParentKey == parent.Key && x.Key != item.Key).Select(x => { WorkItem w; return byKey.TryGetValue(x.Key, out w) ? w : null; }).Where(w => w != null).Select(w => w).ToList();
                 if (progress != null) progress.Report("Drafting " + done + "/" + slice.Count + ": " + Descriptions.ShortName(item.Title));
                 LlmResponse response;
                 try
@@ -215,10 +228,10 @@ namespace Halyard.Core.Intelligence
         }
 
         /// <summary>Tolerant parse: a JSON object (possibly fenced) with a narrative, or raw Markdown with headings.</summary>
-        public static RefinementDraft? ParseReply(string? text)
+        public static RefinementDraft ParseReply(string text)
         {
             if (string.IsNullOrWhiteSpace(text)) return null;
-            var t = text!.Trim();
+            var t = text.Trim();
             var fence = Regex.Match(t, @"```(?:json)?\s*(\{[\s\S]*\})\s*```", RegexOptions.IgnoreCase);
             var candidate = fence.Success ? fence.Groups[1].Value : t;
             var start = candidate.IndexOf('{');
@@ -228,11 +241,12 @@ namespace Halyard.Core.Intelligence
                 try
                 {
                     var obj = JObject.Parse(candidate.Substring(start, end - start + 1));
-                    var narrative = (string?)obj["narrative"] ?? (string?)obj["body"] ?? (string?)obj["markdown"];
+                    var narrative = (string)obj["narrative"] ?? (string)obj["body"] ?? (string)obj["markdown"];
                     if (!string.IsNullOrWhiteSpace(narrative))
                     {
-                        var draft = new RefinementDraft { Narrative = narrative!, Note = ((string?)obj["note"] ?? string.Empty).Trim(), Source = "json" };
-                        if (obj["meta"] is JObject meta)
+                        var draft = new RefinementDraft { Narrative = narrative, Note = ((string)obj["note"] ?? string.Empty).Trim(), Source = "json" };
+                        var meta = obj["meta"] as JObject;
+                        if (meta != null)
                             foreach (var p in meta.Properties()) draft.Meta[p.Name.Trim().ToLowerInvariant()] = p.Value.Type == JTokenType.Null ? null : p.Value.ToString().Trim();
                         return draft;
                     }
@@ -249,14 +263,14 @@ namespace Halyard.Core.Intelligence
         /// Deterministic metadata repair: builds or completes the halyard-meta block from what the item already
         /// says (type label, title, theme/area labels) and policy placeholders (TBD), without a model.
         /// </summary>
-        public static ProposalBatch MetadataProposals(IReadOnlyList<WorkItem> items, ReviewReport report, Taxonomy taxonomy, RepositoryRef target, HashSet<long>? onlyNumbers = null)
+        public static ProposalBatch MetadataProposals(IReadOnlyList<WorkItem> items, ReviewReport report, Taxonomy taxonomy, RepositoryRef target, HashSet<long> onlyNumbers = null)
         {
             var batch = new ProposalBatch { Kind = ProposalKind.Metadata, Target = target.Key, Source = "deterministic" };
             var byKey = items.ToDictionary(i => i.Key, i => i, StringComparer.OrdinalIgnoreCase);
             foreach (var review in report.Items)
             {
                 if (onlyNumbers != null && !onlyNumbers.Contains(review.Number)) continue;
-                WorkItem? item;
+                WorkItem item;
                 if (!byKey.TryGetValue(review.Key, out item) || item == null) continue;
                 var gaps = review.Deficiencies.Where(IsMetadataGap).ToList();
                 if (review.MissingMeta.Count > 0 && !gaps.Contains(Deficiencies.MissingMeta) && !gaps.Contains(Deficiencies.InvalidMeta)) gaps.Add("missing_required_meta:" + string.Join("+", review.MissingMeta));
@@ -268,7 +282,7 @@ namespace Halyard.Core.Intelligence
                     batch.SkipReasons.Add("#" + item.Number + ": no type:: label or meta type; a human must classify it first.");
                     continue;
                 }
-                var changes = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+                var changes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                 var reasons = new List<string>();
                 var meta = item.Meta ?? new HalyardMeta();
                 if (!meta.Has("type")) { changes["type"] = WorkItemTypes.ToToken(item.Type); reasons.Add("type from the type:: label"); }

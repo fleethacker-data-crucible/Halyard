@@ -11,51 +11,77 @@ namespace Halyard.Core.Planning
     public sealed class PlanOptions
     {
         /// <summary>How many sprints after the current one to plan into.</summary>
-        public int SprintsAhead { get; set; } = 2;
+        public int SprintsAhead { get; set; }
         /// <summary>Top up the current sprint's remaining capacity before planning the next ones.</summary>
-        public bool IncludeCurrent { get; set; } = true;
+        public bool IncludeCurrent { get; set; }
         /// <summary>Share of team capacity that may be planned (the rest is allocated/experiment time). Null = the team's committed share.</summary>
         public double? CommitShare { get; set; }
-        public int MaxStories { get; set; } = 200;
+        public int MaxStories { get; set; }
         /// <summary>Stories not meeting the definition of ready are skipped unless this is set.</summary>
-        public bool RequireReady { get; set; } = true;
-        public HashSet<long>? OnlyNumbers { get; set; }
-        public HashSet<string>? OnlyKeys { get; set; }
+        public bool RequireReady { get; set; }
+        public HashSet<long> OnlyNumbers { get; set; }
+        public HashSet<string> OnlyKeys { get; set; }
+
+        public PlanOptions()
+        {
+            SprintsAhead = 2;
+            IncludeCurrent = true;
+            MaxStories = 200;
+            RequireReady = true;
+        }
     }
 
     public sealed class PlannedStory
     {
-        public string Key { get; set; } = string.Empty;
+        public string Key { get; set; }
         public long Number { get; set; }
-        public string Title { get; set; } = string.Empty;
-        public string CanonicalId { get; set; } = string.Empty;
+        public string Title { get; set; }
+        public string CanonicalId { get; set; }
         public int Points { get; set; }
-        public string Sprint { get; set; } = string.Empty;
-        public string? Owner { get; set; }
-        public string? Feature { get; set; }
-        public string? Target { get; set; }
-        public List<string> Skills { get; set; } = new List<string>();
-        public List<string> MissingSkills { get; set; } = new List<string>();
+        public string Sprint { get; set; }
+        public string Owner { get; set; }
+        public string Feature { get; set; }
+        public string Target { get; set; }
+        public List<string> Skills { get; set; }
+        public List<string> MissingSkills { get; set; }
         public double MatchScore { get; set; }
         public int Priority { get; set; }
-        public string Reason { get; set; } = string.Empty;
+        public string Reason { get; set; }
         public bool AlreadyPlanned { get; set; }
+
+        public PlannedStory()
+        {
+            Key = string.Empty;
+            Title = string.Empty;
+            CanonicalId = string.Empty;
+            Sprint = string.Empty;
+            Skills = new List<string>();
+            MissingSkills = new List<string>();
+            Reason = string.Empty;
+        }
     }
 
     public sealed class PersonLoad
     {
-        public string Id { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
+        public string Id { get; set; }
+        public string Name { get; set; }
         public int Capacity { get; set; }
         public int Existing { get; set; }
         public int Proposed { get; set; }
         public int Remaining { get { return Capacity - Existing - Proposed; } }
-        public string Availability { get; set; } = "unknown";
+        public string Availability { get; set; }
+
+        public PersonLoad()
+        {
+            Id = string.Empty;
+            Name = string.Empty;
+            Availability = "unknown";
+        }
     }
 
     public sealed class SprintPlan
     {
-        public string Sprint { get; set; } = string.Empty;
+        public string Sprint { get; set; }
         public int Number { get; set; }
         public DateTimeOffset Start { get; set; }
         public DateTimeOffset End { get; set; }
@@ -65,21 +91,38 @@ namespace Halyard.Core.Planning
         public int Existing { get; set; }
         public int Proposed { get; set; }
         public int Remaining { get { return CommitCapacity - Existing - Proposed; } }
-        public List<PlannedStory> Stories { get; set; } = new List<PlannedStory>();
-        public List<PersonLoad> People { get; set; } = new List<PersonLoad>();
+        public List<PlannedStory> Stories { get; set; }
+        public List<PersonLoad> People { get; set; }
+
+        public SprintPlan()
+        {
+            Sprint = string.Empty;
+            Stories = new List<PlannedStory>();
+            People = new List<PersonLoad>();
+        }
     }
 
     public sealed class PlanResult
     {
-        public DateTimeOffset GeneratedAt { get; set; } = DateTimeOffset.UtcNow;
-        public List<SprintPlan> Sprints { get; set; } = new List<SprintPlan>();
-        public List<PlannedStory> Unplaced { get; set; } = new List<PlannedStory>();
-        public List<string> SkipReasons { get; set; } = new List<string>();
+        public DateTimeOffset GeneratedAt { get; set; }
+        public List<SprintPlan> Sprints { get; set; }
+        public List<PlannedStory> Unplaced { get; set; }
+        public List<string> SkipReasons { get; set; }
         /// <summary>Skills needed by planned work that nobody on the team has: the link back to Shellback growth plans.</summary>
-        public Dictionary<string, int> SkillGaps { get; set; } = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, int> SkillGaps { get; set; }
         public int Candidates { get; set; }
         public int Placed { get { return Sprints.Sum(s => s.Stories.Count(x => !x.AlreadyPlanned)); } }
-        public List<string> Notes { get; set; } = new List<string>();
+        public List<string> Notes { get; set; }
+
+        public PlanResult()
+        {
+            GeneratedAt = DateTimeOffset.UtcNow;
+            Sprints = new List<SprintPlan>();
+            Unplaced = new List<PlannedStory>();
+            SkipReasons = new List<string>();
+            SkillGaps = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            Notes = new List<string>();
+        }
     }
 
     /// <summary>
@@ -98,7 +141,7 @@ namespace Halyard.Core.Planning
             var current = calendar.Current(now);
             var byKey = items.ToDictionary(i => i.Key, i => i, StringComparer.OrdinalIgnoreCase);
             var parentOf = report.Items.ToDictionary(i => i.Key, i => i.ResolvedParentKey, StringComparer.OrdinalIgnoreCase);
-            Func<WorkItem, WorkItem?> parent = w => { string? pk; WorkItem? p; return parentOf.TryGetValue(w.Key, out pk) && pk != null && byKey.TryGetValue(pk, out p) ? p : null; };
+            Func<WorkItem, WorkItem> parent = w => { string pk; WorkItem p; return parentOf.TryGetValue(w.Key, out pk) && pk != null && byKey.TryGetValue(pk, out p) ? p : null; };
             Func<WorkItem, int> pointsOf = s => { int p; return s.Meta != null && Sizing.IsValidPoints(s.Meta.Points) && int.TryParse(s.Meta.Points, out p) ? p : 0; };
             Func<WorkItem, int?> sprintOf = s => s.Meta == null ? null : calendar.NumberOf(s.Meta.Sprint);
             var stories = items.Where(i => i.Type == WorkItemType.Story).ToList();
@@ -140,7 +183,7 @@ namespace Halyard.Core.Planning
                 var pts = pointsOf(s);
                 if (pts <= 0) { result.SkipReasons.Add(s.CanonicalId + ": unsized"); continue; }
                 if (s.Labels.Any(l => l.StartsWith("blocked", StringComparison.OrdinalIgnoreCase))) { result.SkipReasons.Add(s.CanonicalId + ": blocked"); continue; }
-                List<string>? gaps;
+                List<string> gaps;
                 if (options.RequireReady && deficiencies.TryGetValue(s.Key, out gaps) && gaps.Count > 0) { result.SkipReasons.Add(s.CanonicalId + ": not ready (" + string.Join(", ", gaps) + ")"); continue; }
                 candidates.Add(new KeyValuePair<WorkItem, int>(s, pts));
             }
@@ -175,7 +218,7 @@ namespace Halyard.Core.Planning
                 var why = new List<string>();
                 why.Add(c.Target != null ? "feature target " + c.Target : "no feature target");
                 if (c.Started > 0) why.Add("feature already has " + c.Started + " done stor" + (c.Started == 1 ? "y" : "ies"));
-                SprintPlan? frame = null;
+                SprintPlan frame = null;
                 foreach (var f in result.Sprints) if (f.Remaining >= c.Points) { frame = f; break; }
                 if (frame == null)
                 {
@@ -188,7 +231,7 @@ namespace Halyard.Core.Planning
                 var missing = skills.Where(sk => !members.Any(m => m.Has(sk))).ToList();
                 planned.MissingSkills = missing;
                 foreach (var g in missing) { int n; result.SkillGaps.TryGetValue(g, out n); result.SkillGaps[g] = n + 1; }
-                PersonLoad? best = null;
+                PersonLoad best = null;
                 var bestScore = -1.0;
                 foreach (var load in frame.People)
                 {
@@ -230,7 +273,7 @@ namespace Halyard.Core.Planning
             {
                 foreach (var s in frame.Stories.Where(x => !x.AlreadyPlanned))
                 {
-                    var meta = new Dictionary<string, string?> { { "sprint", s.Sprint } };
+                    var meta = new Dictionary<string, string> { { "sprint", s.Sprint } };
                     if (s.Owner != null) meta["owner"] = s.Owner;
                     batch.Proposals.Add(new Proposal
                     {

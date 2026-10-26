@@ -40,32 +40,32 @@ namespace Halyard.Core.Intelligence
     /// </summary>
     public sealed class Proposal
     {
-        public string Id { get; set; } = Guid.NewGuid().ToString("N").Substring(0, 12);
-        public string BatchId { get; set; } = string.Empty;
+        public string Id { get; set; }
+        public string BatchId { get; set; }
         public ProposalKind Kind { get; set; }
-        public string ItemKey { get; set; } = string.Empty;
+        public string ItemKey { get; set; }
         public long ItemNumber { get; set; }
-        public string ItemCanonicalId { get; set; } = string.Empty;
-        public string ItemTitle { get; set; } = string.Empty;
-        public string? CurrentValue { get; set; }
-        public string ProposedValue { get; set; } = string.Empty;
+        public string ItemCanonicalId { get; set; }
+        public string ItemTitle { get; set; }
+        public string CurrentValue { get; set; }
+        public string ProposedValue { get; set; }
         /// <summary>low | medium | high</summary>
-        public string Confidence { get; set; } = "medium";
-        public string Reason { get; set; } = string.Empty;
+        public string Confidence { get; set; }
+        public string Reason { get; set; }
         /// <summary>deterministic | llm:&lt;profile&gt; | parsed:&lt;format&gt;</summary>
-        public string Source { get; set; } = string.Empty;
-        public ProposalDecision Decision { get; set; } = ProposalDecision.Pending;
-        public string? DecisionNote { get; set; }
-        public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+        public string Source { get; set; }
+        public ProposalDecision Decision { get; set; }
+        public string DecisionNote { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset? DecidedAt { get; set; }
         public DateTimeOffset? AppliedAt { get; set; }
-        public string? Error { get; set; }
+        public string Error { get; set; }
         /// <summary>Refinement / Metadata: meta keys to set (value null removes the key).</summary>
-        public Dictionary<string, string?>? ProposedMeta { get; set; }
+        public Dictionary<string, string> ProposedMeta { get; set; }
         /// <summary>Deficiency or finding codes this proposal is meant to resolve.</summary>
-        public List<string> Addresses { get; set; } = new List<string>();
+        public List<string> Addresses { get; set; }
         /// <summary>Refinement: codes still open after the proposal is applied in memory (empty = fully resolves).</summary>
-        public List<string> Remaining { get; set; } = new List<string>();
+        public List<string> Remaining { get; set; }
 
         /// <summary>Human-readable label for the kind.</summary>
         public static string KindToken(ProposalKind kind)
@@ -98,21 +98,49 @@ namespace Halyard.Core.Intelligence
                 }
             }
         }
+
+        public Proposal()
+        {
+            Id = Guid.NewGuid().ToString("N").Substring(0, 12);
+            BatchId = string.Empty;
+            ItemKey = string.Empty;
+            ItemCanonicalId = string.Empty;
+            ItemTitle = string.Empty;
+            ProposedValue = string.Empty;
+            Confidence = "medium";
+            Reason = string.Empty;
+            Source = string.Empty;
+            Decision = ProposalDecision.Pending;
+            CreatedAt = DateTimeOffset.UtcNow;
+            Addresses = new List<string>();
+            Remaining = new List<string>();
+        }
     }
 
     public sealed class ProposalBatch
     {
-        public string Id { get; set; } = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 4);
+        public string Id { get; set; }
         public ProposalKind Kind { get; set; }
-        public string Target { get; set; } = string.Empty;
-        public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
-        public string Source { get; set; } = string.Empty;
+        public string Target { get; set; }
+        public DateTimeOffset CreatedAt { get; set; }
+        public string Source { get; set; }
         public int Considered { get; set; }
         public int Skipped { get; set; }
-        public List<string> SkipReasons { get; set; } = new List<string>();
-        public List<Proposal> Proposals { get; set; } = new List<Proposal>();
-        public string? RawModelOutput { get; set; }
-        public List<string> Warnings { get; set; } = new List<string>();
+        public List<string> SkipReasons { get; set; }
+        public List<Proposal> Proposals { get; set; }
+        public string RawModelOutput { get; set; }
+        public List<string> Warnings { get; set; }
+
+        public ProposalBatch()
+        {
+            Id = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N").Substring(0, 4);
+            Target = string.Empty;
+            CreatedAt = DateTimeOffset.UtcNow;
+            Source = string.Empty;
+            SkipReasons = new List<string>();
+            Proposals = new List<Proposal>();
+            Warnings = new List<string>();
+        }
     }
 
     /// <summary>JSON-file persistence for proposal batches under <c>output/proposals</c>.</summary>
@@ -137,7 +165,7 @@ namespace Halyard.Core.Intelligence
             }
         }
 
-        public ProposalBatch? Load(string batchId)
+        public ProposalBatch Load(string batchId)
         {
             var path = PathFor(batchId);
             if (!File.Exists(path)) return null;
@@ -163,7 +191,7 @@ namespace Halyard.Core.Intelligence
             return list.OrderByDescending(b => b.CreatedAt).ToList();
         }
 
-        public Proposal? Decide(string batchId, string proposalId, ProposalDecision decision, string? note)
+        public Proposal Decide(string batchId, string proposalId, ProposalDecision decision, string note)
         {
             var batch = Load(batchId);
             if (batch == null) return null;
@@ -177,7 +205,7 @@ namespace Halyard.Core.Intelligence
             return p;
         }
 
-        public int DecideAll(string batchId, ProposalDecision decision, string? minimumConfidence)
+        public int DecideAll(string batchId, ProposalDecision decision, string minimumConfidence)
         {
             var batch = Load(batchId);
             if (batch == null) return 0;

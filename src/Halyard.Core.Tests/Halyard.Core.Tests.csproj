@@ -5,6 +5,7 @@
     <TargetFrameworks Condition="'$(OS)' == 'Windows_NT'">net8.0;net48</TargetFrameworks>
     <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">net8.0</TargetFrameworks>
     <LangVersion>12</LangVersion>
+    <!-- annotations: the engine sources compiled in below are C# 5 without nullable annotations. -->
     <Nullable>annotations</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
@@ -22,7 +23,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Halyard.Core\Halyard.Core.csproj" />
+    <!-- The engine ships as source; the tests compile the very same files (no reference to a built DLL). -->
+    <Compile Include="..\Halyard.Core\**\*.cs" Exclude="..\Halyard.Core\obj\**;..\Halyard.Core\bin\**" Link="Engine\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>
