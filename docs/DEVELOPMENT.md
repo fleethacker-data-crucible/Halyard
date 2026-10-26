@@ -46,7 +46,7 @@ UI work: `cd web; npm run dev` rebuilds on save; reload the browser.
 node tests/fakes/fake-github.mjs 8790 &
 # config/halyard.env (or environment):
 #   HALYARD_PROVIDER=github  GITHUB_API_URL=http://127.0.0.1:8790  GITHUB_TOKEN=fake
-#   HALYARD_SANDBOX_REPO=sun-of-anton/Halyard-Ballast  HALYARD_SOURCE_REPO=sun-of-anton/raw-backlog
+#   HALYARD_SANDBOX_REPO=fleethacker-data-crucible/Halyard-Ballast  HALYARD_SOURCE_REPO=sun-of-anton/raw-backlog
 #   HALYARD_WRITE_DELAY_MS=0
 #   HALYARD_LLM_PROFILE=openai  LLM_URL=http://127.0.0.1:8790/v1/chat/completions  LLM_TOKEN=fake
 .\Launch-Halyard.bat --console --no-browser
