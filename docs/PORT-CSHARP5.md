@@ -1,6 +1,12 @@
 # Port plan: Halyard.Core as C# 5 source compiled by Add-Type
 
-Status: in progress on `port/csharp5-source` (2026-10-26).
+Status: done in 1.1.0 (PR #16, merged 2026-10-26).
+
+Result on the self-hosted Windows runner (Windows PowerShell 5.1.26100, CLR 4.0.30319.42000): the 50 engine
+files compile in memory with `Add-Type` in about 0.95 s (944 / 961 / 968 ms in three fresh processes); the
+whole `Import-HalyardCore` takes about 1.2 s. The engine references only mscorlib, System, System.Core and
+System.Net.Http. The serializer's output equals Newtonsoft.Json's on net48 and on net8.0
+(`NewtonsoftParityTests`), and the bundle holds no DLL.
 
 ## Why
 
