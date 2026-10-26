@@ -154,9 +154,9 @@ turns the plan into sprint-plan proposals, reviewed and applied like any other.
 
 ## Updating Halyard
 
-Double-click `Update-Halyard.bat`: it pulls the latest code, builds (stopping any engine or PowerShell
-window that still holds `Halyard.Core.dll`, and saying which), and launches. If the build cannot stop a
-holder because it was opened as administrator, it names the PID and asks you to close that window.
+Double-click `Update-Halyard.bat`: it pulls the latest code, builds (stopping any running engine first, and
+saying which), and launches. If the build cannot stop an engine because it was opened as administrator, it
+names the PID and asks you to close that window.
 
 ### Upgrading from the previous name
 
@@ -234,12 +234,14 @@ each marked with the review label, and the seed manifest records which codes the
 
 | Symptom | Cause and fix |
 |---|---|
-| "Halyard.Core.dll was not found" | A git checkout is not built. Run from the release bundle (Releases page), or build with `build\Build-Halyard.ps1`. |
-| "Windows blocked Halyard.Core.dll" | Application control rejects the unsigned DLL. Ask IT to sign or allow it. |
+| "The Halyard engine source folder ... was not found" | The bundle was not fully extracted (`src\Halyard.Core` is missing). Extract the whole `Halyard-<version>.zip` again. |
+| "The Halyard engine source ... did not compile" | A source file is damaged or was edited with C# 6+ syntax or a non-framework reference. Extract the bundle again. |
+| "Windows blocked compiling the Halyard engine" or "Constrained Language mode" | The policy does not allow in-memory `Add-Type` for this user. Ask IT; do not work around the policy. Halyard ships no DLL, so there is nothing to sign. |
+| Launch takes a few seconds before the browser opens | Expected: the engine is compiled from source on every launch. The console (`--console`) and the diagnostics log show `Engine compiled from N source files in X ms`. |
 | Script will not run at all | Execution policy enforced by Group Policy. `-ExecutionPolicy Bypass` cannot override that; use the IT-approved signed-script route. |
 | Console stays open after launch | Lazarette did not unlock; read the message in the console. |
 | "Halyard is already running" at launch | An engine from an earlier session is still up. Answer Y to replace it, or `--stay` was used earlier; `scripts\Stop-Halyard.ps1` stops everything. |
-| Build fails: `Halyard.Core.dll` "being used by another process" | An engine is running. The build script now stops it first; if it could not (started from an elevated window), run `scripts\Stop-Halyard.ps1` from such a window. |
+| Build says Halyard is still running | An engine is running. The build script stops it first; if it could not (started from an elevated window), run `scripts\Stop-Halyard.ps1` from such a window. |
 | Engine stopped while I was away | By design: it stops itself about 20 s after its browser tab closes (never during a job). Launch with `--stay` or set `HALYARD_AUTO_STOP=0` to keep it running. |
 | `PROVIDER_NOT_READY` in the UI | No token for the configured provider. See Configurations above. |
 | `AUTH_REJECTED` / `FORBIDDEN` | Token expired or lacks access to the repository. |
