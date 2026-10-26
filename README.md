@@ -50,7 +50,7 @@ In the browser:
 
 Copy `dist\Halyard` across, set `HALYARD_PROVIDER=gitlab`, `GITLAB_URL` and the project ids in
 `config\halyard.env` (see the example file), and run `Launch-Halyard.bat`. If the vault bridge is
-configured, it asks for CAC + TOTP in the console once; the console then hides. The source project is
+configured, it asks for a smart card PIN + TOTP in the console once; the console then hides. The source project is
 read-only; only the sandbox project can be written.
 
 ## What it does
@@ -60,7 +60,7 @@ read-only; only the sandbox project can be written.
 | Overview | The levels of the hierarchy, items needing review, sizing coverage, points by theme and sprint, next actions |
 | Leadership | Feature % complete, velocity, ready backlog, capacity used, open blockers; downloadable HTML report |
 | Vision | Portfolio vision drafted from the backlog (deterministic or model): themes, priorities, risks, next quarter; theme proposals |
-| Intake | Raw tickets from the source repositories copied into the sandbox as classified work items with a source link |
+| Intake | Raw tickets from the source repositories copied into the sandbox as categorized work items with a source link |
 | Hierarchy | Keyboard-navigable tree and graph of the declared chain; each item's definition, meta and findings; in-place edits queued as proposals |
 | Review | Every item against its definition of ready and the topology; bulk actions on selected rows; Markdown or CSV review pack |
 | Proposals | Drafted sections, metadata repairs, parent links, sizes, skills, sprint plans and theme links with a diff per row; approve, reject, apply to the sandbox |
@@ -77,7 +77,7 @@ PowerShell equivalents: `Invoke-SandboxSeed.ps1`, `Invoke-SandboxTeardown.ps1`, 
 ## Team, skills and Shellback
 
 `config/team.json` holds teams, people, points per sprint and the sprint calendar. `config/skills.json`
-is the shared skill taxonomy, using the same ids as [Shellback](https://github.com/sun-of-anton/Shellback),
+is the shared skill taxonomy, using the same ids as [Shellback](https://github.com/fleethacker-data-crucible/Shellback),
 so exported Shellback peer cards dropped into `config/shellback/` give each person their consented skills and
 confidence without any translation. Halyard only reads those cards; Shellback stays the owner of people,
 skills and consent.

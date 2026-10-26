@@ -157,9 +157,9 @@ Double-click `Update-Halyard.bat`: it pulls the latest code, builds (stopping an
 window that still holds `Halyard.Core.dll`, and saying which), and launches. If the build cannot stop a
 holder because it was opened as administrator, it names the PID and asks you to close that window.
 
-### Upgrading from Cascade
+### Upgrading from the previous name
 
-Halyard was called Cascade. What an installed copy needs on its first launch after the rename still works:
+Halyard was renamed from a previous name. What an installed copy needs on its first launch after the rename still works:
 
 - `Update-Cascade.bat` and `Launch-Cascade.bat` keep their names so existing shortcuts and checkouts work: after
   `git pull`, `Update-Cascade.bat` builds with `build\Build-Halyard.ps1` and starts `Launch-Halyard.bat`. Use
@@ -175,8 +175,8 @@ Halyard was called Cascade. What an installed copy needs on its first launch aft
 - Stop any engine started before the update first (End session in its tab, or close its console): the stop
   script and the build only look for Halyard engines.
 - Issue labels, the meta block and the mirror heading use the Halyard names (`halyard`, `halyard-synthetic`,
-  `halyard-run::*`, `halyard-intake`, `~~~halyard-meta`, `### Halyard`). Items created by Cascade are not
-  recognised; empty the sandbox with the Cascade build before upgrading, or delete those items by hand.
+  `halyard-run::*`, `halyard-intake`, `~~~halyard-meta`, `### Halyard`). Items created under the previous name are not
+  recognised; empty the sandbox with the previous build before upgrading, or delete those items by hand.
 - Peer cards go in `config\shellback\`, and `team.json` names them with `shellbackCard`.
 - A weekly report task registered before the rename runs `scripts\Send-CascadeReport.ps1`, which no longer exists.
   Re-register it with `Register-HalyardReportSchedule.ps1` and remove the old task with
