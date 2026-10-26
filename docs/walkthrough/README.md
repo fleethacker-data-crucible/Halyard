@@ -2,7 +2,7 @@
 
 Seed a synthetic backlog, find its gaps, and approve the fixes Halyard proposes, without touching a real repository.
 
-> **Screenshots:** captured with demo data and scanned by the Chief of Staff (team directive 10). Steps marked *Screenshot pending* still need a new capture; their image links do not resolve yet.
+> **Screenshots:** captured with demo data and scanned by the Chief of Staff (team directive 10).
 
 ## Before you start
 
@@ -23,9 +23,7 @@ Halyard opens on **Overview**. With nothing synchronized yet it says *Nothing to
 
 Open **Settings**, enter the model name and your API key, and select **Test**. The key is held in memory unless you tick *remember*.
 
-*Screenshot pending: a new capture is needed for this step.*
-
-![Halyard Settings page with the model name filled in, the API key field empty and the Test button.](../assets/walkthrough/02-settings-model.png)
+![Halyard Settings page with the Model API key field empty and marked no key, the model demo-model, and the sandbox repositories.](../assets/walkthrough/02-settings-model.png)
 
 ### 3. Seed the sandbox
 
