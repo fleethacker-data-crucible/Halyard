@@ -3,8 +3,10 @@
 .SYNOPSIS
   Registers (or removes) a weekly Windows scheduled task that runs Send-HalyardReport.ps1 for the current user.
 .DESCRIPTION
-  No admin rights are needed for a current-user task. The task runs whether or not Halyard's browser session is
-  open; it synchronizes the source repositories, renders the leadership dashboard and sends it.
+  Opt-in: nothing in Halyard registers this task unless you run this script. It uses schtasks /Create for the
+  current user (no admin rights), but workstation policy may block creating scheduled tasks; then run
+  Send-HalyardReport.ps1 by hand instead. The task runs whether or not Halyard's browser session is open; it
+  synchronizes the source repositories, renders the leadership dashboard and sends it.
 .EXAMPLE
   .\scripts\Register-HalyardReportSchedule.ps1 -To lead@example.org -Day MON -Time 07:30 -Via Outlook
 .EXAMPLE

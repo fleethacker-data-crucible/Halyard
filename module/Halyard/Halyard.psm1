@@ -130,7 +130,8 @@ function Get-HalyardCoreLoadInfo {
 }
 
 function Get-HalyardGitHubCliToken {
-    # Uses an existing `gh auth login` session on a personal machine. Never prompts.
+    # Optional, personal machine only: uses an existing `gh auth login` session when the GitHub CLI is installed.
+    # The workstation has no gh; there GITHUB_TOKEN (or Lazarette) supplies the token. Never prompts.
     $gh = Get-Command gh -ErrorAction SilentlyContinue
     if (-not $gh) { return $null }
     try {
