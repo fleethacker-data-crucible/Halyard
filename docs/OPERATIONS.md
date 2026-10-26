@@ -2,7 +2,7 @@
 
 ## Running Halyard
 
-1. Download `Halyard-<version>.zip` from [Releases](https://github.com/sun-of-anton/Halyard/releases) and unzip it
+1. Download `Halyard-<version>.zip` from [Releases](https://github.com/fleethacker-data-crucible/Halyard/releases) and unzip it
    on the machine (or copy `dist\Halyard`, produced by `build\Build-Halyard.ps1`).
 2. Copy `config\halyard.env.example` to `config\halyard.env` and set the provider and repositories.
 3. Double-click `Launch-Halyard.bat`.
@@ -162,8 +162,9 @@ holder because it was opened as administrator, it names the PID and asks you to 
 
 Halyard was renamed from a previous name. What an installed copy needs on its first launch after the rename still works:
 
-- `Launch-Cascade.bat` and `Update-Cascade.bat` are gone: point shortcuts at `Launch-Halyard.bat` and
-  `Update-Halyard.bat`.
+- `Update-Cascade.bat` and `Launch-Cascade.bat` keep their names so existing shortcuts and checkouts work: after
+  `git pull`, `Update-Cascade.bat` builds with `build\Build-Halyard.ps1` and starts `Launch-Halyard.bat`. Use
+  `Update-Halyard.bat` and `Launch-Halyard.bat` from then on.
 - On the first launch, `config\cascade.env` is copied once to `config\halyard.env` with the variable names updated
   (`CASCADE_*` to `HALYARD_*`, `CASCADE_ARC_ITEM_*` to `HALYARD_LAZARETTE_ITEM_*`, `CASCADE_USE_ARC` to
   `HALYARD_USE_LAZARETTE`, and `sun-of-anton/cascade-sandbox` to `fleethacker-data-crucible/Halyard-Ballast`). The old file is
