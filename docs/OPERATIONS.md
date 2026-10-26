@@ -2,7 +2,8 @@
 
 ## Running Halyard
 
-1. Copy the release bundle (`dist\Halyard`, produced by `build\Build-Halyard.ps1`) to the machine.
+1. Download `Halyard-<version>.zip` from [Releases](https://github.com/sun-of-anton/Halyard/releases) and unzip it
+   on the machine (or copy `dist\Halyard`, produced by `build\Build-Halyard.ps1`).
 2. Copy `config\halyard.env.example` to `config\halyard.env` and set the provider and repositories.
 3. Double-click `Launch-Halyard.bat`.
 
@@ -27,8 +28,8 @@ nothing else on the machine can pick it up. With `--no-browser` the console prin
 
 ```
 HALYARD_PROVIDER=github
-HALYARD_SOURCE_REPO=sun-of-anton/Halyard-Ballast
-HALYARD_SANDBOX_REPO=sun-of-anton/Halyard-Ballast
+HALYARD_SOURCE_REPO=fleethacker-data-crucible/Halyard-Ballast
+HALYARD_SANDBOX_REPO=fleethacker-data-crucible/Halyard-Ballast
 ```
 
 Token: `gh auth login` once (the launcher reads `gh auth token`), or `GITHUB_TOKEN=` in `halyard.env`.
@@ -161,12 +162,11 @@ holder because it was opened as administrator, it names the PID and asks you to 
 
 Halyard was renamed from a previous name. What an installed copy needs on its first launch after the rename still works:
 
-- `Update-Cascade.bat` and `Launch-Cascade.bat` keep their names so existing shortcuts and checkouts work: after
-  `git pull`, `Update-Cascade.bat` builds with `build\Build-Halyard.ps1` and starts `Launch-Halyard.bat`. Use
-  `Update-Halyard.bat` and `Launch-Halyard.bat` from then on.
+- `Launch-Cascade.bat` and `Update-Cascade.bat` are gone: point shortcuts at `Launch-Halyard.bat` and
+  `Update-Halyard.bat`.
 - On the first launch, `config\cascade.env` is copied once to `config\halyard.env` with the variable names updated
   (`CASCADE_*` to `HALYARD_*`, `CASCADE_ARC_ITEM_*` to `HALYARD_LAZARETTE_ITEM_*`, `CASCADE_USE_ARC` to
-  `HALYARD_USE_LAZARETTE`, and `sun-of-anton/cascade-sandbox` to `sun-of-anton/Halyard-Ballast`). The old file is
+  `HALYARD_USE_LAZARETTE`, and `sun-of-anton/cascade-sandbox` to `fleethacker-data-crucible/Halyard-Ballast`). The old file is
   left untouched and is not read again.
 - `CASCADE_*` environment variables set outside the env file still work for this release when their
   `HALYARD_*` name is not set. The fallback will be removed in the next release.
@@ -234,7 +234,7 @@ each marked with the review label, and the seed manifest records which codes the
 
 | Symptom | Cause and fix |
 |---|---|
-| "Halyard.Core.dll was not found" | Run from a built bundle, or build with `build\Build-Halyard.ps1`. |
+| "Halyard.Core.dll was not found" | A git checkout is not built. Run from the release bundle (Releases page), or build with `build\Build-Halyard.ps1`. |
 | "Windows blocked Halyard.Core.dll" | Application control rejects the unsigned DLL. Ask IT to sign or allow it. |
 | Script will not run at all | Execution policy enforced by Group Policy. `-ExecutionPolicy Bypass` cannot override that; use the IT-approved signed-script route. |
 | Console stays open after launch | Lazarette did not unlock; read the message in the console. |
