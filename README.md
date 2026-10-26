@@ -1,4 +1,9 @@
-<p align="center"><img src="assets/brand/emblem-light.png" width="280" alt="Halyard"></p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/emblem-dark.png">
+    <img src="assets/brand/emblem-light.png" width="280" alt="Halyard emblem: a mast with a pulley block and a line of signal flags, inside a brass compass ring">
+  </picture>
+</p>
 
 # Halyard
 
@@ -9,7 +14,7 @@ Feature → Story → Task model, and proposes the work a product owner would do
 hierarchy (intake), missing sections drafted, metadata repaired, parents inferred, sizes estimated, skills
 tagged, sprints planned against team capacity and skills, a portfolio vision drafted for leadership, and a
 one-page leadership dashboard that can go out by email every week. It writes only what you approve, and
-only to a sandbox repository ([Halyard Ballast](https://github.com/sun-of-anton/Halyard-Ballast) for the
+only to a sandbox repository ([Halyard Ballast](https://github.com/fleethacker-data-crucible/Halyard-Ballast) for the
 owner's own runs), never anywhere else.
 
 It runs locally: a PowerShell launcher, one .NET library, and a browser UI on `127.0.0.1`. Nothing is
@@ -19,20 +24,29 @@ installed on the machine and nothing in the browser talks to the internet except
 
 A halyard is the line that raises and lowers a ship's sails; Halyard works upward to leadership and
 downward to stories and tasks. Its sandbox, Halyard Ballast, is the sand carried in the hold to keep the
-ship steady. Formerly Cascade. Upgrading an existing Cascade install needs no edits first: see
-[Upgrading from Cascade](docs/OPERATIONS.md#upgrading-from-cascade).
+ship steady. Formerly Cascade: see [Upgrading from Cascade](docs/OPERATIONS.md#upgrading-from-cascade).
+
+| Night watch (dark) | Chart room (light) |
+| --- | --- |
+| ![Halyard overview in the Night watch theme](docs/screenshots/overview-night-watch.png) | ![Halyard overview in the Chart room theme](docs/screenshots/overview-chart-room.png) |
+
+The overview of a synthetic 100-item backlog seeded into an offline fake GitHub
+(`tests/e2e/Capture-Screenshots.ps1` regenerates both pictures with mock data only).
 
 ## Quick start (GitHub + an OpenAI-compatible model)
 
-```powershell
-# one-time, on the build machine: .NET 8 SDK, Node.js 20+
-build\Build-Halyard.ps1                       # tests and builds; bundle in dist\Halyard
-copy config\halyard.env.example config\halyard.env
-gh auth login                                 # or set GITHUB_TOKEN in config\halyard.env
-.\Launch-Halyard.bat
-```
+On the workstation (no .NET SDK or Node.js needed):
 
-Later updates: double-click `Update-Halyard.bat` (pull, build, launch).
+1. Download `Halyard-<version>.zip` from [Releases](https://github.com/sun-of-anton/Halyard/releases) and
+   unzip it.
+2. Copy `config\halyard.env.example` to `config\halyard.env`, then `gh auth login` (or set `GITHUB_TOKEN`
+   in `config\halyard.env`).
+3. Double-click `Launch-Halyard.bat`.
+
+A git checkout has no compiled engine, so it does not start until it is built. To build from source (.NET 8
+SDK, Node.js 20+): `build\Build-Halyard.ps1` tests and builds, leaving the bundle in `dist\Halyard`; later,
+double-click `Update-Halyard.bat` (pull, build, launch). Running the *Release* workflow on main (or pushing a
+tag `v<version>`) publishes a new bundle to Releases.
 
 In the browser:
 
