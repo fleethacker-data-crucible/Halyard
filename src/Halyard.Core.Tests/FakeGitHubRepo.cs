@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Halyard.Core.Providers;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Tests
 {

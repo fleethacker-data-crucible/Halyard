@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Halyard.Core.Model;
-using Newtonsoft.Json;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Intelligence
 {

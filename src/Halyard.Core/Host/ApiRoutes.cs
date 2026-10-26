@@ -12,7 +12,7 @@ using Halyard.Core.Safety;
 using Halyard.Core.Schema;
 using Halyard.Core.Snapshots;
 using Halyard.Core.Synthetic;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Host
 {
@@ -330,10 +330,10 @@ namespace Halyard.Core.Host
         /// <summary>The write's own result, unchanged in shape, with the resync outcome added alongside.</summary>
         private static object? WithResync(object? writeResult, bool resynced, string? error, object? snapshot)
         {
-            var o = writeResult == null ? new Newtonsoft.Json.Linq.JObject() : Newtonsoft.Json.Linq.JObject.FromObject(writeResult, Newtonsoft.Json.JsonSerializer.Create(Json.Settings));
+            var o = writeResult == null ? new JObject() : JObject.FromObject(writeResult, Json.Settings);
             o["resynced"] = resynced;
             if (error != null) o["resyncError"] = error;
-            if (snapshot != null) o["snapshot"] = Newtonsoft.Json.Linq.JObject.FromObject(snapshot, Newtonsoft.Json.JsonSerializer.Create(Json.Settings));
+            if (snapshot != null) o["snapshot"] = JObject.FromObject(snapshot, Json.Settings);
             return o;
         }
 

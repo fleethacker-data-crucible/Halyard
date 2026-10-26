@@ -5,8 +5,7 @@ using System.Linq;
 using System.Text;
 using Halyard.Core.Model;
 using Halyard.Core.Schema;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Synthetic
 {

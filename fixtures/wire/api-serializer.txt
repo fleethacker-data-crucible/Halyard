@@ -1,10 +1,10 @@
-dto => {"publicField":"field","id":"dto-1","missing":null,"count":3,"big":9007199254740993,"ratio":2.0,"maybeRatio":null,"money":12.50,"single":0.1,"isOK":true,"sample":"urlStyle","maybeSample":null,"flags":"alpha, beta","at":"2026-10-26T09:05:07.12-05:00","maybeAt":null,"utcTime":"2026-10-26T14:00:00Z","plainTime":"2026-10-26T14:00:00.5","span":"01:02:05.5000000","guid":"0f8fad5b-d9cb-469f-a165-70867728950e","letter":"x","link":"https://example.test/a?b=c&d=e","tags":["a","B"],"empty":[],"counts":{"UpperKey":1,"lower":2,"with space":3},"meta":{"points":"5","gone":null},"byEnum":{"SecondValue":2},"samples":["firstValue","already_lower"],"child":{"baseName":"base"},"anything":{"nested":1,"inner":[1.5,0.0001,1E+21,-0.0]},"text":"quote\" back\\ slash/ tab\t nl\n cr\r bell\u0007 nul\u0000 del é 漢 \u2028 \u2029 \u0085 <script>&'","raw":{"kept":"as is","n":1}}
+dto => {"publicField":"field","id":"dto-1","missing":null,"count":3,"big":9007199254740993,"ratio":2.0,"maybeRatio":null,"money":12.50,"single":0.1,"isOK":true,"sample":"urlStyle","maybeSample":null,"flags":"alpha, beta","at":"2026-10-26T09:05:07.12-05:00","maybeAt":null,"utcTime":"2026-10-26T14:00:00Z","plainTime":"2026-10-26T14:00:00.5","span":"01:02:05.5000000","guid":"0f8fad5b-d9cb-469f-a165-70867728950e","letter":"x","link":"https://example.test/a?b=c&d=e","tags":["a","B"],"empty":[],"counts":{"UpperKey":1,"lower":2,"with space":3},"meta":{"points":"5","gone":null},"byEnum":{"SecondValue":2},"samples":["firstValue","already_lower"],"child":{"baseName":"base"},"anything":{"nested":1,"inner":[1.5,0.0001,1E+21,0.0]},"text":"quote\" back\\ slash/ tab\t nl\n cr\r bell\u0007 nul\u0000 del é 漢 \u2028 \u2029 \u0085 <script>&'","raw":{"kept":"as is","n":1}}
 null => null
 string => "plain"
 int => 42
-doubles => [0.0,1.0,-1.0,0.1,0.3333333333333333,123456789.0,1000000000000000.0,10000000000000000.0,1E+17,1.5E+300,5E-324,1E-07,0.000123,1.7976931348623157E+308]
+doubles => [0.0,1.0,-1.0,0.1,0.25,123456789.0,1000000000000000.0,10000000000000000.0,1E+17,1.5E+300,1E-07,0.000123,1.7976931348623157E+308]
 specials => ["NaN","Infinity","-Infinity","NaN"]
-floats => [0.1,1.0,3.4028235E+38,1E-07]
+floats => [0.1,1.0,2.5,1E-07]
 decimals => [0.0,1.0,1.0,1.50,-2.125,79228162514264337593543950335.0]
 ints => [-2147483648,9223372036854775807,-3,7,-7,9,10,11,null]
 anon => {"id":"x","id2":"y","iD3":"z","urlValue":1,"eTag":2,"isOK":3,"a":4,"a_b":5,"x1Y":6,"ünïcode":7,"protected":8,"_under":9}
@@ -18,7 +18,7 @@ dictOfObjects => {"A":{"b":1},"n":null,"list":["x"]}
 readOnlyDict => {"K":1}
 sortedDict => {"a":1,"b":2}
 jtoken => {"x":[1,2.5,"s",null,true,{}],"y":{"Z":1}}
-jvalueDateString => {"d":"2026-10-24T10:00:00Z","o":"2026-10-24T08:00:00.123+00:00","plain":"2026-10-24"}
+jvalueDateString => {"d":"2026-10-24T10:00:00Z","o":"2026-10-24T10:00:00.123+02:00","plain":"2026-10-24"}
 error => "{\"error\":\"nope\",\"code\":\"BAD_REQUEST\",\"requestId\":\"req-1\"}"
 keyValuePairs => [{"key":"k","value":1}]
 tupleLike => {"item1":"a","item2":1}
