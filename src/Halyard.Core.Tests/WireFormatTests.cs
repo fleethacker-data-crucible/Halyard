@@ -71,6 +71,8 @@ namespace Halyard.Core.Tests
                 json = Regex.Replace(json, "(\"" + key + "\"\\s*:\\s*)(\"[^\"]*\"|-?[0-9.]+)", "$1<" + key + ">");
             json = json.Replace(Path.GetTempPath().Replace("\\", "\\\\"), "<tmp>/").Replace(Path.GetTempPath(), "<tmp>/");
             json = Regex.Replace(json, @"halyard-(host|wire)-[0-9a-f]{32}", "<root>");
+            // Windows path separators (JSON-escaped) read the same as the recorded '/'.
+            json = json.Replace("\\\\", "/");
             // The parser's own wording after this prefix is not part of the contract (status, code and prefix are).
             json = Regex.Replace(json, "Body is not valid JSON: [^\"]*", "Body is not valid JSON: <parser message>");
             return json;
@@ -137,8 +139,8 @@ namespace Halyard.Core.Tests
             Case("null", null);
             Case("string", "plain");
             Case("int", 42);
-            // Only values whose "R" text is the same on .NET Framework 4.8 and .NET 8 (1/3, 5e-324 and -0.0 differ there, with Newtonsoft too).
-            Case("doubles", new[] { 0.0, 1.0, -1.0, 0.1, 0.25, 123456789.0, 1e15, 1e16, 1e17, 1.5e300, 1e-7, 0.000123, double.MaxValue });
+            // Only values whose "R" text is the same on .NET Framework 4.8 and .NET 8 (1/3, 5e-324, -0.0, 1e15 and 1e16 differ there, with Newtonsoft too).
+            Case("doubles", new[] { 0.0, 1.0, -1.0, 0.1, 0.25, 123456789.0, 1e14, 1e17, 1.5e300, 1e-7, 0.000123, double.MaxValue });
             Case("specials", new object[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity, float.NaN });
             Case("floats", new[] { 0.1f, 1f, 2.5f, 1e-7f });
             Case("decimals", new[] { 0m, 1m, 1.0m, 1.50m, -2.125m, 79228162514264337593543950335m });
