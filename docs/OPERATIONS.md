@@ -2,7 +2,7 @@
 
 ## Running Halyard
 
-1. Download `Halyard-<version>.zip` from [Releases](https://github.com/sun-of-anton/Halyard/releases) and unzip it
+1. Download `Halyard-<version>.zip` from [Releases](https://github.com/fleethacker-data-crucible/Halyard/releases) and unzip it
    on the machine (or copy `dist\Halyard`, produced by `build\Build-Halyard.ps1`).
 2. Copy `config\halyard.env.example` to `config\halyard.env` and set the provider and repositories.
 3. Double-click `Launch-Halyard.bat`.

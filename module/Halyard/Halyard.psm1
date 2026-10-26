@@ -56,7 +56,7 @@ function Get-HalyardCoreSource {
     $dir = Get-HalyardSetting 'CORE_SOURCE'
     if (-not $dir) { $dir = Join-Path $Root 'src\Halyard.Core' }
     if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
-        throw ('The Halyard engine source folder ' + $dir + ' was not found. Download the release bundle (Halyard-<version>.zip from https://github.com/sun-of-anton/Halyard/releases), extract all of it and run Launch-Halyard.bat from it.')
+        throw ('The Halyard engine source folder ' + $dir + ' was not found. Download the release bundle (Halyard-<version>.zip from https://github.com/fleethacker-data-crucible/Halyard/releases), extract all of it and run Launch-Halyard.bat from it.')
     }
     $dir = (Resolve-Path -LiteralPath $dir).Path
     $files = @(Get-ChildItem -LiteralPath $dir -Filter '*.cs' -Recurse -File |

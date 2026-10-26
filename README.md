@@ -39,7 +39,7 @@ The overview of a synthetic 100-item backlog seeded into an offline fake GitHub
 
 On the workstation (no .NET SDK or Node.js needed):
 
-1. Download `Halyard-<version>.zip` from [Releases](https://github.com/sun-of-anton/Halyard/releases) and
+1. Download `Halyard-<version>.zip` from [Releases](https://github.com/fleethacker-data-crucible/Halyard/releases) and
    unzip it.
 2. Copy `config\halyard.env.example` to `config\halyard.env` and set `GITHUB_TOKEN` in it (on a personal
    machine with the GitHub CLI, `gh auth login` also works; the launcher reads `gh auth token` only if `gh`
