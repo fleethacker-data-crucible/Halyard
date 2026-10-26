@@ -2,7 +2,8 @@
 <#
 .SYNOPSIS
   Offline end-to-end check: starts the fake GitHub, starts the Halyard engine against it in this process,
-  runs tests/e2e/sandbox-loop.mjs, and shuts both down. Needs node on PATH and a built core.
+  runs tests/e2e/sandbox-loop.mjs, and shuts both down. Needs node on PATH; the engine is compiled from
+  source in memory (Import-HalyardCore), exactly as the launcher does.
 .EXAMPLE
   pwsh tests/e2e/Run-E2E.ps1 -Total 30
 #>

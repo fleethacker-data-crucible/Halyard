@@ -20,20 +20,23 @@ namespace Halyard.Core.Safety
     {
         public WritePolicy()
         {
+            Mode = WriteMode.Sandbox;
+            DeleteRequiresAnyLabel = new List<string> { Labels.Synthetic };
+            ManagedLabel = Labels.Managed;
             SandboxTargets = new List<RepositoryRef>();
             ProtectedTargets = new List<RepositoryRef>();
         }
 
-        public WriteMode Mode { get; set; } = WriteMode.Sandbox;
+        public WriteMode Mode { get; set; }
         public bool AllowProduction { get; set; }
         public List<RepositoryRef> SandboxTargets { get; private set; }
-        public RepositoryRef? ProductionTarget { get; set; }
+        public RepositoryRef ProductionTarget { get; set; }
         /// <summary>Never writable, whatever the mode (e.g. the production backlog while it is only being read).</summary>
         public List<RepositoryRef> ProtectedTargets { get; private set; }
         /// <summary>Deletes are refused unless the item carries one of these labels. Empty list = any item in a sandbox.</summary>
-        public List<string> DeleteRequiresAnyLabel { get; set; } = new List<string> { Labels.Synthetic };
+        public List<string> DeleteRequiresAnyLabel { get; set; }
         /// <summary>Label stamped on every item Halyard creates so its writes are always identifiable.</summary>
-        public string ManagedLabel { get; set; } = Labels.Managed;
+        public string ManagedLabel { get; set; }
 
         public bool IsSandbox(RepositoryRef target)
         {
@@ -78,7 +81,7 @@ namespace Halyard.Core.Safety
     /// <summary>Why a write is happening. Carried into the audit log.</summary>
     public sealed class WriteIntent
     {
-        public WriteIntent(string operation, string reason, string? runId = null)
+        public WriteIntent(string operation, string reason, string runId = null)
         {
             Operation = operation;
             Reason = reason;
@@ -87,7 +90,7 @@ namespace Halyard.Core.Safety
 
         public string Operation { get; private set; }
         public string Reason { get; private set; }
-        public string? RunId { get; private set; }
+        public string RunId { get; private set; }
         public bool AllowProduction { get; set; }
         /// <summary>Allows deleting items that lack the synthetic label (explicit sandbox wipe only).</summary>
         public bool AllowDeleteOfAnyItem { get; set; }

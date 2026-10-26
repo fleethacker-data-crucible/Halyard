@@ -11,66 +11,105 @@ using Halyard.Core.Model;
 using Halyard.Core.Providers;
 using Halyard.Core.Safety;
 using Halyard.Core.Schema;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Intelligence
 {
     /// <summary>One source item prepared for the sandbox: type, id, theme and the body it will be created with.</summary>
     public sealed class IntakeDraft
     {
-        public string SourceKey { get; set; } = string.Empty;
-        public string SourceRepository { get; set; } = string.Empty;
+        public string SourceKey { get; set; }
+        public string SourceRepository { get; set; }
         public long SourceNumber { get; set; }
-        public string? SourceUrl { get; set; }
-        public string SourceTitle { get; set; } = string.Empty;
+        public string SourceUrl { get; set; }
+        public string SourceTitle { get; set; }
         public WorkItemType Type { get; set; }
         /// <summary>The level as the UI and labels spell it (STORY, FEATURE, ...).</summary>
         public string TypeToken { get { return WorkItemTypes.ToToken(Type); } }
-        public string CanonicalId { get; set; } = string.Empty;
-        public string Title { get; set; } = string.Empty;
-        public string? Theme { get; set; }
-        public string? Parent { get; set; }
-        public string? Area { get; set; }
-        public List<string> Labels { get; set; } = new List<string>();
-        public string Narrative { get; set; } = string.Empty;
-        public string Body { get; set; } = string.Empty;
-        public string Confidence { get; set; } = "medium";
-        public string Reason { get; set; } = string.Empty;
+        public string CanonicalId { get; set; }
+        public string Title { get; set; }
+        public string Theme { get; set; }
+        public string Parent { get; set; }
+        public string Area { get; set; }
+        public List<string> Labels { get; set; }
+        public string Narrative { get; set; }
+        public string Body { get; set; }
+        public string Confidence { get; set; }
+        public string Reason { get; set; }
         /// <summary>Set when the sandbox already holds a copy of this source item.</summary>
-        public string? ExistingKey { get; set; }
-        public List<string> Gaps { get; set; } = new List<string>();
+        public string ExistingKey { get; set; }
+        public List<string> Gaps { get; set; }
+
+        public IntakeDraft()
+        {
+            SourceKey = string.Empty;
+            SourceRepository = string.Empty;
+            SourceTitle = string.Empty;
+            CanonicalId = string.Empty;
+            Title = string.Empty;
+            Labels = new List<string>();
+            Narrative = string.Empty;
+            Body = string.Empty;
+            Confidence = "medium";
+            Reason = string.Empty;
+            Gaps = new List<string>();
+        }
     }
 
     public sealed class IntakeManifest
     {
-        public string Id { get; set; } = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
-        public string Target { get; set; } = string.Empty;
-        public DateTimeOffset StartedAt { get; set; } = DateTimeOffset.UtcNow;
+        public string Id { get; set; }
+        public string Target { get; set; }
+        public DateTimeOffset StartedAt { get; set; }
         public DateTimeOffset? FinishedAt { get; set; }
         public int Requested { get; set; }
-        public List<IntakeRecord> Items { get; set; } = new List<IntakeRecord>();
-        public List<string> Skipped { get; set; } = new List<string>();
-        public List<string> Errors { get; set; } = new List<string>();
-        public string Source { get; set; } = string.Empty;
+        public List<IntakeRecord> Items { get; set; }
+        public List<string> Skipped { get; set; }
+        public List<string> Errors { get; set; }
+        public string Source { get; set; }
+
+        public IntakeManifest()
+        {
+            Id = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss");
+            Target = string.Empty;
+            StartedAt = DateTimeOffset.UtcNow;
+            Items = new List<IntakeRecord>();
+            Skipped = new List<string>();
+            Errors = new List<string>();
+            Source = string.Empty;
+        }
     }
 
     public sealed class IntakeRecord
     {
-        public string SourceKey { get; set; } = string.Empty;
-        public string CanonicalId { get; set; } = string.Empty;
-        public string Type { get; set; } = string.Empty;
+        public string SourceKey { get; set; }
+        public string CanonicalId { get; set; }
+        public string Type { get; set; }
         public long Number { get; set; }
-        public string Key { get; set; } = string.Empty;
-        public string? Url { get; set; }
+        public string Key { get; set; }
+        public string Url { get; set; }
+
+        public IntakeRecord()
+        {
+            SourceKey = string.Empty;
+            CanonicalId = string.Empty;
+            Type = string.Empty;
+            Key = string.Empty;
+        }
     }
 
     public sealed class IntakeOptions
     {
-        public HashSet<string> Keys { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        public string? Area { get; set; }
-        public bool AddReviewLabel { get; set; } = true;
-        public string? ManifestDirectory { get; set; }
+        public HashSet<string> Keys { get; set; }
+        public string Area { get; set; }
+        public bool AddReviewLabel { get; set; }
+        public string ManifestDirectory { get; set; }
+
+        public IntakeOptions()
+        {
+            Keys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            AddReviewLabel = true;
+        }
     }
 
     /// <summary>
@@ -120,7 +159,7 @@ namespace Halyard.Core.Intelligence
         /// A raw ticket: anything outside the sandbox, or a sandbox issue that carries no halyard-meta and no Halyard
         /// labels (the single-repository setup, where people file tickets straight into the sandbox).
         /// </summary>
-        public static bool IsRawTicket(WorkItem item, RepositoryRef? sandbox)
+        public static bool IsRawTicket(WorkItem item, RepositoryRef sandbox)
         {
             if (sandbox == null || !item.Repository.Equals(sandbox)) return true;
             return !item.HasMeta && !item.HasLabel(Labels.Managed) && !item.HasLabel(Labels.Synthetic) && !item.HasLabel(Label);
@@ -161,7 +200,7 @@ namespace Halyard.Core.Intelligence
                 var theme = item.ThemeId ?? item.LabelValue(Labels.ThemePrefix);
                 if (theme != null && themes.Any(t => string.Equals(t.CanonicalId, theme, StringComparison.OrdinalIgnoreCase))) draft.Theme = theme;
                 else if (theme == null && themes.Count == 1 && type != WorkItemType.Theme) { draft.Theme = themes[0].CanonicalId; draft.Reason += "; only one theme in the sandbox"; }
-                WorkItem? existing;
+                WorkItem existing;
                 if (existingBySource.TryGetValue(item.Repository.Identifier + "#" + item.Number, out existing)) draft.ExistingKey = existing.Key;
                 var meta = BuildMeta(draft, item);
                 draft.Body = Descriptions.Compose(meta, draft.Narrative.Length == 0 ? "## Notes\n_(no description on the source ticket)_" : draft.Narrative);
@@ -232,24 +271,24 @@ namespace Halyard.Core.Intelligence
                 LlmResponse response;
                 try { response = await llm.ChatAsync(new[] { LlmMessage.System(SystemPrompt(themes)), LlmMessage.User(sb.ToString()) }, cancellation).ConfigureAwait(false); }
                 catch (ProviderHttpException ex) { foreach (var d in slice) d.Reason += "; model failed: " + ex.Message; break; }
-                JArray? rows = null;
+                JArray rows = null;
                 try { var t = response.Text; var f = Regex.Match(t, @"```(?:json)?\s*([\s\S]*?)```"); if (f.Success) t = f.Groups[1].Value; var s0 = t.IndexOf('['); var e0 = t.LastIndexOf(']'); if (s0 >= 0 && e0 > s0) rows = JArray.Parse(t.Substring(s0, e0 - s0 + 1)); } catch (JsonException) { }
                 if (rows == null) { foreach (var d in slice) d.Reason += "; model reply unparsed, deterministic kept"; continue; }
                 foreach (var row in rows.OfType<JObject>())
                 {
-                    var d = slice.FirstOrDefault(x => string.Equals(x.SourceKey, (string?)row["id"], StringComparison.OrdinalIgnoreCase));
+                    var d = slice.FirstOrDefault(x => string.Equals(x.SourceKey, (string)row["id"], StringComparison.OrdinalIgnoreCase));
                     if (d == null) continue;
-                    var type = WorkItemTypes.Parse((string?)row["type"]);
-                    var theme = (string?)row["theme"];
-                    var title = ((string?)row["title"] ?? string.Empty).Trim();
+                    var type = WorkItemTypes.Parse((string)row["type"]);
+                    var theme = (string)row["theme"];
+                    var title = ((string)row["title"] ?? string.Empty).Trim();
                     if (type != WorkItemType.Unclassified) d.Type = type;
                     if (!string.IsNullOrWhiteSpace(theme) && themes.Any(t => string.Equals(t.CanonicalId, theme, StringComparison.OrdinalIgnoreCase))) d.Theme = theme;
                     if (title.Length > 3 && title.Length < 140) d.Title = Descriptions.FormatTitle(d.Type, title); else d.Title = Descriptions.FormatTitle(d.Type, Descriptions.ShortName(d.SourceTitle));
                     d.CanonicalId = Descriptions.MakeId(d.Type, Descriptions.ShortName(d.Title));
-                    d.Confidence = ((string?)row["confidence"] ?? "medium").Trim().ToLowerInvariant();
+                    d.Confidence = ((string)row["confidence"] ?? "medium").Trim().ToLowerInvariant();
                     if (d.Confidence != "high" && d.Confidence != "low") d.Confidence = "medium";
-                    d.Reason = "model: " + ((string?)row["reason"] ?? string.Empty).Trim();
-                    WorkItem? source;
+                    d.Reason = "model: " + ((string)row["reason"] ?? string.Empty).Trim();
+                    WorkItem source;
                     if (byKey.TryGetValue(d.SourceKey, out source) && source != null)
                     {
                         var meta = BuildMeta(d, source);
@@ -269,7 +308,7 @@ namespace Halyard.Core.Intelligence
             return drafts;
         }
 
-        public static async Task<IntakeManifest> RunAsync(List<IntakeDraft> drafts, IWorkItemProvider provider, WriteGateway gateway, RepositoryRef sandbox, IntakeOptions options, IProgress<string>? progress, CancellationToken cancellation)
+        public static async Task<IntakeManifest> RunAsync(List<IntakeDraft> drafts, IWorkItemProvider provider, WriteGateway gateway, RepositoryRef sandbox, IntakeOptions options, IProgress<string> progress, CancellationToken cancellation)
         {
             var manifest = new IntakeManifest { Target = sandbox.Key, Requested = drafts.Count };
             var todo = drafts.Where(d => d.ExistingKey == null).ToList();
@@ -278,7 +317,7 @@ namespace Halyard.Core.Intelligence
             var writer = await gateway.OpenVerifiedAsync(provider, sandbox, new WriteIntent("intake", "Copy " + todo.Count + " source items into the sandbox", manifest.Id), cancellation).ConfigureAwait(false);
             var labels = new List<LabelDefinition>(StandardLabels);
             foreach (var t in todo.Select(d => d.Type).Distinct()) labels.Add(new LabelDefinition(WorkItemTypes.ToLabel(t), "6366f1", "Halyard level"));
-            foreach (var theme in todo.Where(d => d.Theme != null).Select(d => d.Theme!).Distinct(StringComparer.OrdinalIgnoreCase)) labels.Add(new LabelDefinition(Labels.ThemePrefix + theme, "0891b2", "Theme lane"));
+            foreach (var theme in todo.Where(d => d.Theme != null).Select(d => d.Theme).Distinct(StringComparer.OrdinalIgnoreCase)) labels.Add(new LabelDefinition(Labels.ThemePrefix + theme, "0891b2", "Theme lane"));
             foreach (var label in labels)
             {
                 cancellation.ThrowIfCancellationRequested();
@@ -304,8 +343,8 @@ namespace Halyard.Core.Intelligence
             manifest.FinishedAt = DateTimeOffset.UtcNow;
             if (!string.IsNullOrEmpty(options.ManifestDirectory))
             {
-                Directory.CreateDirectory(options.ManifestDirectory!);
-                File.WriteAllText(Path.Combine(options.ManifestDirectory!, "intake-" + manifest.Id + ".json"), JsonConvert.SerializeObject(manifest, Formatting.Indented), new UTF8Encoding(false));
+                Directory.CreateDirectory(options.ManifestDirectory);
+                File.WriteAllText(Path.Combine(options.ManifestDirectory, "intake-" + manifest.Id + ".json"), JsonConvert.SerializeObject(manifest, Formatting.Indented), new UTF8Encoding(false));
             }
             return manifest;
         }

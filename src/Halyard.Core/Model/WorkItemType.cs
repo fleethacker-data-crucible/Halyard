@@ -67,11 +67,11 @@ namespace Halyard.Core.Model
             return "type::" + type.ToString().ToLowerInvariant();
         }
 
-        public static bool TryParse(string? text, out WorkItemType type)
+        public static bool TryParse(string text, out WorkItemType type)
         {
             type = WorkItemType.Unclassified;
             if (string.IsNullOrWhiteSpace(text)) return false;
-            switch (text!.Trim().ToUpperInvariant())
+            switch (text.Trim().ToUpperInvariant())
             {
                 case "THEME": type = WorkItemType.Theme; return true;
                 case "EPIC": type = WorkItemType.Epic; return true;
@@ -83,7 +83,7 @@ namespace Halyard.Core.Model
             }
         }
 
-        public static WorkItemType Parse(string? text)
+        public static WorkItemType Parse(string text)
         {
             WorkItemType t;
             return TryParse(text, out t) ? t : WorkItemType.Unclassified;

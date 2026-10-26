@@ -12,6 +12,7 @@ namespace Halyard.Core.Providers
     {
         public HttpCall(string method, string url)
         {
+            Timeout = TimeSpan.FromSeconds(60);
             Method = method;
             Url = url;
             Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
@@ -20,8 +21,8 @@ namespace Halyard.Core.Providers
         public string Method { get; private set; }
         public string Url { get; private set; }
         public Dictionary<string, string> Headers { get; private set; }
-        public string? JsonBody { get; set; }
-        public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(60);
+        public string JsonBody { get; set; }
+        public TimeSpan Timeout { get; set; }
     }
 
     public sealed class HttpReply
@@ -38,9 +39,9 @@ namespace Halyard.Core.Providers
         public Dictionary<string, string> Headers { get; private set; }
         public bool IsSuccess { get { return Status >= 200 && Status < 300; } }
 
-        public string? Header(string name)
+        public string Header(string name)
         {
-            string? v;
+            string v;
             return Headers.TryGetValue(name, out v) ? v : null;
         }
     }
@@ -53,14 +54,14 @@ namespace Halyard.Core.Providers
 
     public sealed class ProviderHttpException : Exception
     {
-        public ProviderHttpException(int status, string message, string? body) : base(message)
+        public ProviderHttpException(int status, string message, string body) : base(message)
         {
             Status = status;
             ResponseBody = body;
         }
 
         public int Status { get; private set; }
-        public string? ResponseBody { get; private set; }
+        public string ResponseBody { get; private set; }
 
         /// <summary>Stable fault code for the UI: AUTH_REJECTED, FORBIDDEN, NOT_FOUND, RATE_LIMITED, SERVER_ERROR, NETWORK.</summary>
         public string Code
@@ -88,7 +89,7 @@ namespace Halyard.Core.Providers
 
         public HttpClientTransport() : this(null) { }
 
-        public HttpClientTransport(HttpMessageHandler? handler)
+        public HttpClientTransport(HttpMessageHandler handler)
         {
             try { ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls12; } catch (NotSupportedException) { }
             // No automatic redirects: a redirected PATCH/DELETE would carry the token and the method to a URL
@@ -122,8 +123,9 @@ namespace Halyard.Core.Providers
                     {
                         throw new ProviderHttpException(0, "Network error calling " + SafeUrl(call.Url) + ": " + RootMessage(ex), null);
                     }
-                    catch (TaskCanceledException) when (!cancellation.IsCancellationRequested)
+                    catch (TaskCanceledException)
                     {
+                        if (cancellation.IsCancellationRequested) throw;
                         throw new ProviderHttpException(0, "Timed out calling " + SafeUrl(call.Url), null);
                     }
                     using (response)

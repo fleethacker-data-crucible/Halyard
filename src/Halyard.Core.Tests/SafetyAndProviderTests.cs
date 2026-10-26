@@ -7,7 +7,7 @@ using Halyard.Core.Model;
 using Halyard.Core.Providers;
 using Halyard.Core.Safety;
 using Halyard.Core.Synthetic;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 using Xunit;
 
 namespace Halyard.Core.Tests

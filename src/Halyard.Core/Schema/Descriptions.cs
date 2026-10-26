@@ -40,7 +40,7 @@ namespace Halyard.Core.Schema
         }
 
         /// <summary>meta fence + mirror + narrative. Any previous fence or mirror in the narrative is removed first.</summary>
-        public static string Compose(HalyardMeta meta, string? narrative)
+        public static string Compose(HalyardMeta meta, string narrative)
         {
             var body = StripMirror(HalyardMeta.StripFromBody(narrative));
             var sb = new StringBuilder();
@@ -49,14 +49,14 @@ namespace Halyard.Core.Schema
             return sb.ToString();
         }
 
-        public static string StripMirror(string? body)
+        public static string StripMirror(string body)
         {
             if (string.IsNullOrEmpty(body)) return string.Empty;
-            return MirrorRegex.Replace(body!, string.Empty).Trim();
+            return MirrorRegex.Replace(body, string.Empty).Trim();
         }
 
         /// <summary>Narrative only: no fence, no mirror.</summary>
-        public static string Narrative(string? body)
+        public static string Narrative(string body)
         {
             return StripMirror(HalyardMeta.StripFromBody(body));
         }
@@ -65,7 +65,7 @@ namespace Halyard.Core.Schema
         /// Re-emits an existing body with updated meta while keeping the narrative intact. Also rewrites a
         /// <c>## Sizing</c> section when present so points/effort never disagree between meta and prose.
         /// </summary>
-        public static string Rewrite(string? existingBody, HalyardMeta newMeta)
+        public static string Rewrite(string existingBody, HalyardMeta newMeta)
         {
             var narrative = Narrative(existingBody);
             narrative = SyncSizingSection(narrative, newMeta);
@@ -99,10 +99,10 @@ namespace Halyard.Core.Schema
         }
 
         /// <summary>Strips the <c>{TYPE} ::</c> prefix and any review suffix from a title.</summary>
-        public static string ShortName(string? title)
+        public static string ShortName(string title)
         {
             if (string.IsNullOrWhiteSpace(title)) return string.Empty;
-            var t = Regex.Replace(title!, @"^\s*(THEME|EPIC|FEATURE|STORY|TASK|BUG)\s*::\s*", string.Empty, RegexOptions.IgnoreCase);
+            var t = Regex.Replace(title, @"^\s*(THEME|EPIC|FEATURE|STORY|TASK|BUG)\s*::\s*", string.Empty, RegexOptions.IgnoreCase);
             t = Regex.Replace(t, @"\s*::\s*HUMAN APPROVAL REQUIRED\s*$", string.Empty, RegexOptions.IgnoreCase);
             return t.Trim();
         }
@@ -113,10 +113,10 @@ namespace Halyard.Core.Schema
             return WorkItemTypes.ToToken(type) + "-" + Slug(name);
         }
 
-        public static string Slug(string? text, int maxLength = 60)
+        public static string Slug(string text, int maxLength = 60)
         {
             if (string.IsNullOrWhiteSpace(text)) return "item";
-            var s = text!.ToLowerInvariant();
+            var s = text.ToLowerInvariant();
             s = Regex.Replace(s, @"[^a-z0-9]+", "-").Trim('-');
             if (s.Length > maxLength) s = s.Substring(0, maxLength).TrimEnd('-');
             return s.Length == 0 ? "item" : s;

@@ -32,7 +32,9 @@ HALYARD_SOURCE_REPO=fleethacker-data-crucible/Halyard-Ballast
 HALYARD_SANDBOX_REPO=fleethacker-data-crucible/Halyard-Ballast
 ```
 
-Token: `gh auth login` once (the launcher reads `gh auth token`), or `GITHUB_TOKEN=` in `halyard.env`.
+Token: `GITHUB_TOKEN=` in `halyard.env`. On a personal machine with the GitHub CLI installed, `gh auth login`
+once also works (the launcher reads `gh auth token` when `gh` is present and no token is set); the workstation
+has no `gh`, so use `GITHUB_TOKEN` (or Lazarette) there.
 The token needs `repo` scope; deleting issues needs admin rights on the repository.
 
 **Several source repositories** (the usual case at work: issues spread over many projects)
@@ -126,8 +128,9 @@ scripts\Register-HalyardReportSchedule.ps1 -To lead@example.com -Via Outlook -Da
 
 With `-Sync` the script takes a fresh snapshot first (`-SyncRepository source|sandbox`, source by
 default), then renders and sends the report; the schedule script registers a weekly Windows scheduled
-task (`-Remove` deletes it). Both read `config\halyard.env` and unlock the vault the same way the
-launcher does.
+task for the current user with `schtasks /Create` (`-Remove` deletes it). Both read `config\halyard.env` and
+unlock the vault the same way the launcher does. The schedule is opt-in: nothing registers it unless you run
+the script, and workstation policy may block creating scheduled tasks; then send the report by hand instead.
 
 ## Intake: source tickets into the hierarchy
 
@@ -154,16 +157,21 @@ turns the plan into sprint-plan proposals, reviewed and applied like any other.
 
 ## Updating Halyard
 
-Double-click `Update-Halyard.bat`: it pulls the latest code, builds (stopping any engine or PowerShell
-window that still holds `Halyard.Core.dll`, and saying which), and launches. If the build cannot stop a
-holder because it was opened as administrator, it names the PID and asks you to close that window.
+On the workstation: download the new `Halyard-<version>.zip` from Releases, stop Halyard (*End session*, or
+`scripts\Stop-Halyard.ps1`), and extract the zip over the old folder, keeping `config\halyard.env` and
+`output\`. Nothing is built on the workstation; the engine is compiled from the bundled source at launch.
+
+On a development PC (git, .NET 8 SDK and Node.js installed): double-click `Update-Halyard.bat`. It pulls the
+latest code, builds (stopping any running engine first, and saying which), and launches. If the build cannot
+stop an engine because it was opened as administrator, it names the PID and asks you to close that window.
+`Update-Halyard.bat` is not in the release bundle.
 
 ### Upgrading from the previous name
 
 Halyard was renamed from a previous name. What an installed copy needs on its first launch after the rename still works:
 
-- `Launch-Cascade.bat` and `Update-Cascade.bat` are gone: point shortcuts at `Launch-Halyard.bat` and
-  `Update-Halyard.bat`.
+- `Launch-Cascade.bat` and `Update-Cascade.bat` are gone: point shortcuts at `Launch-Halyard.bat` (and, on a
+  development PC, `Update-Halyard.bat`).
 - On the first launch, `config\cascade.env` is copied once to `config\halyard.env` with the variable names updated
   (`CASCADE_*` to `HALYARD_*`, `CASCADE_ARC_ITEM_*` to `HALYARD_LAZARETTE_ITEM_*`, `CASCADE_USE_ARC` to
   `HALYARD_USE_LAZARETTE`, and `sun-of-anton/cascade-sandbox` to `fleethacker-data-crucible/Halyard-Ballast`). The old file is
@@ -234,12 +242,14 @@ each marked with the review label, and the seed manifest records which codes the
 
 | Symptom | Cause and fix |
 |---|---|
-| "Halyard.Core.dll was not found" | A git checkout is not built. Run from the release bundle (Releases page), or build with `build\Build-Halyard.ps1`. |
-| "Windows blocked Halyard.Core.dll" | Application control rejects the unsigned DLL. Ask IT to sign or allow it. |
+| "The Halyard engine source folder ... was not found" | The bundle was not fully extracted (`src\Halyard.Core` is missing). Extract the whole `Halyard-<version>.zip` again. |
+| "The Halyard engine source ... did not compile" | A source file is damaged or was edited with C# 6+ syntax or a non-framework reference. Extract the bundle again. |
+| "Windows blocked compiling the Halyard engine" or "Constrained Language mode" | The policy does not allow in-memory `Add-Type` for this user. Ask IT; do not work around the policy. Halyard ships no DLL, so there is nothing to sign. |
+| Launch takes a few seconds before the browser opens | Expected: the engine is compiled from source on every launch. The console (`--console`) and the diagnostics log show `Engine compiled from N source files in X ms`. |
 | Script will not run at all | Execution policy enforced by Group Policy. `-ExecutionPolicy Bypass` cannot override that; use the IT-approved signed-script route. |
 | Console stays open after launch | Lazarette did not unlock; read the message in the console. |
 | "Halyard is already running" at launch | An engine from an earlier session is still up. Answer Y to replace it, or `--stay` was used earlier; `scripts\Stop-Halyard.ps1` stops everything. |
-| Build fails: `Halyard.Core.dll` "being used by another process" | An engine is running. The build script now stops it first; if it could not (started from an elevated window), run `scripts\Stop-Halyard.ps1` from such a window. |
+| Build says Halyard is still running | An engine is running. The build script stops it first; if it could not (started from an elevated window), run `scripts\Stop-Halyard.ps1` from such a window. |
 | Engine stopped while I was away | By design: it stops itself about 20 s after its browser tab closes (never during a job). Launch with `--stay` or set `HALYARD_AUTO_STOP=0` to keep it running. |
 | `PROVIDER_NOT_READY` in the UI | No token for the configured provider. See Configurations above. |
 | `AUTH_REJECTED` / `FORBIDDEN` | Token expired or lacks access to the repository. |

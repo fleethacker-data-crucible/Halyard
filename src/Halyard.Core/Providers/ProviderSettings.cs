@@ -7,14 +7,14 @@ namespace Halyard.Core.Providers
 {
     public sealed class ProviderSettings
     {
-        public ProviderKind Kind { get; set; } = ProviderKind.GitHub;
+        public ProviderKind Kind { get; set; }
         /// <summary>GitHub: https://api.github.com by default. GitLab: the instance URL (GITLAB_URL, required; /api/v4 is added).</summary>
-        public string BaseUrl { get; set; } = string.Empty;
+        public string BaseUrl { get; set; }
         /// <summary>
         /// Repositories to read from (the production backlog / source of truth), comma-separated when the
         /// backlog spans several. Never written in sandbox mode.
         /// </summary>
-        public string SourceRepository { get; set; } = string.Empty;
+        public string SourceRepository { get; set; }
 
         /// <summary>Every configured source repository, in order, de-duplicated.</summary>
         public List<string> SourceRepositories
@@ -31,10 +31,10 @@ namespace Halyard.Core.Providers
             }
         }
         /// <summary>Repository that may be written to (sandbox).</summary>
-        public string SandboxRepository { get; set; } = string.Empty;
+        public string SandboxRepository { get; set; }
         /// <summary>Held in memory only. Never persisted by the core.</summary>
-        public string? Token { get; set; }
-        public int WriteDelayMs { get; set; } = -1;
+        public string Token { get; set; }
+        public int WriteDelayMs { get; set; }
 
         public string EffectiveBaseUrl
         {
@@ -46,11 +46,20 @@ namespace Halyard.Core.Providers
         }
 
         /// <summary>The first source repository (most callers), or null.</summary>
-        public RepositoryRef? Source { get { var all = Sources; return all.Count == 0 ? null : all[0]; } }
+        public RepositoryRef Source { get { var all = Sources; return all.Count == 0 ? null : all[0]; } }
         /// <summary>All source repositories as references.</summary>
         public List<RepositoryRef> Sources { get { return SourceRepositories.Select(id => new RepositoryRef(Kind, id)).ToList(); } }
-        public RepositoryRef? Sandbox { get { return string.IsNullOrWhiteSpace(SandboxRepository) ? null : new RepositoryRef(Kind, SandboxRepository); } }
+        public RepositoryRef Sandbox { get { return string.IsNullOrWhiteSpace(SandboxRepository) ? null : new RepositoryRef(Kind, SandboxRepository); } }
         public bool HasToken { get { return !string.IsNullOrWhiteSpace(Token); } }
+
+        public ProviderSettings()
+        {
+            Kind = ProviderKind.GitHub;
+            BaseUrl = string.Empty;
+            SourceRepository = string.Empty;
+            SandboxRepository = string.Empty;
+            WriteDelayMs = -1;
+        }
 
         public ProviderSettings Clone()
         {
@@ -82,7 +91,7 @@ namespace Halyard.Core.Providers
         public static IEnumerable<KeyValuePair<string, string>> GitHubRenames { get { return GitHub; } }
 
         /// <summary>The current identifier for <paramref name="identifier"/>, or the identifier itself when it was never renamed.</summary>
-        public static string Canonical(ProviderKind kind, string? identifier)
+        public static string Canonical(ProviderKind kind, string identifier)
         {
             var id = (identifier ?? string.Empty).Trim().Trim('/');
             string renamed;
@@ -91,17 +100,17 @@ namespace Halyard.Core.Providers
         }
 
         /// <summary>Applies <see cref="Canonical"/> to each entry of a comma/semicolon/newline separated list, keeping the separators simple (comma).</summary>
-        public static string CanonicalList(ProviderKind kind, string? list)
+        public static string CanonicalList(ProviderKind kind, string list)
         {
             if (string.IsNullOrWhiteSpace(list)) return string.Empty;
-            var parts = list!.Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(x => Canonical(kind, x)).Where(x => x.Length > 0);
+            var parts = list.Split(new[] { ',', ';', '\n' }, StringSplitOptions.RemoveEmptyEntries).Select(x => Canonical(kind, x)).Where(x => x.Length > 0);
             return string.Join(",", parts);
         }
     }
 
     public static class ProviderFactory
     {
-        public static IWorkItemProvider Create(ProviderSettings settings, IHttpTransport? transport = null)
+        public static IWorkItemProvider Create(ProviderSettings settings, IHttpTransport transport = null)
         {
             if (settings == null) throw new ArgumentNullException("settings");
             var repo = settings.Source ?? settings.Sandbox;

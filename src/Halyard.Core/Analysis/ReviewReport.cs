@@ -35,18 +35,18 @@ namespace Halyard.Core.Analysis
         public long Number { get; private set; }
         public string CanonicalId { get; private set; }
         public string Title { get; private set; }
-        public string? Url { get; private set; }
+        public string Url { get; private set; }
         public WorkItemType Type { get; private set; }
         public WorkItemState State { get; private set; }
         public List<string> Labels { get; private set; }
-        public string? ParentId { get; private set; }
-        public string? ResolvedParentKey { get; set; }
-        public string? ThemeId { get; private set; }
+        public string ParentId { get; private set; }
+        public string ResolvedParentKey { get; set; }
+        public string ThemeId { get; private set; }
         public bool HasMeta { get; private set; }
-        public string? Points { get; private set; }
-        public string? Effort { get; private set; }
-        public string? Sprint { get; private set; }
-        public string? Area { get; private set; }
+        public string Points { get; private set; }
+        public string Effort { get; private set; }
+        public string Sprint { get; private set; }
+        public string Area { get; private set; }
         public DateTimeOffset? UpdatedAt { get; private set; }
         public List<string> MissingMeta { get; private set; }
         public List<string> Deficiencies { get; private set; }
@@ -65,15 +65,22 @@ namespace Halyard.Core.Analysis
         public int Stories { get; set; }
         public int FeaturesWithEffort { get; set; }
         public int Features { get; set; }
-        public Dictionary<string, int> ByType { get; set; } = new Dictionary<string, int>();
-        public Dictionary<string, int> DeficiencyCounts { get; set; } = new Dictionary<string, int>();
-        public Dictionary<string, int> FindingCounts { get; set; } = new Dictionary<string, int>();
+        public Dictionary<string, int> ByType { get; set; }
+        public Dictionary<string, int> DeficiencyCounts { get; set; }
+        public Dictionary<string, int> FindingCounts { get; set; }
         public int TotalPoints { get; set; }
+
+        public ReviewSummary()
+        {
+            ByType = new Dictionary<string, int>();
+            DeficiencyCounts = new Dictionary<string, int>();
+            FindingCounts = new Dictionary<string, int>();
+        }
     }
 
     public sealed class ReviewReport
     {
-        public ReviewReport(IReadOnlyList<ItemReview> items, TopologyAuditResult audit, IReadOnlyList<ParentReview> parentReviews, ReviewSummary summary, string? labelFilter)
+        public ReviewReport(IReadOnlyList<ItemReview> items, TopologyAuditResult audit, IReadOnlyList<ParentReview> parentReviews, ReviewSummary summary, string labelFilter)
         {
             Items = items;
             Audit = audit;
@@ -87,7 +94,7 @@ namespace Halyard.Core.Analysis
         public TopologyAuditResult Audit { get; private set; }
         public IReadOnlyList<ParentReview> ParentReviews { get; private set; }
         public ReviewSummary Summary { get; private set; }
-        public string? LabelFilter { get; private set; }
+        public string LabelFilter { get; private set; }
         public DateTimeOffset GeneratedAt { get; private set; }
     }
 
@@ -97,7 +104,7 @@ namespace Halyard.Core.Analysis
     /// </summary>
     public static class Review
     {
-        public static ReviewReport Run(IEnumerable<WorkItem> items, Taxonomy taxonomy, string? labelFilter = null, IEnumerable<WorkItem>? sourceItems = null)
+        public static ReviewReport Run(IEnumerable<WorkItem> items, Taxonomy taxonomy, string labelFilter = null, IEnumerable<WorkItem> sourceItems = null)
         {
             var list = items.Where(i => i != null).ToList();
             var audit = TopologyAudit.Run(list, sourceItems, labelFilter);
@@ -108,11 +115,11 @@ namespace Halyard.Core.Analysis
             foreach (var item in list)
             {
                 var r = new ItemReview(item);
-                string? parentKey;
+                string parentKey;
                 if (audit.ParentEdges.TryGetValue(item.Key, out parentKey)) r.ResolvedParentKey = parentKey;
                 r.MissingMeta.AddRange(taxonomy.MissingKeys(item.Type, item.Meta));
                 r.Deficiencies.AddRange(Deficiencies.Evaluate(item));
-                List<Finding>? f;
+                List<Finding> f;
                 if (findingsByKey.TryGetValue(item.Key, out f) && f != null) r.Findings.AddRange(f);
                 reviews.Add(r);
 

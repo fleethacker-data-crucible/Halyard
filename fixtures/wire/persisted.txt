@@ -1,0 +1,476 @@
+seed-manifest:
+{
+  "RunId": "20261026-083000",
+  "Target": "github:o/r",
+  "StartedAt": "2026-10-26T08:30:00+00:00",
+  "FinishedAt": "2026-10-26T08:32:00+00:00",
+  "DeletedAt": null,
+  "Requested": 2,
+  "Items": [
+    {
+      "Id": "EPIC-a",
+      "Type": "EPIC",
+      "ParentId": null,
+      "Number": 1,
+      "Key": "github:o/r:1",
+      "Url": "https://github.com/o/r/issues/1",
+      "NativeLinked": true,
+      "Defects": [],
+      "ExpectedCodes": []
+    },
+    {
+      "Id": "STORY-b",
+      "Type": "STORY",
+      "ParentId": "EPIC-a",
+      "Number": 2,
+      "Key": "github:o/r:2",
+      "Url": null,
+      "NativeLinked": false,
+      "Defects": [
+        "missing-points"
+      ],
+      "ExpectedCodes": [
+        "STORY_MISSING_POINTS"
+      ]
+    }
+  ],
+  "Errors": [
+    "one \"error\""
+  ],
+  "Completed": false,
+  "NeedsReview": 1
+}
+seed-manifest-roundtrip:
+{
+  "RunId": "20261026-083000",
+  "Target": "github:o/r",
+  "StartedAt": "2026-10-26T08:30:00+00:00",
+  "FinishedAt": "2026-10-26T08:32:00+00:00",
+  "DeletedAt": null,
+  "Requested": 2,
+  "Items": [
+    {
+      "Id": "EPIC-a",
+      "Type": "EPIC",
+      "ParentId": null,
+      "Number": 1,
+      "Key": "github:o/r:1",
+      "Url": "https://github.com/o/r/issues/1",
+      "NativeLinked": true,
+      "Defects": [],
+      "ExpectedCodes": []
+    },
+    {
+      "Id": "STORY-b",
+      "Type": "STORY",
+      "ParentId": "EPIC-a",
+      "Number": 2,
+      "Key": "github:o/r:2",
+      "Url": null,
+      "NativeLinked": false,
+      "Defects": [
+        "missing-points"
+      ],
+      "ExpectedCodes": [
+        "STORY_MISSING_POINTS"
+      ]
+    }
+  ],
+  "Errors": [
+    "one \"error\""
+  ],
+  "Completed": false,
+  "NeedsReview": 1
+}
+proposal-batch:
+{
+  "Id": "20261026-083000-abcd",
+  "Kind": 4,
+  "Target": "github:o/r",
+  "CreatedAt": "2026-10-26T08:30:00+00:00",
+  "Source": "llm:openai",
+  "Considered": 3,
+  "Skipped": 1,
+  "SkipReasons": [
+    "no body"
+  ],
+  "Proposals": [
+    {
+      "Id": "p00000000001",
+      "BatchId": "20261026-083000-abcd",
+      "Kind": 4,
+      "ItemKey": "github:o/r:2",
+      "ItemNumber": 2,
+      "ItemCanonicalId": "STORY-b",
+      "ItemTitle": "STORY :: b",
+      "CurrentValue": null,
+      "ProposedValue": "new body",
+      "Confidence": "high",
+      "Reason": "r",
+      "Source": "llm:openai",
+      "Decision": 1,
+      "DecisionNote": "ok",
+      "CreatedAt": "2026-10-26T08:30:00+00:00",
+      "DecidedAt": "2026-10-26T08:30:01+00:00",
+      "AppliedAt": null,
+      "Error": null,
+      "ProposedMeta": {
+        "points": "3",
+        "effort": null
+      },
+      "Addresses": [
+        "A"
+      ],
+      "Remaining": [],
+      "MetaKey": "parent"
+    }
+  ],
+  "RawModelOutput": "raw\nout",
+  "Warnings": []
+}
+proposal-batch-api:
+{"id":"20261026-083000-abcd","kind":"refinement","target":"github:o/r","createdAt":"2026-10-26T08:30:00+00:00","source":"llm:openai","considered":3,"skipped":1,"skipReasons":["no body"],"proposals":[{"id":"p00000000001","batchId":"20261026-083000-abcd","kind":"refinement","itemKey":"github:o/r:2","itemNumber":2,"itemCanonicalId":"STORY-b","itemTitle":"STORY :: b","currentValue":null,"proposedValue":"new body","confidence":"high","reason":"r","source":"llm:openai","decision":"approved","decisionNote":"ok","createdAt":"2026-10-26T08:30:00+00:00","decidedAt":"2026-10-26T08:30:01+00:00","appliedAt":null,"error":null,"proposedMeta":{"points":"3","effort":null},"addresses":["A"],"remaining":[],"metaKey":"parent"}],"rawModelOutput":"raw\nout","warnings":[]}
+vision:
+{
+  "Id": "20261026-083000",
+  "CreatedAt": "2026-10-26T08:30:00+00:00",
+  "Source": "deterministic",
+  "Repository": "github:o/r",
+  "Vision": "v",
+  "Markdown": "# m",
+  "Themes": [
+    {
+      "Id": "THEME-x",
+      "Title": "X",
+      "Purpose": "p",
+      "Epics": [
+        "EPIC-a"
+      ],
+      "IsNew": true
+    }
+  ],
+  "Priorities": [
+    {
+      "Rank": 1,
+      "Epic": "EPIC-a",
+      "Title": "A",
+      "Why": "w"
+    }
+  ],
+  "Risks": [
+    "risk"
+  ],
+  "NextQuarter": [],
+  "ProposalBatchId": null,
+  "Warnings": []
+}
+vision-api:
+{"id":"20261026-083000","createdAt":"2026-10-26T08:30:00+00:00","source":"deterministic","repository":"github:o/r","vision":"v","markdown":"# m","themes":[{"id":"THEME-x","title":"X","purpose":"p","epics":["EPIC-a"],"isNew":true}],"priorities":[{"rank":1,"epic":"EPIC-a","title":"A","why":"w"}],"risks":["risk"],"nextQuarter":[],"proposalBatchId":null,"warnings":[]}
+snapshot:
+{"id":"20261026-083000","repository":"o/r","repositories":["o/r"],"provider":"github","takenAt":"2026-10-26T08:30:00.0000000+00:00","labelFilter":null,"count":1,"items":[{"repository":"o/r","number":7,"providerId":"I_7","providerNumericId":107,"title":"STORY :: t","body":"body \"q\"\n~~~halyard-meta\ntype: STORY\n~~~","labels":["type::story"],"assignees":[],"state":"open","url":"https://github.com/o/r/issues/7","milestone":null,"createdAt":"2026-10-26T08:30:00.0000000+00:00","updatedAt":"2026-10-27T08:30:00.0000000+00:00"}]}
+snapshot-roundtrip:
+{"id":"20261026-083000","repository":"o/r","repositories":["o/r"],"provider":"github","takenAt":"2026-10-26T08:30:00.0000000+00:00","labelFilter":null,"count":1,"items":[{"repository":"o/r","number":7,"providerId":"I_7","providerNumericId":107,"title":"STORY :: t","body":"body \"q\"\n~~~halyard-meta\ntype: STORY\n~~~","labels":["type::story"],"assignees":[],"state":"open","url":"https://github.com/o/r/issues/7","milestone":null,"createdAt":"2026-10-26T08:30:00.0000000+00:00","updatedAt":"2026-10-27T08:30:00.0000000+00:00"}]}
+snapshot-takenAt: 2026-10-26T08:30:00.0000000+00:00
+taxonomy:
+{
+  "version": "1.0",
+  "hierarchy": [
+    "THEME",
+    "EPIC",
+    "FEATURE",
+    "STORY",
+    "TASK"
+  ],
+  "id_pattern": "{TYPE}-{slug}",
+  "meta_fence": "~~~halyard-meta",
+  "effort_values": [
+    "Small",
+    "Medium",
+    "Large"
+  ],
+  "story_points": [
+    1,
+    2,
+    3,
+    5,
+    8
+  ],
+  "required_meta": {
+    "THEME": [
+      "type",
+      "id",
+      "state",
+      "status",
+      "area"
+    ],
+    "EPIC": [
+      "type",
+      "id",
+      "theme",
+      "state",
+      "area"
+    ],
+    "FEATURE": [
+      "type",
+      "id",
+      "parent",
+      "theme",
+      "state",
+      "area",
+      "effort"
+    ],
+    "STORY": [
+      "type",
+      "id",
+      "parent",
+      "theme",
+      "state",
+      "area",
+      "points",
+      "sprint"
+    ],
+    "TASK": [
+      "type",
+      "id",
+      "parent",
+      "theme",
+      "state",
+      "area"
+    ],
+    "BUG": [
+      "type",
+      "id",
+      "theme",
+      "state",
+      "area"
+    ]
+  },
+  "themes": [
+    {
+      "id": "THEME-process-improvement",
+      "title": "THEME :: Process Improvement",
+      "area": "halyard",
+      "purpose": "Agile operating system, Halyard agent, delivery process",
+      "status": "Active"
+    },
+    {
+      "id": "THEME-data-platform",
+      "title": "THEME :: Data Platform",
+      "area": "data-platform",
+      "purpose": "RDS, schema, IAM, shared data platform services",
+      "status": "Active"
+    },
+    {
+      "id": "THEME-data-pipeline-modernization",
+      "title": "THEME :: Data Pipeline Modernization",
+      "area": "pipeline",
+      "purpose": "ETL/ELT reliability and modernization",
+      "status": "Active"
+    },
+    {
+      "id": "THEME-platform-engineering",
+      "title": "THEME :: Platform Engineering",
+      "area": "platform",
+      "purpose": "CI, environments, shared engineering tooling",
+      "status": "Active"
+    },
+    {
+      "id": "THEME-automation",
+      "title": "THEME :: Automation, AI and Agentic Workflows",
+      "area": "automation",
+      "purpose": "Scripting, bots, agentic operators, AI-assisted workflows",
+      "status": "Active"
+    },
+    {
+      "id": "THEME-security-compliance",
+      "title": "THEME :: Security & Compliance",
+      "area": "security",
+      "purpose": "Controls, secrets, audit, least privilege",
+      "status": "Active"
+    },
+    {
+      "id": "THEME-observability",
+      "title": "THEME :: Observability",
+      "area": "observability",
+      "purpose": "Logs, metrics, traces, alerting",
+      "status": "Active"
+    },
+    {
+      "id": "THEME-reliability-dr",
+      "title": "THEME :: Reliability & DR",
+      "area": "reliability",
+      "purpose": "Backups, failover, RPO/RTO",
+      "status": "Active"
+    },
+    {
+      "id": "THEME-technical-debt",
+      "title": "THEME :: Technical Debt",
+      "area": "tech-debt",
+      "purpose": "Explicit pay-down of debt",
+      "status": "Active"
+    },
+    {
+      "id": "THEME-training",
+      "title": "THEME :: Training",
+      "area": "training",
+      "purpose": "Enablement and quantified time away from tasking",
+      "status": "Active"
+    }
+  ]
+}
+catalog:
+{
+  "version": "2.0",
+  "synthetic": true,
+  "warning": "SYNTHETIC DATA. No real ticket, person, date, credential or commitment is described.",
+  "generated_with": {
+    "Themes": 1,
+    "EpicsPerTheme": 2,
+    "FeaturesPerEpic": 1,
+    "Stories": 4,
+    "Tasks": 3,
+    "Seed": 20261024,
+    "Area": "platform",
+    "SprintPrefix": "2026-S",
+    "FirstSprint": 21,
+    "SprintCount": 4,
+    "SprintStart": "2026-09-21",
+    "CurrentSprintOffset": 2,
+    "SprintCapacity": 22,
+    "People": [
+      "jordan-brooks",
+      "riley-chen",
+      "casey-rivera",
+      "morgan-vale"
+    ],
+    "IncludeDefects": false,
+    "DefectRate": 0.2,
+    "Total": 12
+  },
+  "counts": {
+    "THEME": 1,
+    "EPIC": 2,
+    "FEATURE": 1
+  },
+  "complete": 4,
+  "needs_review": 0,
+  "items": [
+    {
+      "id": "THEME-data-platform-foundations",
+      "type": "THEME",
+      "parent": null,
+      "theme": "THEME-data-platform-foundations",
+      "name": "Data Platform Foundations",
+      "title": "THEME :: Data Platform Foundations",
+      "labels": [
+        "halyard",
+        "halyard-synthetic",
+        "type::theme",
+        "area::platform",
+        "theme::THEME-data-platform-foundations"
+      ],
+      "closed": false,
+      "meta": {
+        "type": "THEME",
+        "id": "THEME-data-platform-foundations",
+        "theme": "THEME-data-platform-foundations",
+        "state": "open",
+        "status": "active",
+        "area": "platform"
+      },
+      "narrative": "## Purpose\nShared data platform services, environments and operational automation that several product Epics depend on.\n\n## In scope\n- Ingestion contracts and landing zones\n- Service identities and least-privilege access\n- Reproducible environments and configuration\n\n## Out of scope\n- One-off report builds owned by product teams\n- Enterprise network tickets owned by other organisations\n\n## Owner\nPortfolio lead for Data Platform Foundations (role, not a named individual).\n\n## Child Epics\n- EPIC :: Reliable Data Ingestion\n- EPIC :: Secure Platform Foundations\n- EPIC :: Delivery Assurance and Traceability\n\n> Synthetic work item generated by Halyard for sandbox review. No real system, person or commitment is described.",
+      "defects": [],
+      "expected_codes": []
+    },
+    {
+      "id": "EPIC-reliable-data-ingestion",
+      "type": "EPIC",
+      "parent": "THEME-data-platform-foundations",
+      "theme": "THEME-data-platform-foundations",
+      "name": "Reliable Data Ingestion",
+      "title": "EPIC :: Reliable Data Ingestion",
+      "labels": [
+        "halyard",
+        "halyard-synthetic",
+        "type::epic",
+        "area::platform",
+        "theme::THEME-data-platform-foundations"
+      ],
+      "closed": false,
+      "meta": {
+        "type": "EPIC",
+        "id": "EPIC-reliable-data-ingestion",
+        "theme": "THEME-data-platform-foundations",
+        "parent": "THEME-data-platform-foundations",
+        "state": "open",
+        "area": "platform",
+        "milestone": "FY26-Q1-Sandbox-Baseline"
+      },
+      "narrative": "## Outcome\nVerified sample records land in repeatable Bronze workflows with every rejection explained.\n\n## Success picture\n- [ ] Every accepted feed carries a schema version and an owner\n- [ ] Schema failures are quarantined with actionable diagnostics\n- [ ] Batch counts reconcile to the input on every run\n\n## Theme\nData Platform Foundations\n\n## Owner\nEpic steward (role).\n\n## Child Features\n- FEATURE :: Source Feed Contracts\n- FEATURE :: Bronze Ingestion Ledger\n- FEATURE :: Quarantine Triage Workflow\n\n## Risks / dependencies\n- Unannounced upstream changes; mitigate with contract checks\n- Quarantine growth without review; mitigate with a weekly triage\n\n> Synthetic work item generated by Halyard for sandbox review.",
+      "defects": [],
+      "expected_codes": []
+    },
+    {
+      "id": "FEATURE-source-feed-contracts",
+      "type": "FEATURE",
+      "parent": "EPIC-reliable-data-ingestion",
+      "theme": "THEME-data-platform-foundations",
+      "name": "Source Feed Contracts",
+      "title": "FEATURE :: Source Feed Contracts",
+      "labels": [
+        "halyard",
+        "halyard-synthetic",
+        "type::feature",
+        "area::platform",
+        "theme::THEME-data-platform-foundations"
+      ],
+      "closed": false,
+      "meta": {
+        "type": "FEATURE",
+        "id": "FEATURE-source-feed-contracts",
+        "theme": "THEME-data-platform-foundations",
+        "parent": "EPIC-reliable-data-ingestion",
+        "state": "open",
+        "area": "platform",
+        "effort": "Small",
+        "artifact_level": "Proposal for Work",
+        "milestone": "FY26-Q1-Sandbox-Baseline",
+        "target": "2027-01",
+        "owner": "riley-chen",
+        "skills": "sql-pipelines, data-quality"
+      },
+      "narrative": "## Description\nDocument and validate each approved sample source before it is ingested.\n\n## Parent Epic\nEPIC :: Reliable Data Ingestion\n\n## Proposal for Work\n**Problem / outcome:** Malformed sample fields currently reach Bronze and are discovered downstream.\n\n**Approach:** Declare a contract per feed and reject records that violate it at the boundary.\n\n**Scope in:** Contract schema; Validation report; Owner sign-off\n\n**Scope out:** Real credentials, production data, and systems outside the sandbox.\n\n## Definition of done\n- [ ] The contract rejects malformed sample fields with a reason code\n- [ ] Owners can review successful and failed validations\n- [ ] Three sample feeds run under contract end to end\n\n## Sizing\n- **Effort:** Small — about one sprint of focused work.\n\n## Child Stories\n- STORY :: Validate required source fields\n- STORY :: Detect schema version changes\n- STORY :: Publish contract validation report\n\n> Synthetic work item generated by Halyard for sandbox review.",
+      "defects": [],
+      "expected_codes": []
+    },
+    {
+      "id": "EPIC-secure-platform-foundations",
+      "type": "EPIC",
+      "parent": "THEME-data-platform-foundations",
+      "theme": "THEME-data-platform-foundations",
+      "name": "Secure Platform Foundations",
+      "title": "EPIC :: Secure Platform Foundations",
+      "labels": [
+        "halyard",
+        "halyard-synthetic",
+        "type::epic",
+        "area::platform",
+        "theme::THEME-data-platform-foundations"
+      ],
+      "closed": false,
+      "meta": {
+        "type": "EPIC",
+        "id": "EPIC-secure-platform-foundations",
+        "theme": "THEME-data-platform-foundations",
+        "parent": "THEME-data-platform-foundations",
+        "state": "open",
+        "area": "platform",
+        "milestone": "FY26-Q3-Platform-Hardening"
+      },
+      "narrative": "## Outcome\nA repeatable least-privilege environment for the demonstration data services.\n\n## Success picture\n- [ ] Every sample workload has an accountable service identity\n- [ ] Configuration changes can be reproduced and reviewed\n- [ ] Denied operations leave an auditable trail\n\n## Theme\nData Platform Foundations\n\n## Owner\nEpic steward (role).\n\n## Child Features\n- FEATURE :: Service Identity and Access\n- FEATURE :: Reproducible Test Environments\n- FEATURE :: Secrets Handling Baseline\n\n## Risks / dependencies\n- Over-broad permissions; mitigate with explicit test cases\n- Configuration drift; mitigate with a versioned manifest\n\n> Synthetic work item generated by Halyard for sandbox review.",
+      "defects": [],
+      "expected_codes": []
+    }
+  ]
+}
+log-entry: {"time":"2026-10-26T08:30:00.0000000+00:00","level":"WARN","event":"E","message":"m \"q\"","route":null,"requestId":"r1"}

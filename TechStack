@@ -15,7 +15,7 @@ Local web apps: PowerShell 5.1 serves a browser UI on `127.0.0.1` (Edge/Chrome).
 | Storage | IndexedDB (data), localStorage (settings) |
 | Offline | Service workers, Web Workers |
 | Encryption | Web Crypto (AES-GCM) in browser; DPAPI from PowerShell for secrets at rest |
-| Native Windows | C# via `Add-Type` (.NET 4.8.1); WinForms/WPF from PowerShell if needed |
+| Native Windows | C# ships as source and is compiled at start by Windows PowerShell 5.1 `Add-Type` (inbox .NET Framework compiler, C# 5 only); framework assemblies only; P/Invoke only into OS DLLs; WinForms/WPF from PowerShell if needed |
 
 ## Local server note
 
@@ -26,9 +26,21 @@ Tested on the workstation with the Nautilus Test Suite (Windows 11 Enterprise 26
 - HTTP.sys does not filter the `Host` header on loopback, so every server checks `Host` and `Origin` itself, whichever listener it uses.
 - Details: [LISTENER-EVALUATION.md](https://github.com/fleethacker-data-crucible/fleethacker-comms-data-crucible/blob/main/docs/LISTENER-EVALUATION.md) in the team repo.
 
+## C# on the workstation
+
+The workstation's application control blocks loading custom DLL files (confirmed by the user 2026-10-26).
+
+- C# ships as source (`*.cs`) and Windows PowerShell 5.1 compiles it in memory at launch: `Add-Type -Path <*.cs> -CompilerParameters` (GenerateInMemory). That is the inbox .NET Framework 4.8 CodeDom compiler, so the code is **C# 5**.
+- Reference framework assemblies only (`System`, `System.Core`, `System.Net.Http`, ...). No third-party DLLs, no NuGet packages at runtime, no prebuilt DLL loaded from disk, no `Assembly.Load*`/`LoadFrom`, no native libraries. Never cache the compiled assembly on disk to load it later: the policy blocks that too.
+- Compiling on every launch costs a few seconds; measure it and print it.
+- CI compiles the source with Windows PowerShell 5.1 `Add-Type` exactly as the launcher does, so C# 6+ syntax fails the build. A Roslyn build with `LangVersion 5` against the net48 reference assemblies catches it earlier on any machine.
+- Reference implementations: Halyard (`module/Halyard/Halyard.psm1` `Import-HalyardCore`, `build/Test-HalyardAddType.ps1`) and phoenix-lai (`src/run.ps1`).
+
 ## Build rules
 
-- Build off-workstation; ship compiled JS/CSS/WASM only
+- Build off-workstation; ship compiled JS/CSS/WASM and C# source only (no DLLs)
+- Never ship or load a prebuilt or custom DLL (`Add-Type -Path *.dll`, `Assembly.Load*`, a compiled DLL cached on disk): the workstation's application control blocks them (confirmed on the workstation 2026-10-26)
+- No third-party DLLs or NuGet packages; use framework assemblies only
 - Bundle all deps — no CDNs or runtime network calls
 - No admin, installers, or services on the workstation
 

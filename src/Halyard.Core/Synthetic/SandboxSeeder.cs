@@ -8,39 +8,55 @@ using System.Threading.Tasks;
 using Halyard.Core.Model;
 using Halyard.Core.Providers;
 using Halyard.Core.Safety;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Synthetic
 {
     public sealed class SeededItem
     {
-        public string Id { get; set; } = string.Empty;
-        public string Type { get; set; } = string.Empty;
-        public string? ParentId { get; set; }
+        public string Id { get; set; }
+        public string Type { get; set; }
+        public string ParentId { get; set; }
         public long Number { get; set; }
-        public string Key { get; set; } = string.Empty;
-        public string? Url { get; set; }
+        public string Key { get; set; }
+        public string Url { get; set; }
         public bool NativeLinked { get; set; }
         /// <summary>Injected defect kinds; empty for a complete item.</summary>
-        public List<string> Defects { get; set; } = new List<string>();
+        public List<string> Defects { get; set; }
         /// <summary>Audit codes expected for this item, so a run can be verified end to end.</summary>
-        public List<string> ExpectedCodes { get; set; } = new List<string>();
+        public List<string> ExpectedCodes { get; set; }
+
+        public SeededItem()
+        {
+            Id = string.Empty;
+            Type = string.Empty;
+            Key = string.Empty;
+            Defects = new List<string>();
+            ExpectedCodes = new List<string>();
+        }
     }
 
     public sealed class SeedManifest
     {
-        public string RunId { get; set; } = string.Empty;
-        public string Target { get; set; } = string.Empty;
+        public string RunId { get; set; }
+        public string Target { get; set; }
         public DateTimeOffset StartedAt { get; set; }
         public DateTimeOffset? FinishedAt { get; set; }
         /// <summary>Set when the run's items were deleted by a teardown; the run then leaves the Sandbox list.</summary>
         public DateTimeOffset? DeletedAt { get; set; }
         public int Requested { get; set; }
-        public List<SeededItem> Items { get; set; } = new List<SeededItem>();
-        public List<string> Errors { get; set; } = new List<string>();
+        public List<SeededItem> Items { get; set; }
+        public List<string> Errors { get; set; }
         public bool Completed { get { return FinishedAt != null && Errors.Count == 0 && Items.Count == Requested; } }
         public int NeedsReview { get { return Items.Count(i => i.Defects.Count > 0); } }
+
+        public SeedManifest()
+        {
+            RunId = string.Empty;
+            Target = string.Empty;
+            Items = new List<SeededItem>();
+            Errors = new List<string>();
+        }
 
         public string ToJson()
         {
@@ -55,13 +71,20 @@ namespace Halyard.Core.Synthetic
 
     public sealed class SeedOptions
     {
-        public string RunId { get; set; } = NewRunId();
+        public string RunId { get; set; }
         /// <summary>Attempt native parent links (GitHub sub-issues). Best-effort; never fails the seed.</summary>
-        public bool NativeLinks { get; set; } = true;
+        public bool NativeLinks { get; set; }
         /// <summary>Adds the review-queue label to items seeded with a deliberate gap, so the human review queue is visible on the provider too.</summary>
-        public bool AddReviewLabel { get; set; } = true;
+        public bool AddReviewLabel { get; set; }
         /// <summary>Directory where the manifest is written; null skips the file.</summary>
-        public string? ManifestDirectory { get; set; }
+        public string ManifestDirectory { get; set; }
+
+        public SeedOptions()
+        {
+            RunId = NewRunId();
+            NativeLinks = true;
+            AddReviewLabel = true;
+        }
 
         public static string NewRunId()
         {
@@ -73,7 +96,12 @@ namespace Halyard.Core.Synthetic
     {
         public int Done { get; set; }
         public int Total { get; set; }
-        public string Message { get; set; } = string.Empty;
+        public string Message { get; set; }
+
+        public SeedProgress()
+        {
+            Message = string.Empty;
+        }
     }
 
     /// <summary>
@@ -97,7 +125,7 @@ namespace Halyard.Core.Synthetic
         };
 
         public static async Task<SeedManifest> SeedAsync(IWorkItemProvider provider, WriteGateway gateway, RepositoryRef target,
-            IReadOnlyList<SyntheticWorkItem> catalog, SeedOptions options, IProgress<SeedProgress>? progress, CancellationToken cancellation)
+            IReadOnlyList<SyntheticWorkItem> catalog, SeedOptions options, IProgress<SeedProgress> progress, CancellationToken cancellation)
         {
             if (provider == null) throw new ArgumentNullException("provider");
             if (gateway == null) throw new ArgumentNullException("gateway");
@@ -134,8 +162,8 @@ namespace Halyard.Core.Synthetic
                     meta.Set("source", "halyard-synthetic");
                     meta.Set("run_id", options.RunId);
                 }
-                WorkItem? parent = null;
-                if (!string.IsNullOrEmpty(entry.ParentId) && created.TryGetValue(entry.ParentId!, out parent) && hasMeta)
+                WorkItem parent = null;
+                if (!string.IsNullOrEmpty(entry.ParentId) && created.TryGetValue(entry.ParentId, out parent) && hasMeta)
                     meta.Set("parent_ref", "#" + parent.Number);
                 var labelsForItem = new List<string>(entry.Labels);
                 labelsForItem.Add(Labels.Run(options.RunId));
@@ -173,7 +201,7 @@ namespace Halyard.Core.Synthetic
                 Report(progress, done, total, "Created " + entry.Title);
             }
             manifest.FinishedAt = DateTimeOffset.UtcNow;
-            if (!string.IsNullOrEmpty(options.ManifestDirectory)) WriteManifest(options.ManifestDirectory!, manifest);
+            if (!string.IsNullOrEmpty(options.ManifestDirectory)) WriteManifest(options.ManifestDirectory, manifest);
             return manifest;
         }
 
@@ -182,13 +210,13 @@ namespace Halyard.Core.Synthetic
         {
             var byId = catalog.ToDictionary(c => c.Id, c => c, StringComparer.OrdinalIgnoreCase);
             var depth = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-            Func<SyntheticWorkItem, int>? depthOf = null;
+            Func<SyntheticWorkItem, int> depthOf = null;
             depthOf = item =>
             {
                 int d;
                 if (depth.TryGetValue(item.Id, out d)) return d;
-                SyntheticWorkItem? parent;
-                d = string.IsNullOrEmpty(item.ParentId) || !byId.TryGetValue(item.ParentId!, out parent) || parent == null || parent == item ? 0 : depthOf!(parent) + 1;
+                SyntheticWorkItem parent;
+                d = string.IsNullOrEmpty(item.ParentId) || !byId.TryGetValue(item.ParentId, out parent) || parent == null || parent == item ? 0 : depthOf(parent) + 1;
                 depth[item.Id] = d;
                 return d;
             };
@@ -219,7 +247,7 @@ namespace Halyard.Core.Synthetic
         }
 
         /// <summary>Marks seed manifests as deleted after a teardown: one run, or every run when <paramref name="runId"/> is null.</summary>
-        public static int MarkDeleted(string directory, string? runId, DateTimeOffset when)
+        public static int MarkDeleted(string directory, string runId, DateTimeOffset when)
         {
             var marked = 0;
             if (!Directory.Exists(directory)) return 0;
@@ -236,7 +264,7 @@ namespace Halyard.Core.Synthetic
             return marked;
         }
 
-        private static void Report(IProgress<SeedProgress>? progress, int done, int total, string message)
+        private static void Report(IProgress<SeedProgress> progress, int done, int total, string message)
         {
             if (progress != null) progress.Report(new SeedProgress { Done = done, Total = total, Message = message });
         }

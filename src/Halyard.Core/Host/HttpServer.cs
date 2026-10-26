@@ -11,18 +11,18 @@ namespace Halyard.Core.Host
 {
     public sealed class HttpRequest
     {
-        public string Method { get; set; } = "GET";
-        public string Path { get; set; } = "/";
-        public string Query { get; set; } = string.Empty;
-        public Dictionary<string, string> Headers { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        public byte[] Body { get; set; } = new byte[0];
-        public IPEndPoint? RemoteEndPoint { get; set; }
-        public string RequestId { get; set; } = Guid.NewGuid().ToString("N").Substring(0, 12);
-        public Dictionary<string, string> RouteValues { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        public string Method { get; set; }
+        public string Path { get; set; }
+        public string Query { get; set; }
+        public Dictionary<string, string> Headers { get; private set; }
+        public byte[] Body { get; set; }
+        public IPEndPoint RemoteEndPoint { get; set; }
+        public string RequestId { get; set; }
+        public Dictionary<string, string> RouteValues { get; private set; }
 
-        public string? Header(string name)
+        public string Header(string name)
         {
-            string? v;
+            string v;
             return Headers.TryGetValue(name, out v) ? v : null;
         }
 
@@ -45,13 +45,31 @@ namespace Halyard.Core.Host
                 return dict;
             }
         }
+
+        public HttpRequest()
+        {
+            Method = "GET";
+            Path = "/";
+            Query = string.Empty;
+            Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Body = new byte[0];
+            RequestId = Guid.NewGuid().ToString("N").Substring(0, 12);
+            RouteValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        }
     }
 
     public sealed class HttpResponse
     {
-        public int Status { get; set; } = 200;
-        public Dictionary<string, string> Headers { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        public byte[] Body { get; set; } = new byte[0];
+        public int Status { get; set; }
+        public Dictionary<string, string> Headers { get; private set; }
+        public byte[] Body { get; set; }
+
+        public HttpResponse()
+        {
+            Status = 200;
+            Headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            Body = new byte[0];
+        }
 
         public static HttpResponse Text(int status, string text, string contentType = "text/plain; charset=utf-8")
         {
@@ -89,15 +107,17 @@ namespace Halyard.Core.Host
         private const int MaxBodyBytes = 8 * 1024 * 1024;
         private readonly Func<HttpRequest, Task<HttpResponse>> _handler;
         private readonly Diagnostics _log;
-        private TcpListener? _listener;
-        private CancellationTokenSource? _cts;
-        private Task? _acceptLoop;
+        private TcpListener _listener;
+        private CancellationTokenSource _cts;
+        private Task _acceptLoop;
         private int _active;
 
         public HttpServer(Func<HttpRequest, Task<HttpResponse>> handler, Diagnostics log)
         {
-            _handler = handler ?? throw new ArgumentNullException("handler");
-            _log = log ?? throw new ArgumentNullException("log");
+            if (handler == null) throw new ArgumentNullException("handler");
+            if (log == null) throw new ArgumentNullException("log");
+            _handler = handler;
+            _log = log;
         }
 
         public int Port { get; private set; }
@@ -114,8 +134,9 @@ namespace Halyard.Core.Host
                 listener = new TcpListener(IPAddress.Loopback, preferredPort);
                 listener.Start(64);
             }
-            catch (SocketException ex) when (ex.SocketErrorCode == SocketError.AddressAlreadyInUse)
+            catch (SocketException ex)
             {
+                if (ex.SocketErrorCode != SocketError.AddressAlreadyInUse) throw;
                 _log.Warn("PORT_FALLBACK", "Preferred port " + preferredPort + " is in use; selecting a free loopback port.");
                 listener = new TcpListener(IPAddress.Loopback, 0);
                 listener.Start(64);
@@ -133,9 +154,9 @@ namespace Halyard.Core.Host
             var listener = _listener;
             if (listener == null) return;
             _listener = null;
-            try { _cts?.Cancel(); } catch (ObjectDisposedException) { }
+            try { if (_cts != null) _cts.Cancel(); } catch (ObjectDisposedException) { }
             try { listener.Stop(); } catch (SocketException) { }
-            try { _acceptLoop?.Wait(TimeSpan.FromSeconds(2)); } catch (AggregateException) { }
+            try { if (_acceptLoop != null) _acceptLoop.Wait(TimeSpan.FromSeconds(2)); } catch (AggregateException) { }
             _log.Info("SERVER_STOP", "Listener closed.");
         }
 
@@ -170,6 +191,7 @@ namespace Halyard.Core.Host
                     using (var stream = client.GetStream())
                     {
                         HttpRequest request;
+                        string parseError = null;
                         try
                         {
                             request = await ReadRequest(stream, token).ConfigureAwait(false);
@@ -177,11 +199,17 @@ namespace Halyard.Core.Host
                         catch (HttpParseException ex)
                         {
                             _log.Warn("BAD_REQUEST", ex.Message);
-                            await WriteResponse(stream, HttpResponse.Text(400, "Bad request: " + ex.Message), token).ConfigureAwait(false);
-                            return;
+                            request = null;
+                            parseError = ex.Message;
                         }
                         catch (IOException) { return; }
                         catch (ObjectDisposedException) { return; }
+                        if (parseError != null)
+                        {
+                            // C# 5 cannot await inside a catch block; answer the malformed request here instead.
+                            await WriteResponse(stream, HttpResponse.Text(400, "Bad request: " + parseError), token).ConfigureAwait(false);
+                            return;
+                        }
                         request.RemoteEndPoint = remote;
                         if (remote != null && !IPAddress.IsLoopback(remote.Address))
                         {
@@ -332,7 +360,7 @@ namespace Halyard.Core.Host
         public void Dispose()
         {
             Stop();
-            _cts?.Dispose();
+            if (_cts != null) _cts.Dispose();
         }
     }
 }

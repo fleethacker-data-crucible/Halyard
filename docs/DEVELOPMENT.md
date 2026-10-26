@@ -2,7 +2,7 @@
 
 ## Prerequisites (build machine only)
 
-- .NET 8 SDK (builds `net48` too, via reference assemblies)
+- .NET 8 SDK (runs the tests and the C# 5 check build against the `net48` reference assemblies)
 - Node.js 20+
 - PowerShell 7 or Windows PowerShell 5.1, Pester 5 (`Install-Module Pester -Scope CurrentUser`)
 
@@ -12,8 +12,10 @@
 Launch-Halyard.bat           the only launcher
 module/Halyard/              PowerShell module (launcher, Lazarette bridge, command wrappers)
 scripts/                     Start-Halyard, Invoke-SandboxSeed, Invoke-SandboxTeardown
-src/Halyard.Core/            C# core (net48 + netstandard2.0)
-src/Halyard.Core.Tests/      xUnit
+src/Halyard.Core/            the engine: C# 5 source, shipped as source and compiled by Add-Type at launch
+                             (Halyard.Core.csproj only checks it: LangVersion 5, net48, framework references)
+src/Halyard.Core/Serialization/  framework-only JSON (replaces Newtonsoft.Json; fixtures/wire pins its output)
+src/Halyard.Core.Tests/      xUnit; compiles the engine .cs files directly (no project reference)
 web/                         React + TypeScript UI (build.mjs → web/dist)
 tests/pester/                PowerShell tests and repository rules
 tests/e2e/sandbox-loop.mjs   full seed → apply → teardown walk against a running host
@@ -21,22 +23,24 @@ tests/fakes/fake-github.mjs  in-memory GitHub + chat-completions fake for offlin
 fixtures/                    deterministic synthetic catalogues (100 items; one with 20% gaps)
 config/                      halyard.env.example, taxonomy.json
 docs/                        this documentation
-build/Build-Halyard.ps1      test + bundle
+build/Build-Halyard.ps1      test + bundle (engine source, no DLL)
+build/Test-HalyardAddType.ps1  compile the engine with Windows PowerShell 5.1 Add-Type, as the launcher does
 ```
 
 ## Build and test
 
 ```powershell
 build\Build-Halyard.ps1                  # everything: core, tests, UI, Pester, bundle in dist\
-dotnet test                              # core only
+dotnet build src\Halyard.Core            # C# 5 check of the engine source (LangVersion 5, net48 references)
+dotnet test                              # core tests (compile the same .cs files)
+build\Test-HalyardAddType.ps1            # compile with Windows PowerShell 5.1 Add-Type, exactly as on the workstation
 cd web; npm install; npm run build       # UI only → web\dist
 cd web; npm test; npm run typecheck
 Invoke-Pester tests\pester
 ```
 
-Run from source without bundling: build the core (`dotnet build -c Release`) and the UI, then
-`.\Launch-Halyard.bat --console`. The module finds the DLL under `src\Halyard.Core\bin\Release\<tfm>` and
-the UI under `web\dist`.
+Run from source without bundling: build the UI, then `.\Launch-Halyard.bat --console`. The module compiles
+`src\Halyard.Core\**\*.cs` in memory (the engine needs no build step) and serves the UI from `web\dist`.
 
 UI work: `cd web; npm run dev` rebuilds on save; reload the browser.
 
@@ -65,7 +69,18 @@ state per repository and answers the refine, vision and skills prompts.
 - **Only** `Providers/*` and `Llm/*` build mutating HTTP calls, and **only** `WriteGateway` calls
   `OpenWriter`. Pester fails the build otherwise.
 - PowerShell code must run on 5.1: no `??`, `?:`, `&&`/`||` pipeline chains (checked by Pester), ASCII only.
-- Core code must compile for `net48`: stick to the `netstandard2.0` API surface.
+- Engine code is **C# 5** compiled by the .NET Framework 4.8 CodeDom compiler: no `=>` members, `$""`, `?.`,
+  `??=`, `nameof`, `out var`, `is T x` patterns, tuples, `using var`, switch expressions, the `default`
+  literal, local functions, exception filters, `await` in `catch`/`finally`, auto-property initializers or
+  read-only auto-properties (`{ get; }`), index initializers (`{ ["k"] = v }`), nullable reference
+  annotations. `dotnet build src\Halyard.Core` (LangVersion 5) catches these; CI also compiles with the real
+  compiler (`build\Test-HalyardAddType.ps1`).
+- Engine code references framework assemblies only (`System`, `System.Core`, `System.Net.Http`; keep
+  `$HalyardCoreReferences` in `Halyard.psm1` and the csproj in step). No NuGet package, no third-party DLL,
+  no `Assembly.Load*`: the workstation blocks loading custom DLL files.
+- JSON goes through `Halyard.Core.Serialization`. The API's wire format and the files under `output/` are
+  pinned by `fixtures/wire`; re-record with `HALYARD_UPDATE_GOLDEN=1 dotnet test` only for an intended change,
+  and review the diff.
 - Stable codes (`story_missing_acceptance_criteria`, `PARENT_NOT_DECLARED`, …) are part of the UI and exports;
   change explanations freely, change codes only deliberately.
 - The synthetic generator is deterministic. If you change it, regenerate the fixtures:
@@ -77,5 +92,6 @@ state per repository and answers the refine, vision and skills prompts.
 ## CI
 
 `.github/workflows/ci.yml` runs on the self-hosted Windows runner (labels `self-hosted, Windows, X64`):
-core build and tests on `net8.0` and `net48`, UI typecheck/tests/build, Pester on both Windows
-PowerShell 5.1 and PowerShell 7, the offline end-to-end loop, and uploads the bundle as an artifact.
+the C# 5 check build and the core tests on `net8.0` and `net48`, the engine compiled with Windows PowerShell
+5.1 `Add-Type` exactly as the launcher does (fails on C# 6+ syntax; reports the compile time), UI typecheck/tests/build, Pester on both Windows
+PowerShell 5.1 and PowerShell 7, the offline end-to-end loop, and uploads the bundle (checked to contain no DLL) as an artifact.

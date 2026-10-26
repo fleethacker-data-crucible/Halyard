@@ -8,20 +8,21 @@ used through a browser on `127.0.0.1`.
 
 | Constraint | Consequence |
 |---|---|
-| Target workstation runs Windows PowerShell 5.1 on .NET Framework 4.8; no installs, no admin | The runtime is PowerShell + one .NET library + static web files. No Node, Python, services or installers on the workstation. |
+| Target workstation runs Windows PowerShell 5.1 on .NET Framework 4.8; no installs, no admin | The runtime is PowerShell + the engine's C# source + static web files. No Node, Python, services or installers on the workstation. |
+| Application control blocks loading custom DLL files (confirmed 2026-10-26) | The engine ships as C# source and Windows PowerShell 5.1 compiles it in memory at launch (`Add-Type`). No DLL is shipped or loaded from disk, no third-party assembly is used. |
 | On some workstations, smart card + TOTP happen inside a PowerShell vault (Lazarette) in a console | PowerShell stays the launcher and owns the vault unlock. Everything after that is C#. |
 | Two Git hosts: github.com for development, a self-hosted GitLab for real work | One provider-agnostic work-item model; hosts are adapters. |
 | Production backlog must never be written by accident | Every write goes through one gateway with a sandbox allow-list. |
-| Build happens off the workstation | Compiled DLLs and built UI ship in a bundle; nothing is fetched at runtime. |
+| Build happens off the workstation | Engine source and the built UI ship in a bundle; nothing is fetched at runtime. |
 
 ## Stack
 
 | Layer | Choice | Why |
 |---|---|---|
 | Launcher | `Launch-Halyard.bat` → `powershell.exe -File scripts\Start-Halyard.ps1` | The only entry point the workstation already allows. |
-| Shell | PowerShell module `module/Halyard` | Reads `config/halyard.env`, unlocks Lazarette once, loads the DLL, opens the browser, hides the console. Nothing else. |
-| Core | C# library `Halyard.Core` (`net48` + `netstandard2.0`) | Types, real concurrency, testable logic, one write gateway. `net48` loads in PowerShell 5.1; `netstandard2.0` serves PowerShell 7 and the test runner. |
-| JSON | Newtonsoft.Json 13 (bundled) | Works identically on .NET Framework and .NET. |
+| Shell | PowerShell module `module/Halyard` | Reads `config/halyard.env`, unlocks Lazarette once, compiles the engine, opens the browser, hides the console. Nothing else. |
+| Core | C# 5 source `src/Halyard.Core`, compiled in memory at launch by `Add-Type -Path *.cs -CompilerParameters` (the inbox .NET Framework 4.8 compiler, C# 5 only) | Types, real concurrency, testable logic, one write gateway. References framework assemblies only (`System`, `System.Core`, `System.Net.Http`). PowerShell 7 compiles the same files. The tests compile them too. |
+| JSON | `Halyard.Core.Serialization`: a small hand-written reader, writer and reflection serializer | Framework only (no Newtonsoft.Json). Writes the same JSON text Newtonsoft did; `fixtures/wire` pins the API responses and file formats. |
 | Local server | `TcpListener` on 127.0.0.1 inside the core | `HttpListener` needs HTTP.sys URL reservations a standard user lacks. One task per connection; long work runs as background jobs. |
 | UI | React 19 + TypeScript, Tailwind CSS 4, d3 (hierarchy, zoom, shape), zod | Built to static files by esbuild + Tailwind's compiler. Validates every response. |
 | Storage | JSON files under `output/` (snapshots, proposals, seed manifests, transcripts) | Readable, diffable, no native database driver to get approved. |
@@ -39,7 +40,7 @@ Launch-Halyard.bat
        └─ module/Halyard (PowerShell)
             ├─ config/halyard.env → process environment
             ├─ vault bridge (Lazarette; GitLab only, or HALYARD_USE_LAZARETTE=1) → GITLAB_TOKEN, LLM_TOKEN, DATABRICKS_TOKEN
-            └─ Halyard.Core.dll
+            └─ Halyard.Core (src/Halyard.Core/*.cs, compiled in memory at launch)
                  ├─ Host        loopback HTTP server, router, jobs, session token, static UI
                  ├─ Providers   GitHub REST/GraphQL, GitLab REST v4  → IWorkItemProvider
                  ├─ Safety      WritePolicy + WriteGateway (the only path to a writer)
@@ -144,6 +145,8 @@ treats the card as the only source of a person's skills and confidence.
 
 ## Risk to watch
 
-`Halyard.Core.dll` is unsigned. If the workstation's application-control policy (WDAC/AppLocker) blocks
-unsigned DLLs, `Import-HalyardCore` stops with a clear message. The fix is to have IT sign or allow the
-DLL. Do not work around the policy.
+The engine is compiled in memory on every launch (a few seconds; the launcher prints and logs the time as
+`ENGINE_COMPILED`). This depends on the workstation allowing `Add-Type` for a standard user in FullLanguage
+mode, which is how the team's other PowerShell apps run. If PowerShell is in Constrained Language Mode or the
+policy blocks in-memory compilation, `Import-HalyardCore` stops with a message that says so. Do not work around
+the policy, and never cache the compiled engine as a DLL on disk: the policy blocks loading it.

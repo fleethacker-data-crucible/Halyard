@@ -5,7 +5,8 @@
     <TargetFrameworks Condition="'$(OS)' == 'Windows_NT'">net8.0;net48</TargetFrameworks>
     <TargetFrameworks Condition="'$(OS)' != 'Windows_NT'">net8.0</TargetFrameworks>
     <LangVersion>12</LangVersion>
-    <Nullable>enable</Nullable>
+    <!-- annotations: the engine sources compiled in below are C# 5 without nullable annotations. -->
+    <Nullable>annotations</Nullable>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
     <RootNamespace>Halyard.Core.Tests</RootNamespace>
@@ -15,6 +16,8 @@
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageReference Include="xunit" Version="2.9.2" />
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+    <!-- Test-only oracle: NewtonsoftParityTests compares the engine's JSON with what Newtonsoft.Json (used by 1.0)
+         writes on the same runtime (net8.0 and net48). Never part of the engine or the bundle. -->
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
@@ -23,7 +26,8 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Halyard.Core\Halyard.Core.csproj" />
+    <!-- The engine ships as source; the tests compile the very same files (no reference to a built DLL). -->
+    <Compile Include="..\Halyard.Core\**\*.cs" Exclude="..\Halyard.Core\obj\**;..\Halyard.Core\bin\**" Link="Engine\%(RecursiveDir)%(Filename)%(Extension)" />
   </ItemGroup>
 
   <ItemGroup>

@@ -39,42 +39,51 @@ namespace Halyard.Core
             return HalyardSettings.FromEnvironment(rootDirectory);
         }
 
-        public static HalyardHost CreateHost(HalyardSettings settings, string? webRoot, int preferredPort, Dictionary<string, object?>? launcherState)
+        public static HalyardHost CreateHost(HalyardSettings settings, string webRoot, int preferredPort, Dictionary<string, object> launcherState)
         {
             return CreateHost(settings, webRoot, preferredPort, launcherState, settings.AutoStop);
         }
 
-        public static HalyardHost CreateHost(HalyardSettings settings, string? webRoot, int preferredPort, Dictionary<string, object?>? launcherState, bool autoStop)
+        public static HalyardHost CreateHost(HalyardSettings settings, string webRoot, int preferredPort, Dictionary<string, object> launcherState, bool autoStop)
         {
             return new HalyardHost(new HostOptions
             {
                 Settings = settings,
                 WebRoot = webRoot,
                 PreferredPort = preferredPort,
-                LauncherState = launcherState ?? new Dictionary<string, object?>(),
+                LauncherState = launcherState ?? new Dictionary<string, object>(),
                 AutoStop = autoStop,
             });
         }
 
         /// <summary>The leadership report (HTML) from the current snapshot on disk; used by Send-HalyardReport.ps1.</summary>
-        public static string LeadershipReportHtml(HalyardSettings settings, string? labelFilter = null, string? title = null)
+        public static string LeadershipReportHtml(HalyardSettings settings, string labelFilter = null, string title = null)
         {
             var store = new Snapshots.SnapshotStore(settings.SnapshotsDirectory);
             var snap = store.Current;
             if (snap == null) throw new InvalidOperationException("No snapshot under " + settings.SnapshotsDirectory + "; synchronize first (Sync-HalyardSnapshot or the Connection page).");
-            var items = string.IsNullOrWhiteSpace(labelFilter) ? snap.Items : snap.Items.Where(i => i.HasLabel(labelFilter!)).ToList();
+            var items = string.IsNullOrWhiteSpace(labelFilter) ? snap.Items : snap.Items.Where(i => i.HasLabel(labelFilter)).ToList();
             var team = Planning.TeamConfig.Load(settings.TeamPath, settings.ShellbackDirectories);
             var report = Analysis.Delivery.Build(items, team, DateTimeOffset.UtcNow, snap.Repository);
-            return Analysis.DeliveryHtml.Render(report, string.IsNullOrWhiteSpace(title) ? "Halyard Leadership Dashboard" : title!, settings.BrandLogoBase64());
+            return Analysis.DeliveryHtml.Render(report, string.IsNullOrWhiteSpace(title) ? "Halyard Leadership Dashboard" : title, settings.BrandLogoBase64());
         }
 
         /// <summary>Synchronizes every configured source (or the sandbox) into a new snapshot without the host; used by scheduled reports.</summary>
         public static Snapshots.Snapshot SyncSnapshot(HalyardSettings settings, string which = "source", bool includeClosed = true)
         {
             var provider = ProviderFactory.Create(settings.Provider);
-            var repos = string.Equals(which, "sandbox", StringComparison.OrdinalIgnoreCase)
-                ? new List<RepositoryRef> { settings.Provider.Sandbox ?? throw new InvalidOperationException("No sandbox repository is configured.") }
-                : (settings.Provider.Sources.Count > 0 ? settings.Provider.Sources : new List<RepositoryRef> { settings.Provider.Sandbox ?? throw new InvalidOperationException("No source or sandbox repository is configured.") });
+            List<RepositoryRef> repos;
+            if (string.Equals(which, "sandbox", StringComparison.OrdinalIgnoreCase))
+            {
+                if (settings.Provider.Sandbox == null) throw new InvalidOperationException("No sandbox repository is configured.");
+                repos = new List<RepositoryRef> { settings.Provider.Sandbox };
+            }
+            else if (settings.Provider.Sources.Count > 0) repos = settings.Provider.Sources;
+            else
+            {
+                if (settings.Provider.Sandbox == null) throw new InvalidOperationException("No source or sandbox repository is configured.");
+                repos = new List<RepositoryRef> { settings.Provider.Sandbox };
+            }
             var all = new List<WorkItem>();
             foreach (var repo in repos)
             {
@@ -120,34 +129,34 @@ namespace Halyard.Core
             return Path.GetFullPath(path);
         }
 
-        public static SeedManifest Seed(HalyardSettings settings, int total, int seed, bool includeDefects, string? runId, bool nativeLinks, Action<string>? progress)
+        public static SeedManifest Seed(HalyardSettings settings, int total, int seed, bool includeDefects, string runId, bool nativeLinks, Action<string> progress)
         {
             return Seed(settings, total, seed, includeDefects, 0.20, runId, nativeLinks, progress);
         }
 
-        public static SeedManifest Seed(HalyardSettings settings, int total, int seed, bool includeDefects, double defectRate, string? runId, bool nativeLinks, Action<string>? progress)
+        public static SeedManifest Seed(HalyardSettings settings, int total, int seed, bool includeDefects, double defectRate, string runId, bool nativeLinks, Action<string> progress)
         {
             var catalog = GenerateCatalog(total, seed, includeDefects, defectRate);
             return Seed(settings, catalog, runId, nativeLinks, progress);
         }
 
-        public static SeedManifest SeedFromFile(HalyardSettings settings, string catalogPath, string? runId, bool nativeLinks, Action<string>? progress)
+        public static SeedManifest SeedFromFile(HalyardSettings settings, string catalogPath, string runId, bool nativeLinks, Action<string> progress)
         {
             return Seed(settings, SyntheticCatalog.Load(catalogPath), runId, nativeLinks, progress);
         }
 
-        private static SeedManifest Seed(HalyardSettings settings, List<SyntheticWorkItem> catalog, string? runId, bool nativeLinks, Action<string>? progress)
+        private static SeedManifest Seed(HalyardSettings settings, List<SyntheticWorkItem> catalog, string runId, bool nativeLinks, Action<string> progress)
         {
             var sandbox = settings.Provider.Sandbox;
             if (sandbox == null) throw new InvalidOperationException("No sandbox repository is configured (HALYARD_SANDBOX_REPO).");
             var provider = ProviderFactory.Create(settings.Provider);
             var gateway = new WriteGateway(settings.BuildWritePolicy());
             var options = new SeedOptions { NativeLinks = nativeLinks, ManifestDirectory = settings.SeedsDirectory };
-            if (!string.IsNullOrWhiteSpace(runId)) options.RunId = runId!.Trim();
+            if (!string.IsNullOrWhiteSpace(runId)) options.RunId = runId.Trim();
             return RunWithProgress(reporter => SandboxSeeder.SeedAsync(provider, gateway, sandbox, catalog, options, reporter, CancellationToken.None), progress);
         }
 
-        public static TeardownResult Teardown(HalyardSettings settings, string scope, string? runId, string? confirmText, bool dryRun, Action<string>? progress)
+        public static TeardownResult Teardown(HalyardSettings settings, string scope, string runId, string confirmText, bool dryRun, Action<string> progress)
         {
             var sandbox = settings.Provider.Sandbox;
             if (sandbox == null) throw new InvalidOperationException("No sandbox repository is configured (HALYARD_SANDBOX_REPO).");
@@ -204,7 +213,7 @@ namespace Halyard.Core
         /// PowerShell script blocks only run on their own runspace thread, so callbacks must not fire from
         /// the worker threads that async continuations land on.
         /// </summary>
-        public static T RunWithProgress<T>(Func<IProgress<SeedProgress>?, Task<T>> work, Action<string>? progress)
+        public static T RunWithProgress<T>(Func<IProgress<SeedProgress>, Task<T>> work, Action<string> progress)
         {
             if (progress == null) return Task.Run(() => work(null)).GetAwaiter().GetResult();
             using (var queue = new BlockingCollection<string>())

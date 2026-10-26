@@ -3,17 +3,17 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Halyard.Core.Model;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Providers
 {
     /// <summary>Shared plumbing for REST providers: auth headers, JSON, error mapping, write pacing.</summary>
     public abstract class RestProviderBase
     {
-        protected RestProviderBase(IHttpTransport http, string baseUrl, string? token, int writeDelayMs)
+        protected RestProviderBase(IHttpTransport http, string baseUrl, string token, int writeDelayMs)
         {
-            Http = http ?? throw new ArgumentNullException("http");
+            if (http == null) throw new ArgumentNullException("http");
+            Http = http;
             BaseUrl = baseUrl.TrimEnd('/');
             Token = token;
             WriteDelayMs = writeDelayMs;
@@ -21,7 +21,7 @@ namespace Halyard.Core.Providers
 
         protected IHttpTransport Http { get; private set; }
         protected string BaseUrl { get; private set; }
-        protected string? Token { get; private set; }
+        protected string Token { get; private set; }
         protected int WriteDelayMs { get; private set; }
 
         protected abstract void Authenticate(HttpCall call);
@@ -51,21 +51,21 @@ namespace Halyard.Core.Providers
             return call.Method + " " + HttpClientTransport.SafeUrl(call.Url) + " failed with HTTP " + reply.Status + (string.IsNullOrEmpty(detail) ? string.Empty : ": " + detail);
         }
 
-        protected static string ExtractMessage(string? body)
+        protected static string ExtractMessage(string body)
         {
             if (string.IsNullOrWhiteSpace(body)) return string.Empty;
             try
             {
-                var tok = JToken.Parse(body!);
-                if (tok is JObject o)
+                var o = JToken.Parse(body) as JObject;
+                if (o != null)
                 {
-                    var msg = (string?)o["message"] ?? (string?)o["error"] ?? (string?)o["error_description"];
-                    if (msg == null && o["errors"] != null) msg = o["errors"]!.ToString(Formatting.None);
+                    var msg = (string)o["message"] ?? (string)o["error"] ?? (string)o["error_description"];
+                    if (msg == null && o["errors"] != null) msg = o["errors"].ToString(Formatting.None);
                     if (msg != null) return msg.Length > 300 ? msg.Substring(0, 300) : msg;
                 }
             }
             catch (JsonException) { }
-            var text = body!.Trim();
+            var text = body.Trim();
             return text.Length > 200 ? text.Substring(0, 200) : text;
         }
 
@@ -75,7 +75,7 @@ namespace Halyard.Core.Providers
             return ParseJson(reply.Body);
         }
 
-        protected async Task<HttpReply> SendJsonAsync(string method, string url, JToken? payload, CancellationToken cancellation)
+        protected async Task<HttpReply> SendJsonAsync(string method, string url, JToken payload, CancellationToken cancellation)
         {
             var call = NewCall(method, url);
             if (payload != null) call.JsonBody = payload.ToString(Formatting.None);
@@ -102,26 +102,26 @@ namespace Halyard.Core.Providers
             return Uri.EscapeDataString(value);
         }
 
-        protected static DateTimeOffset? ParseDate(JToken? token)
+        protected static DateTimeOffset? ParseDate(JToken token)
         {
-            var s = (string?)token;
+            var s = (string)token;
             DateTimeOffset d;
             return !string.IsNullOrEmpty(s) && DateTimeOffset.TryParse(s, null, System.Globalization.DateTimeStyles.AssumeUniversal, out d) ? d : (DateTimeOffset?)null;
         }
 
-        protected static List<string> ReadLabels(JToken? labels)
+        protected static List<string> ReadLabels(JToken labels)
         {
             var list = new List<string>();
             if (labels == null) return list;
             foreach (var l in labels)
             {
-                var name = l.Type == JTokenType.String ? (string?)l : (string?)l["name"];
-                if (!string.IsNullOrWhiteSpace(name)) list.Add(name!.Trim());
+                var name = l.Type == JTokenType.String ? (string)l : (string)l["name"];
+                if (!string.IsNullOrWhiteSpace(name)) list.Add(name.Trim());
             }
             return list;
         }
 
-        public static WorkItemState StateFromText(string? state)
+        public static WorkItemState StateFromText(string state)
         {
             return string.Equals(state, "closed", StringComparison.OrdinalIgnoreCase) ? WorkItemState.Closed : WorkItemState.Open;
         }
