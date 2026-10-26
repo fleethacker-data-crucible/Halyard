@@ -8,7 +8,7 @@ provider-agnostic. Last updated 2026-10-24.
 
 | Area | Capability |
 |---|---|
-| Architecture | C# core (`Halyard.Core`) loaded by PowerShell 5.1; React/TypeScript UI; one launcher |
+| Architecture | C# 5 core (`Halyard.Core`) shipped as source and compiled in memory by PowerShell 5.1 at launch (no DLL, no third-party assembly); React/TypeScript UI; one launcher |
 | Providers | GitHub and GitLab behind one work-item model; several source repositories per snapshot; halyard-meta is the hierarchy source of truth |
 | Safety | Single write gateway, sandbox allow-list, protected source and extra protected repos, synthetic-only deletes, write audit; proposals refused outside the sandbox |
 | Sandbox | Deterministic synthetic hierarchy with history: closed stories in past sprints, carry-over, blockers, owners, skills, feature targets; 80/20 complete/gap, rate adjustable |
@@ -27,7 +27,7 @@ provider-agnostic. Last updated 2026-10-24.
 |---|---|---|
 | 1 | Review with a real model key | Seed, Review → Proposals, Plan, Vision, Intake, Leadership report; judge the drafts |
 | 2 | Tune prompts on real tickets | Synthetic gaps are clean; hand-written tickets and vision prose will need iteration |
-| 3 | Run on the workstation against GitLab | DLL load under application control, vault unlock, paging, several source projects |
+| 3 | Run on the workstation against GitLab | Engine compile (Add-Type) under application control, vault unlock, paging, several source projects |
 | 4 | Live Shellback export | Read cards from a Shellback export or endpoint instead of files dropped in `config/shellback/` |
 | 5 | Sprint review loop | Compare planned vs delivered each sprint; feed the gap into velocity and the next plan |
 | 6 | Rollback of the last apply batch | Store the previous body with each applied proposal; one-click restore |
@@ -39,9 +39,8 @@ provider-agnostic. Last updated 2026-10-24.
 | 7 | Multi-step goals | intake → repair → draft → size → tag → plan → report in one run, still gated per batch |
 | 8 | Report delivery beyond email | Teams / Slack webhook when the workstation allows it |
 | 9 | GitLab native links | Read GitLab epics/work-item links once the server version is confirmed |
-| 10 | Signed bundle | Code-sign `Halyard.Core.dll` if application control requires it |
-| 11 | Shared proposal state | Proposals are JSON files under `output/`; two operators on one sandbox need coordination |
-| 12 | Production promote | Explicit, gated, with diff; never the default path |
+| 10 | Shared proposal state | Proposals are JSON files under `output/`; two operators on one sandbox need coordination |
+| 11 | Production promote | Explicit, gated, with diff; never the default path |
 
 ## Not doing
 

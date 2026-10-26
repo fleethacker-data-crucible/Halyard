@@ -43,9 +43,11 @@ On the workstation (no .NET SDK or Node.js needed):
    in `config\halyard.env`).
 3. Double-click `Launch-Halyard.bat`.
 
-A git checkout has no compiled engine, so it does not start until it is built. To build from source (.NET 8
-SDK, Node.js 20+): `build\Build-Halyard.ps1` tests and builds, leaving the bundle in `dist\Halyard`; later,
-double-click `Update-Halyard.bat` (pull, build, launch). Running the *Release* workflow on main (or pushing a
+The engine ships as C# source, not as a DLL: the workstation blocks loading custom DLL files, so
+`Launch-Halyard.bat` compiles `src\Halyard.Core` in memory with Windows PowerShell 5.1 (`Add-Type`, C# 5,
+framework assemblies only) on every launch. That takes a few seconds. A git checkout still needs the browser
+UI built. To build from source (.NET 8 SDK, Node.js 20+): `build\Build-Halyard.ps1` tests and builds, leaving
+the bundle in `dist\Halyard`; later, double-click `Update-Halyard.bat` (pull, build, launch). Running the *Release* workflow on main (or pushing a
 tag `v<version>`) publishes a new bundle to Releases.
 
 In the browser:
