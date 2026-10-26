@@ -68,13 +68,13 @@ function Import-HalyardCore {
     $candidates = Get-HalyardCoreCandidates -Root $Root
     $dll = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
     if (-not $dll) {
-        throw ("Halyard.Core.dll was not found. Download the release bundle (Halyard-<version>.zip from https://github.com/sun-of-anton/Halyard/releases) and run Launch-Halyard.bat from it, or build with build\Build-Halyard.ps1. Searched:`n  " + ($candidates -join "`n  "))
+        throw ("Halyard.Core.dll was not found. Download the release bundle (Halyard-<version>.zip from https://github.com/fleethacker-data-crucible/Halyard/releases) and run Launch-Halyard.bat from it, or build with build\Build-Halyard.ps1. Searched:`n  " + ($candidates -join "`n  "))
     }
     $dir = Split-Path $dll -Parent
     $json = Join-Path $dir 'Newtonsoft.Json.dll'
     if (-not ('Newtonsoft.Json.JsonConvert' -as [type])) {
         if (-not (Test-Path -LiteralPath $json)) {
-            throw ('Newtonsoft.Json.dll must sit next to ' + $dll + '. Use the release bundle from https://github.com/sun-of-anton/Halyard/releases or rebuild with build\Build-Halyard.ps1.')
+            throw ('Newtonsoft.Json.dll must sit next to ' + $dll + '. Use the release bundle from https://github.com/fleethacker-data-crucible/Halyard/releases or rebuild with build\Build-Halyard.ps1.')
         }
         Add-Type -LiteralPath $json -ErrorAction Stop
     }
