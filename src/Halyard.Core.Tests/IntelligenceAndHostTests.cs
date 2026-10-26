@@ -491,7 +491,7 @@ namespace Halyard.Core.Tests
             {
                 Assert.False(HalyardSettings.MigrateLegacyEnvFile(dir)); // neither file: nothing to do
                 var original = "# my settings\nCASCADE_PROVIDER=github\nexport CASCADE_SANDBOX_REPO=sun-of-anton/cascade-sandbox\n" +
-                               "CASCADE_ARC_ITEM_GitLab=gitlab-pat\nCASCADE_USE_ARC=1\nGITHUB_TOKEN=keep\n";
+                               "CASCADE_ARC_ITEM_GitLab=gitmil\nCASCADE_USE_ARC=1\nGITHUB_TOKEN=keep\n";
                 File.WriteAllText(legacy, original);
                 Assert.True(HalyardSettings.MigrateLegacyEnvFile(dir));
                 Assert.Equal(original, File.ReadAllText(legacy)); // the original is left untouched
@@ -499,7 +499,7 @@ namespace Halyard.Core.Tests
                 Assert.Contains("# my settings", copied);
                 Assert.Contains("HALYARD_PROVIDER=github", copied);
                 Assert.Contains("export HALYARD_SANDBOX_REPO=sun-of-anton/Halyard-Ballast", copied);
-                Assert.Contains("HALYARD_LAZARETTE_ITEM_GitLab=gitlab-pat", copied);
+                Assert.Contains("HALYARD_LAZARETTE_ITEM_GitLab=gitmil", copied);
                 Assert.Contains("HALYARD_USE_LAZARETTE=1", copied);
                 Assert.Contains("GITHUB_TOKEN=keep", copied);
                 Assert.DoesNotContain(copied, l => l.StartsWith("CASCADE_", StringComparison.Ordinal));

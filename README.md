@@ -19,8 +19,8 @@ installed on the machine and nothing in the browser talks to the internet except
 
 A halyard is the line that raises and lowers a ship's sails; Halyard works upward to leadership and
 downward to stories and tasks. Its sandbox, Halyard Ballast, is the sand carried in the hold to keep the
-ship steady. Upgrading an install made under the previous name needs no edits first: see
-[Upgrading from the previous name](docs/OPERATIONS.md#upgrading-from-the-previous-name).
+ship steady. Formerly Cascade. Upgrading an existing Cascade install needs no edits first: see
+[Upgrading from Cascade](docs/OPERATIONS.md#upgrading-from-cascade).
 
 ## Quick start (GitHub + an OpenAI-compatible model)
 
