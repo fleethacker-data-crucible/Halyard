@@ -1,7 +1,8 @@
 #requires -Version 5.1
-# Halyard PowerShell module: a thin shell around Halyard.Core.dll. All logic (providers, write gateway,
-# analysis, synthetic sandbox, local host) lives in the DLL; PowerShell handles what only it can do on the
-# workstation: reading halyard.env, the Lazarette unlock in the console, and launching the browser.
+# Halyard PowerShell module: a thin shell around the Halyard engine (Halyard.Core). All logic (providers, write
+# gateway, analysis, synthetic sandbox, local host) lives in the engine, which ships as C# source and is compiled in
+# memory at launch (Import-HalyardCore); PowerShell handles what only it can do on the workstation: reading
+# halyard.env, the Lazarette unlock in the console, and launching the browser.
 Set-StrictMode -Version 3.0
 
 . (Join-Path $PSScriptRoot 'Lazarette.ps1')
@@ -39,56 +40,93 @@ function Get-HalyardRoot {
     return (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent)
 }
 
-function Get-HalyardCoreCandidates {
-    param([string]$Root)
-    $desktop = $PSVersionTable.PSEdition -ne 'Core'
-    $tfm = if ($desktop) { 'net48' } else { 'netstandard2.0' }
-    $list = New-Object System.Collections.Generic.List[string]
-    $custom = Get-HalyardSetting 'CORE_DLL'
-    if ($custom) { [void]$list.Add($custom) }
-    [void]$list.Add((Join-Path $Root ('lib\' + $tfm + '\Halyard.Core.dll')))
-    [void]$list.Add((Join-Path $Root 'lib\Halyard.Core.dll'))
-    foreach ($cfg in @('Release', 'Debug')) {
-        [void]$list.Add((Join-Path $Root ('src\Halyard.Core\bin\' + $cfg + '\' + $tfm + '\Halyard.Core.dll')))
+# Framework assemblies the engine source may reference. Nothing else: no NuGet package, no third-party DLL.
+# Keep in step with <Reference> in src\Halyard.Core\Halyard.Core.csproj (the C# 5 check build).
+$script:HalyardCoreReferences = @('System.dll', 'System.Core.dll', 'System.Net.Http.dll')
+$script:HalyardCoreLoad = $null
+
+function Get-HalyardCoreSource {
+    <#
+    .SYNOPSIS
+      The engine's C# source files (src\Halyard.Core\**\*.cs, build output folders excluded), in a stable order.
+      HALYARD_CORE_SOURCE may point at another source folder (development).
+    #>
+    [CmdletBinding()]
+    param([string]$Root = (Get-HalyardRoot))
+    $dir = Get-HalyardSetting 'CORE_SOURCE'
+    if (-not $dir) { $dir = Join-Path $Root 'src\Halyard.Core' }
+    if (-not (Test-Path -LiteralPath $dir -PathType Container)) {
+        throw ('The Halyard engine source folder ' + $dir + ' was not found. Download the release bundle (Halyard-<version>.zip from https://github.com/sun-of-anton/Halyard/releases), extract all of it and run Launch-Halyard.bat from it.')
     }
-    return @($list.ToArray())
+    $dir = (Resolve-Path -LiteralPath $dir).Path
+    $files = @(Get-ChildItem -LiteralPath $dir -Filter '*.cs' -Recurse -File |
+        Where-Object { $_.FullName.Substring($dir.Length) -notmatch '(?i)[\\/](bin|obj)[\\/]' } |
+        Sort-Object FullName | ForEach-Object { $_.FullName })
+    if ($files.Count -eq 0) { throw ('No engine source (*.cs) under ' + $dir + '. Extract the whole release bundle again.') }
+    return [pscustomobject]@{ Directory = $dir; Files = $files }
 }
 
 function Import-HalyardCore {
     <#
     .SYNOPSIS
-      Loads Halyard.Core.dll (net48 for Windows PowerShell 5.1, netstandard2.0 for PowerShell 7).
+      Compiles the Halyard engine from source, in memory, and loads it into this session.
     .DESCRIPTION
-      Looks in lib\ (release bundle) and then in the build output under src\. Newtonsoft.Json.dll must sit
-      next to it. Throws with the searched paths when nothing is found.
+      The engine ships as C# source (src\Halyard.Core). The workstation's application control blocks loading custom
+      DLL files, so nothing is loaded from disk: Windows PowerShell 5.1 compiles the files with Add-Type and the
+      inbox .NET Framework 4.8 compiler (C# 5), referencing framework assemblies only. This takes a few seconds per
+      launch; the time is kept in Get-HalyardCoreLoadInfo. PowerShell 7 compiles the same files with its own
+      compiler. Calling it again in the same session does nothing.
     #>
     [CmdletBinding()]
     param([string]$Root = (Get-HalyardRoot))
     if ($script:HalyardCoreLoaded -or ('Halyard.Core.Facade' -as [type])) { $script:HalyardCoreLoaded = $true; return }
-    $candidates = Get-HalyardCoreCandidates -Root $Root
-    $dll = $candidates | Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
-    if (-not $dll) {
-        throw ("Halyard.Core.dll was not found. Download the release bundle (Halyard-<version>.zip from https://github.com/sun-of-anton/Halyard/releases) and run Launch-Halyard.bat from it, or build with build\Build-Halyard.ps1. Searched:`n  " + ($candidates -join "`n  "))
+    if ($ExecutionContext.SessionState.LanguageMode -ne 'FullLanguage') {
+        throw ('PowerShell is running in ' + $ExecutionContext.SessionState.LanguageMode + ' mode, which does not allow compiling the Halyard engine (Add-Type). Halyard needs FullLanguage mode; ask IT. Do not try to work around the policy.')
     }
-    $dir = Split-Path $dll -Parent
-    $json = Join-Path $dir 'Newtonsoft.Json.dll'
-    if (-not ('Newtonsoft.Json.JsonConvert' -as [type])) {
-        if (-not (Test-Path -LiteralPath $json)) {
-            throw ('Newtonsoft.Json.dll must sit next to ' + $dll + '. Use the release bundle from https://github.com/sun-of-anton/Halyard/releases or rebuild with build\Build-Halyard.ps1.')
-        }
-        Add-Type -LiteralPath $json -ErrorAction Stop
-    }
+    $source = Get-HalyardCoreSource -Root $Root
+    $watch = [System.Diagnostics.Stopwatch]::StartNew()
     try {
-        Add-Type -LiteralPath $dll -ErrorAction Stop
+        if ($PSVersionTable.PSEdition -ne 'Core') {
+            # Windows PowerShell 5.1: the inbox CodeDom compiler (C# 5), in memory.
+            $cp = New-Object System.CodeDom.Compiler.CompilerParameters
+            $cp.GenerateInMemory = $true
+            $cp.GenerateExecutable = $false
+            $cp.IncludeDebugInformation = $false
+            $cp.TreatWarningsAsErrors = $false
+            $cp.WarningLevel = 0   # warnings never stop a launch; the C# 5 check build treats them as errors
+            $cp.CompilerOptions = '/optimize+'
+            [void]$cp.ReferencedAssemblies.AddRange([string[]]$script:HalyardCoreReferences)
+            Add-Type -Path $source.Files -CompilerParameters $cp -ErrorAction Stop
+        } else {
+            # PowerShell 7 compiles against its own .NET reference set (which includes these framework assemblies).
+            Add-Type -Path $source.Files -IgnoreWarnings -WarningAction SilentlyContinue -ErrorAction Stop
+        }
     } catch {
         $msg = $_.Exception.Message
         if ($msg -match '(?i)policy|blocked|application control|0x800711C7|code integrity') {
-            throw ('Windows blocked Halyard.Core.dll (' + $msg + '). The workstation application-control policy does not allow this unsigned DLL. Ask IT to sign or allow it; do not try to work around the policy.')
+            throw ('Windows blocked compiling the Halyard engine in memory (' + $msg + '). Halyard ships as source and loads no DLL file; ask IT whether in-memory Add-Type compilation is allowed for standard users. Do not try to work around the policy.')
         }
-        throw
+        throw ('The Halyard engine source under ' + $source.Directory + ' did not compile (' + $msg + '). Extract the release bundle again; if you changed the source, keep it to C# 5 and framework assemblies only.')
     }
+    $watch.Stop()
     $script:HalyardCoreLoaded = $true
-    Write-Verbose ('Loaded ' + $dll)
+    $script:HalyardCoreLoad = [pscustomobject]@{
+        Source       = $source.Directory
+        Files        = $source.Files.Count
+        Milliseconds = [int]$watch.Elapsed.TotalMilliseconds
+        Compiler     = $(if ($PSVersionTable.PSEdition -ne 'Core') { 'Windows PowerShell ' + $PSVersionTable.PSVersion + ' (CodeDom, C# 5)' } else { 'PowerShell ' + $PSVersionTable.PSVersion })
+    }
+    Write-Verbose ('Compiled ' + $source.Files.Count + ' engine source files in ' + $script:HalyardCoreLoad.Milliseconds + ' ms')
+}
+
+function Get-HalyardCoreLoadInfo {
+    <# How this session loaded the engine: source folder, file count, compile time (ms) and compiler; $null before Import-HalyardCore. #>
+    [CmdletBinding()]
+    param()
+    if (-not $script:HalyardCoreLoad -and ('Halyard.Core.Facade' -as [type])) {
+        return [pscustomobject]@{ Source = $null; Files = 0; Milliseconds = 0; Compiler = 'already loaded in this session' }
+    }
+    return $script:HalyardCoreLoad
 }
 
 function Get-HalyardGitHubCliToken {
@@ -180,6 +218,12 @@ function Start-Halyard {
     Write-Host ''
     Write-Host ('Halyard is running at ' + $info.Url) -ForegroundColor Cyan
     Write-Host ('  provider ' + $settings.Provider.Kind + ', ' + $hostObj.Gateway.Policy.Describe()) -ForegroundColor DarkGray
+    $load = Get-HalyardCoreLoadInfo
+    if ($load -and $load.Files -gt 0) {
+        $compiled = 'Engine compiled from ' + $load.Files + ' source files in ' + $load.Milliseconds + ' ms (' + $load.Compiler + ')'
+        Write-Host ('  ' + $compiled) -ForegroundColor DarkGray
+        $hostObj.Log.Info('ENGINE_COMPILED', $compiled)
+    }
     if ($autoStop) { Write-Host '  It stops by itself when the browser tab closes (--stay keeps it running). "End session" in the browser also stops it.' -ForegroundColor DarkGray }
     else { Write-Host '  Use "End session" in the browser or scripts\Stop-Halyard.ps1 to stop it. Closing this window also stops it.' -ForegroundColor DarkGray }
     if ($NoBrowser) { Write-Host ('  Session link (open once): ' + $info.LaunchUrl) -ForegroundColor DarkGray } else { Start-Process $info.LaunchUrl }
@@ -301,5 +345,5 @@ function Get-HalyardWorkItem {
     }
 }
 
-Export-ModuleMember -Function Get-HalyardRoot, Import-HalyardCore, Initialize-HalyardEnvironment, Connect-HalyardLazarette, Start-Halyard, Test-HalyardConnection, New-HalyardSyntheticCatalog, Invoke-HalyardSeed, Invoke-HalyardTeardown, Get-HalyardWorkItem
+Export-ModuleMember -Function Get-HalyardRoot, Import-HalyardCore, Get-HalyardCoreSource, Get-HalyardCoreLoadInfo, Initialize-HalyardEnvironment, Connect-HalyardLazarette, Start-Halyard, Test-HalyardConnection, New-HalyardSyntheticCatalog, Invoke-HalyardSeed, Invoke-HalyardTeardown, Get-HalyardWorkItem
 
