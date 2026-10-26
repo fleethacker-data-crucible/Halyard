@@ -10,7 +10,7 @@ using Halyard.Core.Llm;
 using Halyard.Core.Model;
 using Halyard.Core.Planning;
 using Halyard.Core.Schema;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Intelligence
 {
@@ -192,10 +192,10 @@ namespace Halyard.Core.Intelligence
             var end = t.LastIndexOf(']');
             if (start < 0 || end <= start)
             {
-                try { var obj = JObject.Parse(t.Trim()); foreach (var p in obj.Properties()) if (p.Value is JArray a) return a; } catch (Newtonsoft.Json.JsonException) { }
+                try { var obj = JObject.Parse(t.Trim()); foreach (var p in obj.Properties()) if (p.Value is JArray a) return a; } catch (JsonException) { }
                 return null;
             }
-            try { return JArray.Parse(t.Substring(start, end - start + 1)); } catch (Newtonsoft.Json.JsonException) { return null; }
+            try { return JArray.Parse(t.Substring(start, end - start + 1)); } catch (JsonException) { return null; }
         }
     }
 }

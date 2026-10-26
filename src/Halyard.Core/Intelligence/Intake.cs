@@ -11,8 +11,7 @@ using Halyard.Core.Model;
 using Halyard.Core.Providers;
 using Halyard.Core.Safety;
 using Halyard.Core.Schema;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Intelligence
 {

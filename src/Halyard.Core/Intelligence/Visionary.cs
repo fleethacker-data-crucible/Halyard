@@ -10,8 +10,7 @@ using Halyard.Core.Analysis;
 using Halyard.Core.Llm;
 using Halyard.Core.Model;
 using Halyard.Core.Schema;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Intelligence
 {

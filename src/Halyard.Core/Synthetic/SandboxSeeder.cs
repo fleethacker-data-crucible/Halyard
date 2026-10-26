@@ -8,8 +8,7 @@ using System.Threading.Tasks;
 using Halyard.Core.Model;
 using Halyard.Core.Providers;
 using Halyard.Core.Safety;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Synthetic
 {

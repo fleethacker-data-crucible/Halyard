@@ -9,7 +9,7 @@ using Halyard.Core.Analysis;
 using Halyard.Core.Llm;
 using Halyard.Core.Model;
 using Halyard.Core.Schema;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Intelligence
 {
@@ -237,7 +237,7 @@ namespace Halyard.Core.Intelligence
                         return draft;
                     }
                 }
-                catch (Newtonsoft.Json.JsonException) { }
+                catch (JsonException) { }
             }
             // Markdown fallback: strip a code fence and accept when it has at least one heading.
             var md = Regex.Replace(t, @"^```[a-z]*\s*|\s*```$", string.Empty, RegexOptions.IgnoreCase | RegexOptions.Multiline).Trim();
