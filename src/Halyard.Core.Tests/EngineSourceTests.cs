@@ -43,3 +43,39 @@ namespace Halyard.Core.Tests
         }
     }
 }
+
+namespace Halyard.Core.Tests
+{
+    /// <summary>The JSON reader parses untrusted request bodies and provider/model replies: it must fail cleanly.</summary>
+    public class JsonReaderHardeningTests
+    {
+        [Fact]
+        public void DeepNestingIsRejectedNotAStackOverflow()
+        {
+            var ok = new string('[', 500) + new string(']', 500);
+            Assert.Equal(Serialization.JTokenType.Array, Serialization.JToken.Parse(ok).Type);
+            foreach (var open in new[] { '[', '{' })
+            {
+                var deep = open == '[' ? new string('[', 100000) : string.Concat(System.Linq.Enumerable.Repeat("{\"a\":", 100000));
+                Assert.Throws<Serialization.JsonException>(() => Serialization.JToken.Parse(deep));
+            }
+        }
+
+        [Fact]
+        public void MalformedInputThrowsJsonExceptionOnly()
+        {
+            foreach (var bad in new[] { "", "{", "[1,", "{\"a\"", "{\"a\":}", "\"unterminated", "[\"\\u12\"]", "[\"\\q\"]", "tru", "nul", "{} x", "[1]]", "-", "1e", "{'a':1", "/* open" })
+                Assert.Throws<Serialization.JsonException>(() => Serialization.JToken.Parse(bad));
+        }
+
+        [Fact]
+        public void BadRequestBodiesAre400s()
+        {
+            foreach (var bad in new[] { new string('[', 100000), "{\"a\":" + new string('1', 5000) + "}x", "{\"x\":\"\\ud800\"" })
+            {
+                var r = new Host.HttpRequest { Body = System.Text.Encoding.UTF8.GetBytes(bad) };
+                Assert.Throws<Host.BadRequestException>(() => Host.Json.Body(r));
+            }
+        }
+    }
+}
