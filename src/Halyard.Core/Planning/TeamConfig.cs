@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Planning
 {
@@ -210,7 +209,7 @@ namespace Halyard.Core.Planning
                 };
                 var skills = p["skills"];
                 if (skills is JArray arr) foreach (var s in arr) { var id = (string?)s; if (!string.IsNullOrWhiteSpace(id)) person.Skills[id!.Trim()] = 0; }
-                else if (skills is JObject obj) foreach (var kv in obj) person.Skills[kv.Key] = (int?)kv.Value ?? 0;
+                else if (skills is JObject obj) foreach (var kv in obj.Properties()) person.Skills[kv.Name] = (int?)kv.Value ?? 0;
                 if (person.Id.Length > 0) People.Add(person);
             }
         }

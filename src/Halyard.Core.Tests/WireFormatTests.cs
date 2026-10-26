@@ -14,7 +14,7 @@ using Halyard.Core.Providers;
 using Halyard.Core.Schema;
 using Halyard.Core.Snapshots;
 using Halyard.Core.Synthetic;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 using Xunit;
 
 namespace Halyard.Core.Tests
@@ -116,7 +116,7 @@ namespace Halyard.Core.Tests
         public Dictionary<WireSample, int> ByEnum { get; set; } = new Dictionary<WireSample, int> { { WireSample.SecondValue, 2 } };
         public IReadOnlyList<WireSample> Samples { get; set; } = new[] { WireSample.FirstValue, WireSample.already_lower };
         public WireBase Child { get; set; } = new WireBase();
-        public object? Anything { get; set; } = new { Nested = 1, inner = new[] { 1.5, 0.0001, 1e21, -0.0 } };
+        public object? Anything { get; set; } = new { Nested = 1, inner = new[] { 1.5, 0.0001, 1e21, 0.0 } };
         public string Text { get; set; } = "quote\" back\\ slash/ tab\t nl\n cr\r bell\u0007 nul\0 del\u007f é 漢 \u2028 \u2029 \u0085 <script>&'";
         public JObject Raw { get; set; } = new JObject { ["kept"] = "as is", ["n"] = 1 };
         public int this[int i] { get { return i; } }
@@ -137,9 +137,10 @@ namespace Halyard.Core.Tests
             Case("null", null);
             Case("string", "plain");
             Case("int", 42);
-            Case("doubles", new[] { 0.0, 1.0, -1.0, 0.1, 1.0 / 3.0, 123456789.0, 1e15, 1e16, 1e17, 1.5e300, 5e-324, 1e-7, 0.000123, double.MaxValue });
+            // Only values whose "R" text is the same on .NET Framework 4.8 and .NET 8 (1/3, 5e-324 and -0.0 differ there, with Newtonsoft too).
+            Case("doubles", new[] { 0.0, 1.0, -1.0, 0.1, 0.25, 123456789.0, 1e15, 1e16, 1e17, 1.5e300, 1e-7, 0.000123, double.MaxValue });
             Case("specials", new object[] { double.NaN, double.PositiveInfinity, double.NegativeInfinity, float.NaN });
-            Case("floats", new[] { 0.1f, 1f, 3.4028235E+38f, 1e-7f });
+            Case("floats", new[] { 0.1f, 1f, 2.5f, 1e-7f });
             Case("decimals", new[] { 0m, 1m, 1.0m, 1.50m, -2.125m, 79228162514264337593543950335m });
             Case("ints", new object[] { int.MinValue, long.MaxValue, (short)-3, (byte)7, (sbyte)-7, (ushort)9, 10u, 11ul, (long?)null });
             Case("anon", new { Id = "x", id2 = "y", ID3 = "z", URLValue = 1, ETag = 2, IsOK = 3, A = 4, a_b = 5, X1Y = 6, Ünïcode = 7, @protected = 8, _under = 9 });
@@ -182,12 +183,12 @@ namespace Halyard.Core.Tests
                 ["nested"] = new JObject { ["deep"] = new JArray(new JObject { ["k"] = "v" }) },
             };
             sb.Append("indented:\n").Append(o.ToString()).Append('\n');
-            sb.Append("none:\n").Append(o.ToString(Newtonsoft.Json.Formatting.None)).Append('\n');
+            sb.Append("none:\n").Append(o.ToString(Formatting.None)).Append('\n');
             sb.Append("emptyArrayIndented:\n").Append(new JArray().ToString()).Append('\n');
             sb.Append("emptyObjectIndented:\n").Append(new JObject().ToString()).Append('\n');
             sb.Append("valueToString:\n");
             foreach (var t in new JToken[] { "str", 5, 2.5, 2.0, true, JValue.CreateNull(), 1e21, 0.000001 })
-                sb.Append(t.Type).Append(": ").Append(t.ToString()).Append(" | ").Append(t.ToString(Newtonsoft.Json.Formatting.None)).Append('\n');
+                sb.Append(t.Type).Append(": ").Append(t.ToString()).Append(" | ").Append(t.ToString(Formatting.None)).Append('\n');
             Check("dom-text.txt", sb.ToString());
         }
 
@@ -201,7 +202,7 @@ namespace Halyard.Core.Tests
             {
                 string r;
                 try { var v = f(); r = v == null ? "null" : v.GetType().Name + ":" + Convert.ToString(v, System.Globalization.CultureInfo.InvariantCulture); }
-                catch (Exception ex) { r = "throws " + (ex is Newtonsoft.Json.JsonException ? "JsonException" : ex.GetType().Name); }
+                catch (Exception ex) { r = "throws " + (ex is JsonException ? "JsonException" : ex.GetType().Name); }
                 sb.Append(name).Append(" => ").Append(r).Append('\n');
             }
             Try("(string)s", () => (string?)j["s"]);
@@ -229,7 +230,7 @@ namespace Halyard.Core.Tests
             Try("(bool?)i", () => (bool?)j["i"]);
             Try("(bool)n", () => (bool)j["n"]!);
             Try("(string)a", () => (string?)j["a"]);
-            Try("o.ToString(None)", () => j["o"]!.ToString(Newtonsoft.Json.Formatting.None));
+            Try("o.ToString(None)", () => j["o"]!.ToString(Formatting.None));
             Try("a[1]", () => (string?)j["a"]![1]);
             Try("s[\"x\"]", () => j["s"]!["x"]);
             Try("a[\"x\"]", () => j["a"]!["x"]);
@@ -240,11 +241,11 @@ namespace Halyard.Core.Tests
             Try("parse trailing", () => JObject.Parse("{} x"));
             Try("parse array as object", () => JObject.Parse("[1]"));
             Try("parse bad", () => JToken.Parse("{\"a\":}"));
-            Try("parse comment", () => JToken.Parse("{/*c*/\"a\":1}").ToString(Newtonsoft.Json.Formatting.None));
-            Try("parse single quotes", () => JToken.Parse("{'a':'b'}").ToString(Newtonsoft.Json.Formatting.None));
-            Try("parse unquoted name", () => JToken.Parse("{a:1}").ToString(Newtonsoft.Json.Formatting.None));
-            Try("parse trailing comma", () => JToken.Parse("[1,2,]").ToString(Newtonsoft.Json.Formatting.None));
-            Try("parse duplicate key", () => JToken.Parse("{\"a\":1,\"a\":2}").ToString(Newtonsoft.Json.Formatting.None));
+            Try("parse comment", () => JToken.Parse("{/*c*/\"a\":1}").ToString(Formatting.None));
+            Try("parse single quotes", () => JToken.Parse("{'a':'b'}").ToString(Formatting.None));
+            Try("parse unquoted name", () => JToken.Parse("{a:1}").ToString(Formatting.None));
+            Try("parse trailing comma", () => JToken.Parse("[1,2,]").ToString(Formatting.None));
+            Try("parse duplicate key", () => JToken.Parse("{\"a\":1,\"a\":2}").ToString(Formatting.None));
             Try("parse escapes", () => (string?)JToken.Parse("[\"\\u00e9\\n\\/\\\"\"]")[0]);
             Try("parse empty", () => JToken.Parse(""));
             Try("parse whitespace number", () => JToken.Parse("  12  ").ToString());
@@ -361,7 +362,7 @@ namespace Halyard.Core.Tests
                 sb.Append("taxonomy:\n").Append(Taxonomy.Default().ToJson()).Append('\n');
                 var catalogOptions = SyntheticOptions.ForTotal(12);
                 sb.Append("catalog:\n").Append(SyntheticCatalog.ToJson(SyntheticCatalog.Generate(catalogOptions).Take(4).ToList(), catalogOptions)).Append('\n');
-                sb.Append("log-entry: ").Append(new LogEntry { Time = at, Level = "WARN", Event = "E", Message = "m \"q\"", Route = null, RequestId = "r1" }.ToJson().ToString(Newtonsoft.Json.Formatting.None)).Append('\n');
+                sb.Append("log-entry: ").Append(new LogEntry { Time = at, Level = "WARN", Event = "E", Message = "m \"q\"", Route = null, RequestId = "r1" }.ToJson().ToString(Formatting.None)).Append('\n');
                 Check("persisted.txt", sb.ToString());
             }
             finally

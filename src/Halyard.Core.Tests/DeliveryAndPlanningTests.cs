@@ -9,7 +9,7 @@ using Halyard.Core.Intelligence;
 using Halyard.Core.Llm;
 using Halyard.Core.Model;
 using Halyard.Core.Providers;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 using Halyard.Core.Planning;
 using Halyard.Core.Synthetic;
 using Xunit;

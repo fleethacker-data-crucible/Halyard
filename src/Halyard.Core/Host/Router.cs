@@ -3,10 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
-using Newtonsoft.Json.Linq;
-using Newtonsoft.Json.Serialization;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Host
 {
@@ -78,18 +75,12 @@ namespace Halyard.Core.Host
     /// <summary>JSON helpers with the one serializer configuration the API uses everywhere.</summary>
     public static class Json
     {
-        public static readonly JsonSerializerSettings Settings = new JsonSerializerSettings
-        {
-            ContractResolver = new DefaultContractResolver { NamingStrategy = new CamelCaseNamingStrategy { ProcessDictionaryKeys = false, OverrideSpecifiedNames = true } },
-            NullValueHandling = NullValueHandling.Include,
-            Converters = { new StringEnumConverter { NamingStrategy = new CamelCaseNamingStrategy() } },
-            DateFormatHandling = DateFormatHandling.IsoDateFormat,
-            Formatting = Formatting.None,
-        };
+        /// <summary>camelCase names, enums as camelCase strings, nulls written, no indentation.</summary>
+        public static readonly JsonSettings Settings = JsonSettings.Api;
 
         public static string Serialize(object? value)
         {
-            return JsonConvert.SerializeObject(value, Settings);
+            return JsonConvert.SerializeObject(value, Formatting.None, Settings);
         }
 
         public static HttpResponse Ok(object? value)
@@ -125,11 +116,15 @@ namespace Halyard.Core.Host
         {
             var tok = body[name];
             if (tok == null || tok.Type == JTokenType.Null) return fallback;
-            try { return tok.ToObject<T>(); }
-            catch (Exception ex) when (ex is JsonException || ex is FormatException || ex is ArgumentException)
-            {
-                throw new BadRequestException("Field '" + name + "' has the wrong type.");
-            }
+            try { return (T)JsonSerializer.FromToken(tok, typeof(T), JsonSettings.Default, null); }
+            catch (JsonException) { throw WrongType(name); }
+            catch (FormatException) { throw WrongType(name); }
+            catch (ArgumentException) { throw WrongType(name); }
+        }
+
+        private static BadRequestException WrongType(string name)
+        {
+            return new BadRequestException("Field '" + name + "' has the wrong type.");
         }
     }
 

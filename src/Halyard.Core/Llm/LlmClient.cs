@@ -7,8 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Halyard.Core.Providers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Llm
 {
@@ -275,7 +274,7 @@ namespace Halyard.Core.Llm
                     message = (string?)err["message"] ?? body!;
                 }
             }
-            catch (Newtonsoft.Json.JsonException) { }
+            catch (JsonException) { }
             if (param != null && Array.IndexOf(candidates, param) >= 0 && payload[param] != null) return param;
             if (!Regex.IsMatch(message, @"(?i)unsupported|not supported|does not support|unknown parameter|unrecognized")) return null;
             foreach (var c in candidates)

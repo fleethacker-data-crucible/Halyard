@@ -12,6 +12,7 @@ using Halyard.Core.Model;
 using Halyard.Core.Providers;
 using Halyard.Core.Safety;
 using Halyard.Core.Schema;
+using Halyard.Core.Serialization;
 using Halyard.Core.Snapshots;
 
 namespace Halyard.Core.Host
@@ -403,7 +404,7 @@ namespace Halyard.Core.Host
                 var token = Json.Read<string>(body, "session");
                 return !string.IsNullOrEmpty(token) && FixedTimeEquals(token!, SessionToken);
             }
-            catch (Newtonsoft.Json.JsonException) { return false; }
+            catch (JsonException) { return false; }
         }
 
         private bool TokenMatches(HttpRequest request)
