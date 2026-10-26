@@ -1,5 +1,5 @@
 #requires -Version 5.1
-# Lazarette vault bridge. Lazarette owns CAC / passphrase + TOTP; Halyard only loads
+# Lazarette vault bridge. Lazarette owns smart card / passphrase + TOTP; Halyard only loads
 # it once, asks it to unlock in the visible console, and reads named items into process environment variables.
 # Secret values are never logged, written to disk or passed to the browser. ASCII only for Windows PowerShell 5.1.
 #
@@ -144,7 +144,7 @@ function Get-HalyardLazaretteItemName {
 function Connect-HalyardLazarette {
     <#
     .SYNOPSIS
-      Loads Lazarette once, completes the unlock (CAC PIN or passphrase, then TOTP) in this console, and copies
+      Loads Lazarette once, completes the unlock (smart card PIN or passphrase, then TOTP) in this console, and copies
       named vault items into process environment variables (GITLAB_TOKEN, LLM_TOKEN, DATABRICKS_TOKEN,
       GITHUB_TOKEN). The item names come from HALYARD_LAZARETTE_ITEM_GitLab / _Llm / _Databricks / _GitHub in
       config\halyard.env (the former CASCADE_ARC_ITEM_* names are still read); unset = skipped.
@@ -171,7 +171,7 @@ function Connect-HalyardLazarette {
     try {
         if (-not (Test-HalyardLazaretteVaultUnlocked)) {
             Write-Host ''
-            Write-Host 'Halyard: unlock Lazarette in this window (CAC PIN or passphrase, then the authenticator code).' -ForegroundColor Cyan
+            Write-Host 'Halyard: unlock Lazarette in this window (smart card PIN or passphrase, then the authenticator code).' -ForegroundColor Cyan
             if (-not (Invoke-HalyardLazaretteUnlock)) {
                 $result.Error = 'ARC_AUTH_CANCELLED'
                 Write-Warning 'Lazarette was not unlocked. Halyard will open without vault credentials.'

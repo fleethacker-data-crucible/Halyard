@@ -6,7 +6,7 @@ cd /d "%~dp0"
 echo == Pulling the latest Halyard
 git pull || goto :fail
 echo.
-rem Halyard (formerly Cascade). Lines above this one keep their exact byte length: an old copy of this file
+rem Halyard (legacy alias under the previous name). Lines above this one keep their exact byte length: an old copy of this file
 rem is still running when git pull replaces it, and cmd resumes at the same byte offset. Use Update-Halyard.bat.
 powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "%~dp0build\Build-Halyard.ps1" || goto :fail
 call "%~dp0Launch-Halyard.bat" %*
