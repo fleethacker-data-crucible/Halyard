@@ -2,20 +2,27 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Intelligence
 {
     public sealed class ParsedEstimate
     {
         /// <summary>Provider number (#12) or canonical id (STORY-…) as the model wrote it.</summary>
-        public string Ref { get; set; } = string.Empty;
-        public string? Points { get; set; }
-        public string? Effort { get; set; }
-        public string Confidence { get; set; } = "medium";
-        public string Reason { get; set; } = string.Empty;
-        public string Source { get; set; } = string.Empty;
+        public string Ref { get; set; }
+        public string Points { get; set; }
+        public string Effort { get; set; }
+        public string Confidence { get; set; }
+        public string Reason { get; set; }
+        public string Source { get; set; }
+
+        public ParsedEstimate()
+        {
+            Ref = string.Empty;
+            Confidence = "medium";
+            Reason = string.Empty;
+            Source = string.Empty;
+        }
     }
 
     /// <summary>
@@ -27,11 +34,11 @@ namespace Halyard.Core.Intelligence
     {
         private static readonly string[] ListProps = { "estimates", "items", "results", "data", "stories", "features", "proposals" };
 
-        public static IReadOnlyList<ParsedEstimate> Parse(string? text)
+        public static IReadOnlyList<ParsedEstimate> Parse(string text)
         {
             var rows = new List<ParsedEstimate>();
             if (string.IsNullOrWhiteSpace(text)) return rows;
-            var raw = text!;
+            var raw = text;
 
             var json = TryJson(raw);
             if (json != null)
@@ -64,7 +71,7 @@ namespace Halyard.Core.Intelligence
                 if (cells.Count < 2) continue;
                 var refCell = cells.FirstOrDefault(c => Regex.IsMatch(c, @"^#?\d{1,7}$") || Regex.IsMatch(c, @"^(STORY|FEATURE|EPIC|TASK)-[a-z0-9\-]+$", RegexOptions.IgnoreCase));
                 if (refCell == null) continue;
-                string? points = null, effort = null;
+                string points = null, effort = null;
                 foreach (var c in cells)
                 {
                     if (c == refCell) continue;
@@ -94,14 +101,14 @@ namespace Halyard.Core.Intelligence
             return rows;
         }
 
-        private static JArray? TryJson(string raw)
+        private static JArray TryJson(string raw)
         {
             var clean = raw.Trim();
             clean = Regex.Replace(clean, @"^\s*```(?:json|JSON)?\s*", string.Empty);
             clean = Regex.Replace(clean, @"\s*```\s*$", string.Empty);
             clean = clean.Replace('“', '"').Replace('”', '"');
             clean = Regex.Replace(clean, @",\s*([\]\}])", "$1");
-            JToken? parsed = null;
+            JToken parsed = null;
             foreach (var candidate in new[] { clean, FirstMatch(clean, @"\[[\s\S]*\]"), FirstMatch(clean, @"\{[\s\S]*\}") })
             {
                 if (candidate == null) continue;
@@ -109,35 +116,37 @@ namespace Halyard.Core.Intelligence
                 catch (JsonException) { }
             }
             if (parsed == null) return null;
-            if (parsed is JArray arr) return arr;
+            var arr = parsed as JArray;
+            if (arr != null) return arr;
             var obj = parsed as JObject;
             if (obj == null) return null;
             foreach (var prop in ListProps)
             {
-                if (obj[prop] is JArray list) return list;
+                var list = obj[prop] as JArray;
+                if (list != null) return list;
             }
             return new JArray(obj);
         }
 
-        private static string? FirstMatch(string text, string pattern)
+        private static string FirstMatch(string text, string pattern)
         {
             var m = Regex.Match(text, pattern);
             return m.Success ? m.Value : null;
         }
 
-        private static string? FirstString(JObject o, params string[] names)
+        private static string FirstString(JObject o, params string[] names)
         {
             foreach (var n in names)
             {
                 var prop = o.Properties().FirstOrDefault(p => string.Equals(p.Name, n, StringComparison.OrdinalIgnoreCase));
                 if (prop == null || prop.Value.Type == JTokenType.Null) continue;
                 var s = prop.Value.Type == JTokenType.String || prop.Value.Type == JTokenType.Integer || prop.Value.Type == JTokenType.Float ? prop.Value.ToString() : null;
-                if (!string.IsNullOrWhiteSpace(s)) return s!.Trim();
+                if (!string.IsNullOrWhiteSpace(s)) return s.Trim();
             }
             return null;
         }
 
-        public static string NormalizeConfidence(string? value)
+        public static string NormalizeConfidence(string value)
         {
             var v = (value ?? string.Empty).Trim().ToLowerInvariant();
             if (v == "high" || v == "medium" || v == "low") return v;

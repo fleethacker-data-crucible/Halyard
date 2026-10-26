@@ -7,8 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Halyard.Core.Providers;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Llm
 {
@@ -23,25 +22,33 @@ namespace Halyard.Core.Llm
 
     public sealed class LlmSettings
     {
-        public LlmProfile Profile { get; set; } = LlmProfile.Auto;
-        public string? OpenAiUrl { get; set; }
-        public string? OpenAiModel { get; set; }
-        public string? OpenAiToken { get; set; }
-        public string? DatabricksUrl { get; set; }
-        public string? DatabricksModel { get; set; }
-        public string? DatabricksToken { get; set; }
-        public int MaxTokens { get; set; } = 4000;
-        public double Temperature { get; set; } = 0.2;
-        public int TimeoutSeconds { get; set; } = 300;
+        public LlmProfile Profile { get; set; }
+        public string OpenAiUrl { get; set; }
+        public string OpenAiModel { get; set; }
+        public string OpenAiToken { get; set; }
+        public string DatabricksUrl { get; set; }
+        public string DatabricksModel { get; set; }
+        public string DatabricksToken { get; set; }
+        public int MaxTokens { get; set; }
+        public double Temperature { get; set; }
+        public int TimeoutSeconds { get; set; }
         /// <summary>Directory for redacted request/response transcripts; null disables them.</summary>
-        public string? TranscriptDirectory { get; set; }
+        public string TranscriptDirectory { get; set; }
 
         public const string DefaultOpenAiUrl = "https://api.openai.com/v1/chat/completions";
         public const string DefaultOpenAiModel = "gpt-4o-mini";
 
         public static readonly LlmProfile[] Concrete = { LlmProfile.OpenAi, LlmProfile.Databricks };
 
-        public static LlmProfile? ParseProfile(string? text)
+        public LlmSettings()
+        {
+            Profile = LlmProfile.Auto;
+            MaxTokens = 4000;
+            Temperature = 0.2;
+            TimeoutSeconds = 300;
+        }
+
+        public static LlmProfile? ParseProfile(string text)
         {
             switch ((text ?? string.Empty).Trim().ToLowerInvariant())
             {
@@ -79,10 +86,10 @@ namespace Halyard.Core.Llm
         /// Accepts a full chat-completions URL or a base such as <c>https://api.openai.com/v1</c> (the shape
         /// OPENAI_BASE_URL uses) and returns the chat-completions URL.
         /// </summary>
-        public static string NormalizeOpenAiUrl(string? url)
+        public static string NormalizeOpenAiUrl(string url)
         {
             if (string.IsNullOrWhiteSpace(url)) return DefaultOpenAiUrl;
-            var u = url!.Trim().TrimEnd('/');
+            var u = url.Trim().TrimEnd('/');
             if (u.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase) || u.EndsWith("/invocations", StringComparison.OrdinalIgnoreCase)) return u;
             if (u.EndsWith("/v1", StringComparison.OrdinalIgnoreCase) || u.EndsWith("/openai", StringComparison.OrdinalIgnoreCase)) return u + "/chat/completions";
             return u + "/v1/chat/completions";
@@ -93,11 +100,11 @@ namespace Halyard.Core.Llm
             switch (profile)
             {
                 case LlmProfile.Databricks: return (DatabricksModel ?? string.Empty).Trim();
-                default: return string.IsNullOrWhiteSpace(OpenAiModel) ? DefaultOpenAiModel : OpenAiModel!.Trim();
+                default: return string.IsNullOrWhiteSpace(OpenAiModel) ? DefaultOpenAiModel : OpenAiModel.Trim();
             }
         }
 
-        public string? Token(LlmProfile profile)
+        public string Token(LlmProfile profile)
         {
             switch (profile)
             {
@@ -114,7 +121,7 @@ namespace Halyard.Core.Llm
         }
 
         /// <summary>Why a profile is not usable, or null when it is.</summary>
-        public string? MissingFor(LlmProfile profile)
+        public string MissingFor(LlmProfile profile)
         {
             if (profile == LlmProfile.Databricks)
             {
@@ -126,10 +133,10 @@ namespace Halyard.Core.Llm
         }
 
         /// <summary>Strips quotes, a 'Bearer ' prefix and line breaks: the usual vault paste accidents.</summary>
-        public static string? Clean(string? token)
+        public static string Clean(string token)
         {
             if (string.IsNullOrWhiteSpace(token)) return null;
-            var t = token!.Trim().Trim('\'', '"');
+            var t = token.Trim().Trim('\'', '"');
             var m = Regex.Match(t, @"^(?i)Bearer\s+(.+)$");
             if (m.Success) t = m.Groups[1].Value.Trim();
             return t.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim();
@@ -153,13 +160,20 @@ namespace Halyard.Core.Llm
 
     public sealed class LlmResponse
     {
-        public string Text { get; set; } = string.Empty;
-        public string Profile { get; set; } = string.Empty;
-        public string Model { get; set; } = string.Empty;
+        public string Text { get; set; }
+        public string Profile { get; set; }
+        public string Model { get; set; }
         public int? PromptTokens { get; set; }
         public int? CompletionTokens { get; set; }
         public TimeSpan Elapsed { get; set; }
-        public string? TranscriptPath { get; set; }
+        public string TranscriptPath { get; set; }
+
+        public LlmResponse()
+        {
+            Text = string.Empty;
+            Profile = string.Empty;
+            Model = string.Empty;
+        }
     }
 
     public interface ILlmClient
@@ -181,9 +195,10 @@ namespace Halyard.Core.Llm
         private readonly IHttpTransport _http;
         private readonly LlmSettings _settings;
 
-        public LlmClient(LlmSettings settings, IHttpTransport? http = null, LlmProfile? profile = null)
+        public LlmClient(LlmSettings settings, IHttpTransport http = null, LlmProfile? profile = null)
         {
-            _settings = settings ?? throw new ArgumentNullException("settings");
+            if (settings == null) throw new ArgumentNullException("settings");
+            _settings = settings;
             _http = http ?? new HttpClientTransport();
             Profile = profile ?? settings.Resolve();
             if (Profile == LlmProfile.Auto) Profile = LlmProfile.OpenAi;
@@ -202,16 +217,16 @@ namespace Halyard.Core.Llm
 
             var payload = new JObject
             {
-                ["messages"] = new JArray(messages.Select(m => new JObject { ["role"] = m.Role, ["content"] = m.Content })),
-                ["model"] = Model,
-                ["temperature"] = _settings.Temperature,
+                { "messages", new JArray(messages.Select(m => new JObject { { "role", m.Role }, { "content", m.Content } })) },
+                { "model", Model },
+                { "temperature", _settings.Temperature },
             };
             // OpenAI's current chat models take max_completion_tokens; Databricks and older gateways take max_tokens.
             payload[Profile == LlmProfile.Databricks ? "max_tokens" : "max_completion_tokens"] = _settings.MaxTokens;
             if (Profile != LlmProfile.Databricks) payload["stream"] = false;
 
             var started = DateTimeOffset.UtcNow;
-            string? transcript = null;
+            string transcript = null;
             HttpReply reply;
             // Endpoints disagree about which parameters they accept (max_tokens vs max_completion_tokens, temperature
             // on reasoning models). When the endpoint names the parameter it rejected, drop or rename it and retry.
@@ -260,22 +275,22 @@ namespace Halyard.Core.Llm
         /// The request parameter an OpenAI-style 400 complains about, when it is one we sent and can live without.
         /// Reads the error's <c>param</c> field first, then the message text.
         /// </summary>
-        public static string? RejectedParameter(string? body, JObject payload)
+        public static string RejectedParameter(string body, JObject payload)
         {
             if (string.IsNullOrWhiteSpace(body)) return null;
             var candidates = new[] { "max_tokens", "max_completion_tokens", "temperature", "stream" };
-            string? param = null;
-            string message = body!;
+            string param = null;
+            string message = body;
             try
             {
-                var err = JObject.Parse(body!)["error"];
+                var err = JObject.Parse(body)["error"];
                 if (err != null)
                 {
-                    param = (string?)err["param"];
-                    message = (string?)err["message"] ?? body!;
+                    param = (string)err["param"];
+                    message = (string)err["message"] ?? body;
                 }
             }
-            catch (Newtonsoft.Json.JsonException) { }
+            catch (JsonException) { }
             if (param != null && Array.IndexOf(candidates, param) >= 0 && payload[param] != null) return param;
             if (!Regex.IsMatch(message, @"(?i)unsupported|not supported|does not support|unknown parameter|unrecognized")) return null;
             foreach (var c in candidates)
@@ -289,7 +304,14 @@ namespace Halyard.Core.Llm
         }
 
         /// <summary>Finds the assistant text in the response shapes seen across gateways.</summary>
-        public static string ExtractText(JToken? response)
+        /// <summary><c>candidates[0].text</c>, or null when either level is missing.</summary>
+        private static string CandidateText(JToken candidates)
+        {
+            var first = candidates == null ? null : candidates[0];
+            return first == null ? null : (string)first["text"];
+        }
+
+        public static string ExtractText(JToken response)
         {
             if (response == null) return string.Empty;
             var choices = response["choices"] as JArray;
@@ -299,54 +321,55 @@ namespace Halyard.Core.Llm
                 if (msg != null)
                 {
                     var content = msg["content"];
-                    if (content is JArray parts)
+                    var parts = content as JArray;
+                    if (parts != null)
                     {
                         var sb = new StringBuilder();
                         foreach (var p in parts)
                         {
-                            if (p.Type == JTokenType.String) sb.Append((string?)p);
-                            else sb.Append((string?)p["text"] ?? (string?)p["content"] ?? string.Empty);
+                            if (p.Type == JTokenType.String) sb.Append((string)p);
+                            else sb.Append((string)p["text"] ?? (string)p["content"] ?? string.Empty);
                         }
                         if (sb.Length > 0) return sb.ToString().Trim();
                     }
                     else if (content != null && content.Type != JTokenType.Null)
                     {
-                        var s = (string?)content;
-                        if (!string.IsNullOrWhiteSpace(s)) return s!.Trim();
+                        var s = (string)content;
+                        if (!string.IsNullOrWhiteSpace(s)) return s.Trim();
                     }
                     foreach (var alt in new[] { "reasoning_content", "reasoning", "text", "output_text", "refusal" })
                     {
-                        var s = (string?)msg[alt];
-                        if (!string.IsNullOrWhiteSpace(s)) return s!.Trim();
+                        var s = (string)msg[alt];
+                        if (!string.IsNullOrWhiteSpace(s)) return s.Trim();
                     }
                 }
-                var plain = (string?)choices[0]["text"];
-                if (!string.IsNullOrWhiteSpace(plain)) return plain!.Trim();
+                var plain = (string)choices[0]["text"];
+                if (!string.IsNullOrWhiteSpace(plain)) return plain.Trim();
             }
             // Databricks / generic shapes
             foreach (var alt in new[] { "output_text", "text", "content", "result", "prediction" })
             {
                 var s = response[alt];
-                if (s != null && s.Type == JTokenType.String && !string.IsNullOrWhiteSpace((string?)s)) return ((string)s!).Trim();
+                if (s != null && s.Type == JTokenType.String && !string.IsNullOrWhiteSpace((string)s)) return ((string)s).Trim();
             }
             var predictions = response["predictions"] as JArray;
             if (predictions != null && predictions.Count > 0)
             {
-                var s = predictions[0].Type == JTokenType.String ? (string?)predictions[0] : (string?)predictions[0]["candidates"]?[0]?["text"];
-                if (!string.IsNullOrWhiteSpace(s)) return s!.Trim();
+                var s = predictions[0].Type == JTokenType.String ? (string)predictions[0] : CandidateText(predictions[0]["candidates"]);
+                if (!string.IsNullOrWhiteSpace(s)) return s.Trim();
             }
             return string.Empty;
         }
 
-        private string? BeginTranscript(JObject request)
+        private string BeginTranscript(JObject request)
         {
             var dir = _settings.TranscriptDirectory;
             if (string.IsNullOrEmpty(dir)) return null;
             try
             {
-                Directory.CreateDirectory(dir!);
+                Directory.CreateDirectory(dir);
                 var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd_HHmmss_fff");
-                var basePath = Path.Combine(dir!, stamp + "_" + Profile.ToString().ToLowerInvariant());
+                var basePath = Path.Combine(dir, stamp + "_" + Profile.ToString().ToLowerInvariant());
                 var redacted = Redact(request.ToString(Formatting.Indented));
                 File.WriteAllText(basePath + "_request.json", redacted, new UTF8Encoding(false));
                 return basePath;
@@ -355,7 +378,7 @@ namespace Halyard.Core.Llm
             catch (UnauthorizedAccessException) { return null; }
         }
 
-        private static void EndTranscript(string? basePath, string? body, string? error)
+        private static void EndTranscript(string basePath, string body, string error)
         {
             if (basePath == null) return;
             try
@@ -373,10 +396,10 @@ namespace Halyard.Core.Llm
             return string.IsNullOrEmpty(text) ? text : TokenShaped.Replace(text, "[REDACTED]");
         }
 
-        private static string Summarize(string? body)
+        private static string Summarize(string body)
         {
             if (string.IsNullOrWhiteSpace(body)) return string.Empty;
-            var t = Redact(body!.Trim());
+            var t = Redact(body.Trim());
             return t.Length > 240 ? t.Substring(0, 240) : t;
         }
     }

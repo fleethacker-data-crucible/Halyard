@@ -18,19 +18,26 @@ namespace Halyard.Core.Host
 
     public sealed class JobInfo
     {
-        public string Id { get; set; } = string.Empty;
-        public string Kind { get; set; } = string.Empty;
+        public string Id { get; set; }
+        public string Kind { get; set; }
         public JobState State { get; set; }
         public DateTimeOffset CreatedAt { get; set; }
         public DateTimeOffset? StartedAt { get; set; }
         public DateTimeOffset? FinishedAt { get; set; }
         public int ProgressDone { get; set; }
         public int ProgressTotal { get; set; }
-        public string? Message { get; set; }
-        public string? Error { get; set; }
-        public string? ErrorCode { get; set; }
-        public object? Result { get; set; }
-        public List<string> Log { get; set; } = new List<string>();
+        public string Message { get; set; }
+        public string Error { get; set; }
+        public string ErrorCode { get; set; }
+        public object Result { get; set; }
+        public List<string> Log { get; set; }
+
+        public JobInfo()
+        {
+            Id = string.Empty;
+            Kind = string.Empty;
+            Log = new List<string>();
+        }
     }
 
     /// <summary>Progress sink handed to job bodies.</summary>
@@ -47,7 +54,7 @@ namespace Halyard.Core.Host
         public string JobId { get { return _job.Id; } }
         public CancellationToken Cancellation { get; private set; }
 
-        public void Report(int done, int total, string? message)
+        public void Report(int done, int total, string message)
         {
             _job.SetProgress(done, total, message);
         }
@@ -85,7 +92,7 @@ namespace Halyard.Core.Host
             }
         }
 
-        public void SetProgress(int done, int total, string? message)
+        public void SetProgress(int done, int total, string message)
         {
             lock (_lock)
             {
@@ -107,8 +114,8 @@ namespace Halyard.Core.Host
         }
 
         public void Start() { lock (_lock) { _info.State = JobState.Running; _info.StartedAt = DateTimeOffset.UtcNow; } }
-        public void Succeed(object? result) { lock (_lock) { _info.State = JobState.Succeeded; _info.Result = result; _info.FinishedAt = DateTimeOffset.UtcNow; } }
-        public void Fail(string error, string? code) { lock (_lock) { _info.State = JobState.Failed; _info.Error = error; _info.ErrorCode = code; _info.FinishedAt = DateTimeOffset.UtcNow; } }
+        public void Succeed(object result) { lock (_lock) { _info.State = JobState.Succeeded; _info.Result = result; _info.FinishedAt = DateTimeOffset.UtcNow; } }
+        public void Fail(string error, string code) { lock (_lock) { _info.State = JobState.Failed; _info.Error = error; _info.ErrorCode = code; _info.FinishedAt = DateTimeOffset.UtcNow; } }
         public void Cancel() { lock (_lock) { _info.State = JobState.Cancelled; _info.FinishedAt = DateTimeOffset.UtcNow; } }
         public bool IsFinished { get { lock (_lock) return _info.State == JobState.Succeeded || _info.State == JobState.Failed || _info.State == JobState.Cancelled; } }
     }
@@ -128,7 +135,7 @@ namespace Halyard.Core.Host
             _log = log;
         }
 
-        public JobInfo Start(string kind, Func<JobContext, Task<object?>> body, bool exclusive = true)
+        public JobInfo Start(string kind, Func<JobContext, Task<object>> body, bool exclusive = true)
         {
             if (exclusive)
             {
@@ -173,9 +180,9 @@ namespace Halyard.Core.Host
             return job.Snapshot();
         }
 
-        public JobInfo? Get(string id)
+        public JobInfo Get(string id)
         {
-            Job? job;
+            Job job;
             return _jobs.TryGetValue(id, out job) && job != null ? job.Snapshot() : null;
         }
 
@@ -186,7 +193,7 @@ namespace Halyard.Core.Host
 
         public bool Cancel(string id)
         {
-            Job? job;
+            Job job;
             if (!_jobs.TryGetValue(id, out job) || job == null || job.IsFinished) return false;
             job.Cts.Cancel();
             return true;
@@ -199,7 +206,7 @@ namespace Halyard.Core.Host
             var finished = _jobs.Values.Where(j => j.IsFinished).OrderByDescending(j => j.Snapshot().CreatedAt).Skip(100).ToList();
             foreach (var j in finished)
             {
-                Job? removed;
+                Job removed;
                 _jobs.TryRemove(j.Id, out removed);
             }
         }

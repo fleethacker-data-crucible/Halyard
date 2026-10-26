@@ -72,7 +72,7 @@ namespace Halyard.Core.Schema
             new DorRule(StoryHasEffort, WorkItemType.Story, "Stories use points, never effort bands."),
         };
 
-        public static DorRule? Find(string code)
+        public static DorRule Find(string code)
         {
             foreach (var r in Rules) if (r.Code == code) return r;
             return null;
@@ -84,7 +84,7 @@ namespace Halyard.Core.Schema
             return Evaluate(item.Type, item.Meta, item.Body);
         }
 
-        public static IReadOnlyList<string> Evaluate(WorkItemType type, HalyardMeta? meta, string? body)
+        public static IReadOnlyList<string> Evaluate(WorkItemType type, HalyardMeta meta, string body)
         {
             var codes = new List<string>();
             if (meta == null) codes.Add(MissingMeta);

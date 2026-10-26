@@ -1,6 +1,6 @@
 #requires -Version 5.1
 # Pester 5 tests for the PowerShell layer. Run: Invoke-Pester tests/pester
-# Needs a built Halyard.Core.dll (dotnet build) or HALYARD_CORE_DLL pointing at one.
+# The engine is compiled from src\Halyard.Core\*.cs in memory by Import-HalyardCore (Add-Type), as on the workstation.
 
 BeforeAll {
     $script:Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
@@ -41,6 +41,27 @@ Describe 'Module surface' {
     It 'loads Halyard.Core' {
         { Import-HalyardCore } | Should -Not -Throw
         ('Halyard.Core.Facade' -as [type]) | Should -Not -BeNullOrEmpty
+    }
+    It 'compiles the engine from source in memory and loads no DLL from disk' {
+        Import-HalyardCore
+        [string]::IsNullOrEmpty([Halyard.Core.Facade].Assembly.Location) | Should -BeTrue -Because 'the workstation blocks loading custom DLL files'
+        $fromRepo = @([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { -not $_.IsDynamic -and $_.Location -and $_.Location.StartsWith($script:Root, [StringComparison]::OrdinalIgnoreCase) })
+        $fromRepo | Should -BeNullOrEmpty
+        $refs = @([Halyard.Core.Facade].Assembly.GetReferencedAssemblies() | ForEach-Object { $_.Name })
+        foreach ($r in $refs) { @('mscorlib', 'System', 'System.Core', 'System.Net.Http', 'System.Runtime', 'netstandard') | Should -Contain $r }
+        (Get-HalyardCoreLoadInfo) | Should -Not -BeNullOrEmpty
+    }
+    It 'lists the engine source without build output folders' {
+        $src = Get-HalyardCoreSource -Root $script:Root
+        $src.Files.Count | Should -BeGreaterThan 40
+        @($src.Files | Where-Object { $_ -match '[\\/](bin|obj)[\\/]' }) | Should -BeNullOrEmpty
+        $src.Files | Should -Contain (Join-Path $script:Root 'src\Halyard.Core\Facade.cs')
+    }
+    It 'says where to get the bundle when the engine source is missing' {
+        $empty = Join-Path ([IO.Path]::GetTempPath()) ('halyard-nosrc-' + [guid]::NewGuid().ToString('N'))
+        New-Item -ItemType Directory -Force $empty | Out-Null
+        try { { Get-HalyardCoreSource -Root $empty } | Should -Throw -ExpectedMessage '*release bundle*' }
+        finally { Remove-Item $empty -Recurse -Force -ErrorAction SilentlyContinue }
     }
 }
 

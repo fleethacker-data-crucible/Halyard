@@ -10,15 +10,22 @@ namespace Halyard.Core.Safety
 {
     public sealed class WriteAuditEntry
     {
-        public DateTimeOffset At { get; set; } = DateTimeOffset.UtcNow;
-        public string Operation { get; set; } = string.Empty;
-        public string Target { get; set; } = string.Empty;
+        public DateTimeOffset At { get; set; }
+        public string Operation { get; set; }
+        public string Target { get; set; }
         public long? Number { get; set; }
-        public string? Title { get; set; }
-        public string? Reason { get; set; }
-        public string? RunId { get; set; }
+        public string Title { get; set; }
+        public string Reason { get; set; }
+        public string RunId { get; set; }
         public bool Succeeded { get; set; }
-        public string? Error { get; set; }
+        public string Error { get; set; }
+
+        public WriteAuditEntry()
+        {
+            At = DateTimeOffset.UtcNow;
+            Operation = string.Empty;
+            Target = string.Empty;
+        }
     }
 
     /// <summary>
@@ -33,7 +40,8 @@ namespace Halyard.Core.Safety
 
         public WriteGateway(WritePolicy policy)
         {
-            Policy = policy ?? throw new ArgumentNullException("policy");
+            if (policy == null) throw new ArgumentNullException("policy");
+            Policy = policy;
         }
 
         public WritePolicy Policy { get; private set; }
@@ -65,7 +73,7 @@ namespace Halyard.Core.Safety
             foreach (var p in Policy.ProtectedTargets)
             {
                 if (p.Provider != target.Provider) continue;
-                string? protectedId;
+                string protectedId;
                 try { protectedId = await provider.ForRepository(p).GetRepositoryIdAsync(cancellation).ConfigureAwait(false); }
                 catch (ProviderHttpException) { continue; } // unreachable protected repo cannot be the target
                 if (!string.IsNullOrEmpty(targetId) && string.Equals(targetId, protectedId, StringComparison.Ordinal))
@@ -117,9 +125,9 @@ namespace Halyard.Core.Safety
             var managed = _gateway.Policy.ManagedLabel;
             if (!string.IsNullOrWhiteSpace(managed) && !draft.Labels.Any(l => string.Equals(l, managed, StringComparison.OrdinalIgnoreCase)))
                 draft.Labels.Insert(0, managed);
-            WorkItem? created = null;
+            WorkItem created = null;
             await Guard("create", null, draft.Title, async () => { created = await _writer.CreateAsync(draft, cancellation).ConfigureAwait(false); }).ConfigureAwait(false);
-            return created!;
+            return created;
         }
 
         public async Task<WorkItem> UpdateAsync(WorkItem existing, WorkItemPatch patch, CancellationToken cancellation)
@@ -127,9 +135,9 @@ namespace Halyard.Core.Safety
             if (existing == null) throw new ArgumentNullException("existing");
             if (!existing.Repository.Equals(Target))
                 throw new WriteBlockedException("WRITE BLOCKED: item " + existing.Key + " does not belong to the opened target " + Target.Key + ".", Target);
-            WorkItem? updated = null;
+            WorkItem updated = null;
             await Guard("update", existing.Number, existing.Title, async () => { updated = await _writer.UpdateAsync(existing.Number, patch, cancellation).ConfigureAwait(false); }).ConfigureAwait(false);
-            return updated!;
+            return updated;
         }
 
         /// <summary>
@@ -162,7 +170,7 @@ namespace Halyard.Core.Safety
             return ok;
         }
 
-        private async Task Guard(string operation, long? number, string? title, Func<Task> action)
+        private async Task Guard(string operation, long? number, string title, Func<Task> action)
         {
             var entry = new WriteAuditEntry { Operation = operation, Target = Target.Key, Number = number, Title = title, Reason = _intent.Reason, RunId = _intent.RunId };
             try

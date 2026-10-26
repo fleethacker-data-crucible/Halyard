@@ -39,14 +39,20 @@ On the workstation (no .NET SDK or Node.js needed):
 
 1. Download `Halyard-<version>.zip` from [Releases](https://github.com/sun-of-anton/Halyard/releases) and
    unzip it.
-2. Copy `config\halyard.env.example` to `config\halyard.env`, then `gh auth login` (or set `GITHUB_TOKEN`
-   in `config\halyard.env`).
+2. Copy `config\halyard.env.example` to `config\halyard.env` and set `GITHUB_TOKEN` in it (on a personal
+   machine with the GitHub CLI, `gh auth login` also works; the launcher reads `gh auth token` only if `gh`
+   is installed).
 3. Double-click `Launch-Halyard.bat`.
 
-A git checkout has no compiled engine, so it does not start until it is built. To build from source (.NET 8
-SDK, Node.js 20+): `build\Build-Halyard.ps1` tests and builds, leaving the bundle in `dist\Halyard`; later,
-double-click `Update-Halyard.bat` (pull, build, launch). Running the *Release* workflow on main (or pushing a
-tag `v<version>`) publishes a new bundle to Releases.
+The engine ships as C# source, not as a DLL: the workstation blocks loading custom DLL files, so
+`Launch-Halyard.bat` compiles `src\Halyard.Core` in memory with Windows PowerShell 5.1 (`Add-Type`, C# 5,
+framework assemblies only) on every launch. That takes a few seconds. A git checkout still needs the browser
+UI built. To build from source (.NET 8 SDK, Node.js 20+): `build\Build-Halyard.ps1` tests and builds, leaving
+the bundle in `dist\Halyard`; later, double-click `Update-Halyard.bat` (pull, build, launch; development PC
+only, it needs git, the .NET SDK and Node). Running the *Release* workflow on main (or pushing a tag
+`v<version>`) publishes a new bundle to Releases. To update the workstation, download the new
+`Halyard-<version>.zip` and extract it over the old folder (keep `config\halyard.env` and `output\`); nothing
+is built there.
 
 In the browser:
 

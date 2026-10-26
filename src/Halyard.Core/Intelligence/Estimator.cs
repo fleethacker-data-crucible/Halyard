@@ -13,15 +13,24 @@ namespace Halyard.Core.Intelligence
 {
     public sealed class EstimateOptions
     {
-        public ProposalKind Kind { get; set; } = ProposalKind.StoryPoints;
+        public ProposalKind Kind { get; set; }
         /// <summary>Only items whose current value is missing or TBD. Default true.</summary>
-        public bool OnlyUnsized { get; set; } = true;
-        public int MaxItems { get; set; } = 40;
-        public int BatchSize { get; set; } = 15;
+        public bool OnlyUnsized { get; set; }
+        public int MaxItems { get; set; }
+        public int BatchSize { get; set; }
         /// <summary>Skip Stories without acceptance criteria instead of inventing a size.</summary>
-        public bool RequireDefinition { get; set; } = true;
+        public bool RequireDefinition { get; set; }
         /// <summary>Restrict to these item numbers (bulk action from the Review page). Null = every eligible item.</summary>
-        public HashSet<long>? OnlyNumbers { get; set; }
+        public HashSet<long> OnlyNumbers { get; set; }
+
+        public EstimateOptions()
+        {
+            Kind = ProposalKind.StoryPoints;
+            OnlyUnsized = true;
+            MaxItems = 40;
+            BatchSize = 15;
+            RequireDefinition = true;
+        }
     }
 
     /// <summary>
@@ -69,7 +78,7 @@ namespace Halyard.Core.Intelligence
             return sb.ToString();
         }
 
-        public static async Task<ProposalBatch> RunAsync(IReadOnlyList<WorkItem> items, ILlmClient llm, EstimateOptions options, RepositoryRef target, IProgress<string>? progress, CancellationToken cancellation)
+        public static async Task<ProposalBatch> RunAsync(IReadOnlyList<WorkItem> items, ILlmClient llm, EstimateOptions options, RepositoryRef target, IProgress<string> progress, CancellationToken cancellation)
         {
             options = options ?? new EstimateOptions();
             var kind = options.Kind;
@@ -127,13 +136,13 @@ namespace Halyard.Core.Intelligence
                 var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var est in parsed)
                 {
-                    WorkItem? item;
+                    WorkItem item;
                     if (!byId.TryGetValue(est.Ref, out item) || item == null || !seen.Add(item.Key)) continue;
                     var current = item.Meta == null ? null : (kind == ProposalKind.FeatureEffort ? item.Meta.Effort : item.Meta.Points);
                     var proposed = kind == ProposalKind.FeatureEffort ? Sizing.ClampEffort(est.Effort ?? est.Points) : Sizing.ClampPoints(est.Points ?? est.Effort);
                     var reason = est.Reason;
                     var original = kind == ProposalKind.FeatureEffort ? est.Effort : est.Points;
-                    if (!string.IsNullOrEmpty(original) && !string.Equals(original!.Trim(), proposed, StringComparison.OrdinalIgnoreCase))
+                    if (!string.IsNullOrEmpty(original) && !string.Equals(original.Trim(), proposed, StringComparison.OrdinalIgnoreCase))
                         reason = (reason.Length > 0 ? reason + " " : string.Empty) + "[model said " + original + "; clamped to policy value " + proposed + "]";
                     batch.Proposals.Add(new Proposal
                     {
@@ -156,7 +165,7 @@ namespace Halyard.Core.Intelligence
         }
 
         /// <summary>Parent-link proposals from deterministic evidence; the top candidate becomes the proposal when it clearly leads.</summary>
-        public static ProposalBatch ParentProposals(ReviewReport report, RepositoryRef target, double minimumScore = 2.0, HashSet<long>? onlyNumbers = null, HashSet<string>? onlyKeys = null)
+        public static ProposalBatch ParentProposals(ReviewReport report, RepositoryRef target, double minimumScore = 2.0, HashSet<long> onlyNumbers = null, HashSet<string> onlyKeys = null)
         {
             var batch = new ProposalBatch { Kind = ProposalKind.ParentLink, Target = target.Key, Source = "deterministic" };
             foreach (var review in report.ParentReviews)
@@ -196,7 +205,7 @@ namespace Halyard.Core.Intelligence
         /// A human-entered change (points, effort or parent) recorded as an already-approved proposal, so it goes
         /// through the same preview, audit log and sandbox-only apply path as everything else.
         /// </summary>
-        public static ProposalBatch Manual(WorkItem item, ProposalKind kind, string value, string? note, RepositoryRef target, IReadOnlyList<WorkItem> all)
+        public static ProposalBatch Manual(WorkItem item, ProposalKind kind, string value, string note, RepositoryRef target, IReadOnlyList<WorkItem> all)
         {
             if (item == null) throw new ArgumentNullException("item");
             string proposed;
@@ -235,7 +244,7 @@ namespace Halyard.Core.Intelligence
                 CurrentValue = item.Meta == null ? null : (kind == ProposalKind.StoryPoints ? item.Meta.Points : kind == ProposalKind.FeatureEffort ? item.Meta.Effort : item.Meta.Parent),
                 ProposedValue = proposed,
                 Confidence = "high",
-                Reason = string.IsNullOrWhiteSpace(note) ? "Entered by hand in the browser." : note!.Trim(),
+                Reason = string.IsNullOrWhiteSpace(note) ? "Entered by hand in the browser." : note.Trim(),
                 Source = "manual",
                 Decision = ProposalDecision.Approved,
                 DecidedAt = DateTimeOffset.UtcNow,

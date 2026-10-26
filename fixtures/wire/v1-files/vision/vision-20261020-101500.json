@@ -1,0 +1,25 @@
+{
+  "Id": "20261020-101500",
+  "CreatedAt": "2026-10-20T10:15:00+00:00",
+  "Source": "deterministic",
+  "Repository": "github:o/r",
+  "Vision": "v",
+  "Markdown": "# m",
+  "Themes": [
+    {
+      "Id": "THEME-a",
+      "Title": "A",
+      "Purpose": "p",
+      "Epics": [
+        "EPIC-1",
+        "EPIC-2"
+      ],
+      "IsNew": true
+    }
+  ],
+  "Priorities": [],
+  "Risks": [],
+  "NextQuarter": [],
+  "ProposalBatchId": null,
+  "Warnings": []
+}

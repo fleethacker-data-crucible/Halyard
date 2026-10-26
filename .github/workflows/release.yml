@@ -1,6 +1,7 @@
 name: Release
-# Builds the workstation bundle (dist\Halyard-<version>.zip: DLLs, built UI, module, scripts; no .NET SDK
-# or Node needed to run it) and attaches it to a GitHub release v<version>, <version> from Halyard.Core.csproj.
+# Builds the workstation bundle (dist\Halyard-<version>.zip: the engine as C# source, built UI, module, scripts;
+# no DLL inside, since the workstation blocks loading custom DLL files; no .NET SDK or Node needed to run it) and
+# attaches it to a GitHub release v<version>, <version> from Halyard.Core.csproj.
 # Push a tag v<version>, or run this workflow by hand on main: it then creates the tag on the commit it built.
 on:
   push:
@@ -39,6 +40,15 @@ jobs:
           .\build\Build-Halyard.ps1
           $zip = Join-Path $PWD "dist\Halyard-$version.zip"
           if (-not (Test-Path $zip)) { throw "Bundle $zip was not produced" }
+          # The zip listing goes into the log; a DLL, EXE or PDB inside fails the release.
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $entries = @([IO.Compression.ZipFile]::OpenRead($zip).Entries | ForEach-Object { $_.FullName })
+          $entries | ForEach-Object { Write-Host ('  ' + $_) }
+          $bin = @($entries | Where-Object { $_ -match '(?i)\.(dll|exe|pdb)$' })
+          if ($bin.Count -gt 0) { throw ('Bundle contains binaries: ' + ($bin -join ', ')) }
+          $cs = @($entries | Where-Object { $_ -match '^src[\\/]Halyard\.Core[\\/].*\.cs$' }).Count
+          if ($cs -lt 40) { throw "Bundle is missing the engine source ($cs .cs files)" }
+          Write-Host "::notice title=Bundle::Halyard-$version.zip has $($entries.Count) entries, $cs engine .cs files and no DLL"
           "VERSION=$version" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
           "ZIP=$zip" | Out-File $env:GITHUB_ENV -Append -Encoding utf8
 

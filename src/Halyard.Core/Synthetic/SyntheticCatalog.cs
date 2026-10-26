@@ -5,37 +5,55 @@ using System.Linq;
 using System.Text;
 using Halyard.Core.Model;
 using Halyard.Core.Schema;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Synthetic
 {
     public sealed class SyntheticOptions
     {
-        public int Themes { get; set; } = 2;
-        public int EpicsPerTheme { get; set; } = 3;
-        public int FeaturesPerEpic { get; set; } = 3;
-        public int Stories { get; set; } = 50;
-        public int Tasks { get; set; } = 24;
-        public int Seed { get; set; } = 20261024;
-        public string Area { get; set; } = "platform";
-        public string SprintPrefix { get; set; } = "2026-S";
-        public int FirstSprint { get; set; } = 21;
-        public int SprintCount { get; set; } = 4;
+        public int Themes { get; set; }
+        public int EpicsPerTheme { get; set; }
+        public int FeaturesPerEpic { get; set; }
+        public int Stories { get; set; }
+        public int Tasks { get; set; }
+        public int Seed { get; set; }
+        public string Area { get; set; }
+        public string SprintPrefix { get; set; }
+        public int FirstSprint { get; set; }
+        public int SprintCount { get; set; }
         /// <summary>Calendar date of the first sprint (ISO date). Sprints are two weeks.</summary>
-        public string SprintStart { get; set; } = "2026-09-21";
+        public string SprintStart { get; set; }
         /// <summary>Which sprint (offset from the first) is "now": earlier sprints are history, later ones are plan.</summary>
-        public int CurrentSprintOffset { get; set; } = 2;
+        public int CurrentSprintOffset { get; set; }
         /// <summary>Points planned into each sprint before the remaining stories stay in the unplanned backlog (matches config/team.json's demo team).</summary>
-        public int SprintCapacity { get; set; } = 22;
+        public int SprintCapacity { get; set; }
         /// <summary>People ids used as owners; the defaults are the fictional Shellback example personas.</summary>
-        public string[] People { get; set; } = { "jordan-brooks", "riley-chen", "casey-rivera", "morgan-vale" };
+        public string[] People { get; set; }
         /// <summary>When true, <see cref="DefectRate"/> of the items get deliberate gaps so the human review workflow has real work.</summary>
         public bool IncludeDefects { get; set; }
         /// <summary>Share of items given a defect when <see cref="IncludeDefects"/> is set. Default 0.2: 80% complete, 20% needing review.</summary>
-        public double DefectRate { get; set; } = 0.20;
+        public double DefectRate { get; set; }
 
         public int Total { get { return Themes + Themes * EpicsPerTheme + Themes * EpicsPerTheme * FeaturesPerEpic + Stories + Tasks; } }
+
+        public SyntheticOptions()
+        {
+            Themes = 2;
+            EpicsPerTheme = 3;
+            FeaturesPerEpic = 3;
+            Stories = 50;
+            Tasks = 24;
+            Seed = 20261024;
+            Area = "platform";
+            SprintPrefix = "2026-S";
+            FirstSprint = 21;
+            SprintCount = 4;
+            SprintStart = "2026-09-21";
+            CurrentSprintOffset = 2;
+            SprintCapacity = 22;
+            People = new[] { "jordan-brooks", "riley-chen", "casey-rivera", "morgan-vale" };
+            DefectRate = 0.20;
+        }
 
         /// <summary>Picks counts that add up to <paramref name="total"/> with the playbook's shape (few lanes, many stories).</summary>
         public static SyntheticOptions ForTotal(int total, int seed = 20261024)
@@ -61,25 +79,36 @@ namespace Halyard.Core.Synthetic
     /// <summary>One generated work item: everything needed to create it on any provider.</summary>
     public sealed class SyntheticWorkItem
     {
-        public string Id { get; set; } = string.Empty;
+        public string Id { get; set; }
         public WorkItemType Type { get; set; }
-        public string? ParentId { get; set; }
-        public string? ThemeId { get; set; }
-        public string Name { get; set; } = string.Empty;
+        public string ParentId { get; set; }
+        public string ThemeId { get; set; }
+        public string Name { get; set; }
         public string Title { get { return Descriptions.FormatTitle(Type, Name); } }
-        public List<string> Labels { get; set; } = new List<string>();
-        public HalyardMeta Meta { get; set; } = new HalyardMeta();
+        public List<string> Labels { get; set; }
+        public HalyardMeta Meta { get; set; }
         /// <summary>Narrative markdown without fence or mirror.</summary>
-        public string Narrative { get; set; } = string.Empty;
+        public string Narrative { get; set; }
         /// <summary>True for work finished in a past sprint (created closed on the provider).</summary>
         public bool Closed { get; set; }
         /// <summary>Full issue body: fence + mirror + narrative.</summary>
         public string Description { get { return Descriptions.Compose(Meta, Narrative); } }
         /// <summary>Injected defect kinds (see <see cref="SyntheticCatalog.DefectKinds"/>). Empty for a complete item.</summary>
-        public List<string> Defects { get; set; } = new List<string>();
+        public List<string> Defects { get; set; }
         /// <summary>Deficiency / topology codes the audit is expected to raise for this item.</summary>
-        public List<string> ExpectedCodes { get; set; } = new List<string>();
+        public List<string> ExpectedCodes { get; set; }
         public bool NeedsHumanReview { get { return Defects.Count > 0; } }
+
+        public SyntheticWorkItem()
+        {
+            Id = string.Empty;
+            Name = string.Empty;
+            Labels = new List<string>();
+            Meta = new HalyardMeta();
+            Narrative = string.Empty;
+            Defects = new List<string>();
+            ExpectedCodes = new List<string>();
+        }
     }
 
     /// <summary>
@@ -560,28 +589,28 @@ namespace Halyard.Core.Synthetic
             var review = list.Count(i => i.NeedsHumanReview);
             var root = new JObject
             {
-                ["version"] = Version,
-                ["synthetic"] = true,
-                ["warning"] = "SYNTHETIC DATA. No real ticket, person, date, credential or commitment is described.",
-                ["generated_with"] = JObject.FromObject(options),
-                ["counts"] = JObject.FromObject(counts),
-                ["complete"] = list.Count - review,
-                ["needs_review"] = review,
-                ["items"] = new JArray(list.Select(i => new JObject
+                { "version", Version },
+                { "synthetic", true },
+                { "warning", "SYNTHETIC DATA. No real ticket, person, date, credential or commitment is described." },
+                { "generated_with", JObject.FromObject(options) },
+                { "counts", JObject.FromObject(counts) },
+                { "complete", list.Count - review },
+                { "needs_review", review },
+                { "items", new JArray(list.Select(i => new JObject
                 {
-                    ["id"] = i.Id,
-                    ["type"] = WorkItemTypes.ToToken(i.Type),
-                    ["parent"] = i.ParentId,
-                    ["theme"] = i.ThemeId,
-                    ["name"] = i.Name,
-                    ["title"] = i.Title,
-                    ["labels"] = new JArray(i.Labels),
-                    ["closed"] = i.Closed,
-                    ["meta"] = JObject.FromObject(i.Meta.ToDictionary()),
-                    ["narrative"] = i.Narrative,
-                    ["defects"] = new JArray(i.Defects),
-                    ["expected_codes"] = new JArray(i.ExpectedCodes),
-                })),
+                    { "id", i.Id },
+                    { "type", WorkItemTypes.ToToken(i.Type) },
+                    { "parent", i.ParentId },
+                    { "theme", i.ThemeId },
+                    { "name", i.Name },
+                    { "title", i.Title },
+                    { "labels", new JArray(i.Labels) },
+                    { "closed", i.Closed },
+                    { "meta", JObject.FromObject(i.Meta.ToDictionary()) },
+                    { "narrative", i.Narrative },
+                    { "defects", new JArray(i.Defects) },
+                    { "expected_codes", new JArray(i.ExpectedCodes) },
+                })) },
             };
             return root.ToString(Formatting.Indented);
         }
@@ -594,19 +623,19 @@ namespace Halyard.Core.Synthetic
             {
                 var item = new SyntheticWorkItem
                 {
-                    Id = (string?)j["id"] ?? string.Empty,
-                    Type = WorkItemTypes.Parse((string?)j["type"]),
-                    ParentId = (string?)j["parent"],
-                    ThemeId = (string?)j["theme"],
-                    Name = (string?)j["name"] ?? string.Empty,
-                    Narrative = (string?)j["narrative"] ?? string.Empty,
+                    Id = (string)j["id"] ?? string.Empty,
+                    Type = WorkItemTypes.Parse((string)j["type"]),
+                    ParentId = (string)j["parent"],
+                    ThemeId = (string)j["theme"],
+                    Name = (string)j["name"] ?? string.Empty,
+                    Narrative = (string)j["narrative"] ?? string.Empty,
                 };
-                item.Labels = (j["labels"] as JArray ?? new JArray()).Select(l => (string?)l ?? string.Empty).Where(l => l.Length > 0).ToList();
+                item.Labels = (j["labels"] as JArray ?? new JArray()).Select(l => (string)l ?? string.Empty).Where(l => l.Length > 0).ToList();
                 item.Closed = (bool?)j["closed"] ?? false;
                 var meta = j["meta"] as JObject;
-                if (meta != null) foreach (var p in meta.Properties()) item.Meta.Set(p.Name, (string?)p.Value);
-                item.Defects = (j["defects"] as JArray ?? new JArray()).Select(d => (string?)d ?? string.Empty).ToList();
-                item.ExpectedCodes = (j["expected_codes"] as JArray ?? new JArray()).Select(d => (string?)d ?? string.Empty).ToList();
+                if (meta != null) foreach (var p in meta.Properties()) item.Meta.Set(p.Name, (string)p.Value);
+                item.Defects = (j["defects"] as JArray ?? new JArray()).Select(d => (string)d ?? string.Empty).ToList();
+                item.ExpectedCodes = (j["expected_codes"] as JArray ?? new JArray()).Select(d => (string)d ?? string.Empty).ToList();
                 list.Add(item);
             }
             return list;
@@ -620,7 +649,7 @@ namespace Halyard.Core.Synthetic
         public static void Save(string path, IEnumerable<SyntheticWorkItem> items, SyntheticOptions options)
         {
             var dir = Path.GetDirectoryName(path);
-            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir!);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
             File.WriteAllText(path, ToJson(items, options), new UTF8Encoding(false));
         }
 

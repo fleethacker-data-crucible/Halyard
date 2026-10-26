@@ -22,7 +22,11 @@ namespace Halyard.Core.Model
 
         public WorkItem(RepositoryRef repository, long number)
         {
-            Repository = repository ?? throw new ArgumentNullException("repository");
+            Title = string.Empty;
+            Body = string.Empty;
+            State = WorkItemState.Open;
+            if (repository == null) throw new ArgumentNullException("repository");
+            Repository = repository;
             Number = number;
             Labels = new List<string>();
             Assignees = new List<string>();
@@ -31,27 +35,27 @@ namespace Halyard.Core.Model
         public RepositoryRef Repository { get; private set; }
         public long Number { get; private set; }
         /// <summary>Opaque provider id (GitHub node id, GitLab global id). Needed for some write operations.</summary>
-        public string? ProviderId { get; set; }
+        public string ProviderId { get; set; }
         /// <summary>Provider's numeric database id when distinct from <see cref="Number"/> (GitHub issue id).</summary>
         public long? ProviderNumericId { get; set; }
-        public string Title { get; set; } = string.Empty;
-        public string Body { get; set; } = string.Empty;
+        public string Title { get; set; }
+        public string Body { get; set; }
         public List<string> Labels { get; private set; }
         public List<string> Assignees { get; private set; }
-        public WorkItemState State { get; set; } = WorkItemState.Open;
-        public string? Url { get; set; }
-        public string? Milestone { get; set; }
+        public WorkItemState State { get; set; }
+        public string Url { get; set; }
+        public string Milestone { get; set; }
         public DateTimeOffset? CreatedAt { get; set; }
         public DateTimeOffset? UpdatedAt { get; set; }
 
         /// <summary><c>github:owner/repo:12</c> or <c>gitlab:4242:271</c>. Unique across providers.</summary>
         public string Key { get { return Repository.Key + ":" + Number; } }
 
-        private HalyardMeta? _meta;
+        private HalyardMeta _meta;
         private bool _metaParsed;
 
         /// <summary>Parsed halyard-meta block, or null when the body has none. Cached per body text.</summary>
-        public HalyardMeta? Meta
+        public HalyardMeta Meta
         {
             get
             {
@@ -101,7 +105,7 @@ namespace Halyard.Core.Model
         }
 
         /// <summary>The meta <c>type</c> as written, even when unknown (for UNKNOWN_DECLARED_TYPE findings).</summary>
-        public string? DeclaredTypeText { get { return Meta == null ? null : Meta.Get("type"); } }
+        public string DeclaredTypeText { get { return Meta == null ? null : Meta.Get("type"); } }
 
         /// <summary>Stable id from halyard-meta, or the provider key when none is declared.</summary>
         public string CanonicalId
@@ -109,13 +113,13 @@ namespace Halyard.Core.Model
             get
             {
                 var id = ExplicitId;
-                return string.IsNullOrWhiteSpace(id) ? Key : id!;
+                return string.IsNullOrWhiteSpace(id) ? Key : id;
             }
         }
 
-        public string? ExplicitId { get { return Meta == null ? null : Meta.Id; } }
-        public string? ParentId { get { return Meta == null ? null : Meta.Parent; } }
-        public string? ThemeId { get { return Meta == null ? null : Meta.Theme; } }
+        public string ExplicitId { get { return Meta == null ? null : Meta.Id; } }
+        public string ParentId { get { return Meta == null ? null : Meta.Parent; } }
+        public string ThemeId { get { return Meta == null ? null : Meta.Theme; } }
         public bool HasMeta { get { return Meta != null; } }
 
         public bool HasLabel(string label)
@@ -124,7 +128,7 @@ namespace Halyard.Core.Model
         }
 
         /// <summary>Value after <c>prefix::</c> for scoped labels, e.g. <c>theme::THEME-x</c> → <c>THEME-x</c>.</summary>
-        public string? LabelValue(string prefix)
+        public string LabelValue(string prefix)
         {
             var p = prefix.TrimEnd(':') + "::";
             foreach (var l in Labels)
@@ -143,18 +147,25 @@ namespace Halyard.Core.Model
     /// <summary>Fields needed to create a work item. Provider adapters translate this to their payloads.</summary>
     public sealed class WorkItemDraft
     {
-        public string Title { get; set; } = string.Empty;
-        public string Body { get; set; } = string.Empty;
-        public List<string> Labels { get; set; } = new List<string>();
-        public string? Milestone { get; set; }
+        public string Title { get; set; }
+        public string Body { get; set; }
+        public List<string> Labels { get; set; }
+        public string Milestone { get; set; }
+
+        public WorkItemDraft()
+        {
+            Title = string.Empty;
+            Body = string.Empty;
+            Labels = new List<string>();
+        }
     }
 
     /// <summary>Partial update; null means "leave unchanged".</summary>
     public sealed class WorkItemPatch
     {
-        public string? Title { get; set; }
-        public string? Body { get; set; }
-        public List<string>? Labels { get; set; }
+        public string Title { get; set; }
+        public string Body { get; set; }
+        public List<string> Labels { get; set; }
         public WorkItemState? State { get; set; }
 
         public bool IsEmpty { get { return Title == null && Body == null && Labels == null && State == null; } }
@@ -164,8 +175,14 @@ namespace Halyard.Core.Model
     {
         public WorkItemState? State { get; set; }
         /// <summary>All of these labels must be present (provider AND semantics).</summary>
-        public List<string> Labels { get; set; } = new List<string>();
-        public int MaxItems { get; set; } = 2000;
+        public List<string> Labels { get; set; }
+        public int MaxItems { get; set; }
         public DateTimeOffset? UpdatedAfter { get; set; }
+
+        public WorkItemQuery()
+        {
+            Labels = new List<string>();
+            MaxItems = 2000;
+        }
     }
 }
