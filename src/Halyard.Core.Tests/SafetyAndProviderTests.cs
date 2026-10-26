@@ -65,7 +65,7 @@ namespace Halyard.Core.Tests
 
     public class WriteGatewayTests
     {
-        private static readonly RepositoryRef Sandbox = new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/Halyard-Ballast");
+        private static readonly RepositoryRef Sandbox = new RepositoryRef(ProviderKind.GitHub, "fleethacker-data-crucible/Halyard-Ballast");
         private static readonly RepositoryRef Other = new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/Halyard");
 
         private static (GitHubProvider provider, FakeTransport http) Provider()
@@ -83,7 +83,7 @@ namespace Halyard.Core.Tests
             return new JObject
             {
                 ["number"] = number, ["id"] = 1000 + number, ["node_id"] = "I_" + number, ["title"] = title, ["body"] = "", ["state"] = "open",
-                ["html_url"] = "https://github.com/sun-of-anton/Halyard-Ballast/issues/" + number,
+                ["html_url"] = "https://github.com/fleethacker-data-crucible/Halyard-Ballast/issues/" + number,
                 ["labels"] = new JArray(labels.Select(l => new JObject { ["name"] = l })), ["created_at"] = "2026-10-24T10:00:00Z", ["updated_at"] = "2026-10-24T10:00:00Z",
             }.ToString();
         }
@@ -123,7 +123,7 @@ namespace Halyard.Core.Tests
         [Fact]
         public async Task DeleteRequiresSyntheticLabelOnTheLiveItemUnlessWipe()
         {
-            var gh = new FakeGitHubRepo("sun-of-anton/Halyard-Ballast");
+            var gh = new FakeGitHubRepo("fleethacker-data-crucible/Halyard-Ballast");
             gh.Add(5, "someone's real issue", "halyard");
             gh.Add(6, "synthetic", Labels.Synthetic);
             var provider = new GitHubProvider(gh.Http, "https://api.github.com", "tok", Sandbox, 0);
@@ -148,7 +148,7 @@ namespace Halyard.Core.Tests
         [Fact]
         public async Task GitHubDeleteRefusesANodeFromAnotherRepository()
         {
-            var gh = new FakeGitHubRepo("sun-of-anton/Halyard-Ballast");
+            var gh = new FakeGitHubRepo("fleethacker-data-crucible/Halyard-Ballast");
             gh.Add(7, "transferred away", Labels.Synthetic);
             gh.NodeRepositoryOverride = "sun-of-anton/Halyard"; // GraphQL says the node now lives elsewhere
             var provider = new GitHubProvider(gh.Http, "https://api.github.com", "tok", Sandbox, 0);
@@ -171,7 +171,7 @@ namespace Halyard.Core.Tests
         public async Task VerifiedOpenBlocksTheSameRepositoryUnderAnotherName()
         {
             var http = new FakeTransport();
-            http.On("GET", "/repos/sun-of-anton/Halyard-Ballast", 200, "{\"id\": 111}");
+            http.On("GET", "/repos/fleethacker-data-crucible/Halyard-Ballast", 200, "{\"id\": 111}");
             http.On("GET", "/repos/sun-of-anton/Old-Name", 200, "{\"id\": 111}"); // renamed repo, same id
             var renamedSandbox = new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/Old-Name");
             var policy = new WritePolicy();
@@ -207,7 +207,7 @@ namespace Halyard.Core.Tests
 
     public class GitHubProviderTests
     {
-        private static readonly RepositoryRef Repo = new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/Halyard-Ballast");
+        private static readonly RepositoryRef Repo = new RepositoryRef(ProviderKind.GitHub, "fleethacker-data-crucible/Halyard-Ballast");
 
         [Fact]
         public async Task ListsIssuesAcrossPagesAndSkipsPullRequests()
@@ -218,7 +218,7 @@ namespace Halyard.Core.Tests
             var page2 = new JArray(new JObject { ["number"] = 3, ["id"] = 13, ["node_id"] = "c", ["title"] = "three", ["body"] = "", ["state"] = "closed", ["labels"] = new JArray() });
             var http = new FakeTransport();
             http.On("GET", "page=2", 200, page2.ToString());
-            http.On("GET", "/issues?state=all", 200, page1.ToString(), new Dictionary<string, string> { { "Link", "<https://api.github.com/repos/sun-of-anton/Halyard-Ballast/issues?state=all&per_page=100&page=2>; rel=\"next\"" } });
+            http.On("GET", "/issues?state=all", 200, page1.ToString(), new Dictionary<string, string> { { "Link", "<https://api.github.com/repos/fleethacker-data-crucible/Halyard-Ballast/issues?state=all&per_page=100&page=2>; rel=\"next\"" } });
             var provider = new GitHubProvider(http, "https://api.github.com", "tok", Repo, 0);
             var items = await provider.ListWorkItemsAsync(new WorkItemQuery(), null, CancellationToken.None);
             Assert.Equal(new long[] { 1, 3 }, items.Select(i => i.Number).ToArray());
@@ -239,7 +239,7 @@ namespace Halyard.Core.Tests
         }
 
         [Theory]
-        [InlineData("sun-of-anton/Halyard-Ballast", true)]
+        [InlineData("fleethacker-data-crucible/Halyard-Ballast", true)]
         [InlineData("owner/repo.name_1", true)]
         [InlineData("acme/x/../../repos/acme/prod", false)]
         [InlineData("acme/..", false)]
@@ -306,7 +306,7 @@ namespace Halyard.Core.Tests
 
     public class SeederTests
     {
-        private static readonly RepositoryRef Sandbox = new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/Halyard-Ballast");
+        private static readonly RepositoryRef Sandbox = new RepositoryRef(ProviderKind.GitHub, "fleethacker-data-crucible/Halyard-Ballast");
 
         [Fact]
         public async Task SeedsInParentOrderWithRunLabelsAndManifest()
@@ -361,7 +361,7 @@ namespace Halyard.Core.Tests
         [Fact]
         public async Task TeardownDeletesOnlyTheRequestedRun()
         {
-            var gh = new FakeGitHubRepo("sun-of-anton/Halyard-Ballast");
+            var gh = new FakeGitHubRepo("fleethacker-data-crucible/Halyard-Ballast");
             gh.Add(1, "run1", "halyard-synthetic", "halyard-run::r1");
             gh.Add(2, "run2", "halyard-synthetic", "halyard-run::r2");
             gh.Add(3, "real, but labelled with the run", "halyard-run::r1");
@@ -372,7 +372,7 @@ namespace Halyard.Core.Tests
             var result = await SandboxTeardown.RunAsync(provider, new WriteGateway(policy), Sandbox, new TeardownOptions { Scope = TeardownScope.Run, RunId = "r1" }, null, CancellationToken.None);
             Assert.Equal(1, result.Matched);
             Assert.Equal(1, result.Deleted);
-            Assert.Equal(new[] { "github:sun-of-anton/Halyard-Ballast:1" }, result.DeletedKeys.ToArray());
+            Assert.Equal(new[] { "github:fleethacker-data-crucible/Halyard-Ballast:1" }, result.DeletedKeys.ToArray());
             Assert.False(gh.Exists(1));
             Assert.True(gh.Exists(2));
             Assert.True(gh.Exists(3));
