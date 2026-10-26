@@ -27,6 +27,13 @@ downward to stories and tasks. Its sandbox, Halyard Ballast, is the sand carried
 ship steady. Formerly Cascade. Upgrading an existing Cascade install needs no edits first: see
 [Upgrading from Cascade](docs/OPERATIONS.md#upgrading-from-cascade).
 
+| Night watch (dark) | Chart room (light) |
+| --- | --- |
+| ![Halyard overview in the Night watch theme](docs/screenshots/overview-night-watch.png) | ![Halyard overview in the Chart room theme](docs/screenshots/overview-chart-room.png) |
+
+The overview of a synthetic 100-item backlog seeded into an offline fake GitHub
+(`tests/e2e/Capture-Screenshots.ps1` regenerates both pictures with mock data only).
+
 ## Quick start (GitHub + an OpenAI-compatible model)
 
 ```powershell
