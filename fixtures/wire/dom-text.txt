@@ -1,0 +1,40 @@
+indented:
+{
+  "s": "text \"q\" \u2028 é",
+  "i": 5,
+  "l": 5000000000,
+  "d": 2.0,
+  "d2": 0.1,
+  "b": true,
+  "n": null,
+  "dto": "2026-10-26T12:00:00.0000000+00:00",
+  "a": [
+    1,
+    "two",
+    {},
+    []
+  ],
+  "empty": {},
+  "nested": {
+    "deep": [
+      {
+        "k": "v"
+      }
+    ]
+  }
+}
+none:
+{"s":"text \"q\" \u2028 é","i":5,"l":5000000000,"d":2.0,"d2":0.1,"b":true,"n":null,"dto":"2026-10-26T12:00:00.0000000+00:00","a":[1,"two",{},[]],"empty":{},"nested":{"deep":[{"k":"v"}]}}
+emptyArrayIndented:
+[]
+emptyObjectIndented:
+{}
+valueToString:
+String: str | "str"
+Integer: 5 | 5
+Float: 2.5 | 2.5
+Float: 2 | 2.0
+Boolean: True | true
+Null:  | null
+Float: 1E+21 | 1E+21
+Float: 1E-06 | 1E-06
