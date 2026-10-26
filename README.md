@@ -14,7 +14,7 @@ Feature → Story → Task model, and proposes the work a product owner would do
 hierarchy (intake), missing sections drafted, metadata repaired, parents inferred, sizes estimated, skills
 tagged, sprints planned against team capacity and skills, a portfolio vision drafted for leadership, and a
 one-page leadership dashboard that can go out by email every week. It writes only what you approve, and
-only to a sandbox repository ([Halyard Ballast](https://github.com/sun-of-anton/Halyard-Ballast) for the
+only to a sandbox repository ([Halyard Ballast](https://github.com/fleethacker-data-crucible/Halyard-Ballast) for the
 owner's own runs), never anywhere else.
 
 It runs locally: a PowerShell launcher, one .NET library, and a browser UI on `127.0.0.1`. Nothing is

@@ -264,7 +264,7 @@ function Invoke-HalyardTeardown {
     .EXAMPLE
       Invoke-HalyardTeardown -AllSynthetic -DryRun
     .EXAMPLE
-      Invoke-HalyardTeardown -Everything -ConfirmText 'DELETE sun-of-anton/Halyard-Ballast'
+      Invoke-HalyardTeardown -Everything -ConfirmText 'DELETE fleethacker-data-crucible/Halyard-Ballast'
     #>
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High', DefaultParameterSetName = 'Run')]
     param(

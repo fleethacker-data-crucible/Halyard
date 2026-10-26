@@ -473,11 +473,22 @@ namespace Halyard.Core.Tests
         {
             var s = HalyardSettings.FromEnvironment("root", Vars(
                 ("CASCADE_SANDBOX_REPO", "sun-of-anton/cascade-sandbox"), ("CASCADE_SOURCE_REPO", "sun-of-anton/raw-backlog")));
-            Assert.Equal("sun-of-anton/Halyard-Ballast", s.Provider.SandboxRepository);
+            Assert.Equal("fleethacker-data-crucible/Halyard-Ballast", s.Provider.SandboxRepository);
             var policy = s.BuildWritePolicy();
             var intent = new Safety.WriteIntent("x", "y");
-            policy.Assert(new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/Halyard-Ballast"), intent);
+            policy.Assert(new RepositoryRef(ProviderKind.GitHub, "fleethacker-data-crucible/Halyard-Ballast"), intent);
             Assert.Throws<Safety.WriteBlockedException>(() => policy.Assert(new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/raw-backlog"), intent));
+        }
+
+        [Fact]
+        public void PersonalSandboxAddressIsMappedToTheOrganization()
+        {
+            // halyard.env files copied forward from cascade.env name the sandbox's pre-move address, now a personal fork.
+            var s = HalyardSettings.FromEnvironment("root", Vars(
+                ("HALYARD_SANDBOX_REPO", "sun-of-anton/Halyard-Ballast"), ("HALYARD_SOURCE_REPO", "sun-of-anton/Halyard-Ballast")));
+            Assert.Equal("fleethacker-data-crucible/Halyard-Ballast", s.Provider.SandboxRepository);
+            Assert.Equal("fleethacker-data-crucible/Halyard-Ballast", s.Provider.SourceRepository);
+            Assert.Throws<Safety.WriteBlockedException>(() => s.BuildWritePolicy().Assert(new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/Halyard-Ballast"), new Safety.WriteIntent("x", "y")));
         }
 
         [Fact]
@@ -498,7 +509,7 @@ namespace Halyard.Core.Tests
                 var copied = File.ReadAllLines(current);
                 Assert.Contains("# my settings", copied);
                 Assert.Contains("HALYARD_PROVIDER=github", copied);
-                Assert.Contains("export HALYARD_SANDBOX_REPO=sun-of-anton/Halyard-Ballast", copied);
+                Assert.Contains("export HALYARD_SANDBOX_REPO=fleethacker-data-crucible/Halyard-Ballast", copied);
                 Assert.Contains("HALYARD_LAZARETTE_ITEM_GitLab=gitmil", copied);
                 Assert.Contains("HALYARD_USE_LAZARETTE=1", copied);
                 Assert.Contains("GITHUB_TOKEN=keep", copied);
@@ -556,8 +567,8 @@ namespace Halyard.Core.Tests
             Directory.CreateDirectory(_root);
             var settings = new HalyardSettings { RootDirectory = _root };
             settings.Provider.Kind = ProviderKind.GitHub;
-            settings.Provider.SandboxRepository = "sun-of-anton/Halyard-Ballast";
-            settings.Provider.SourceRepository = "sun-of-anton/Halyard-Ballast";
+            settings.Provider.SandboxRepository = "fleethacker-data-crucible/Halyard-Ballast";
+            settings.Provider.SourceRepository = "fleethacker-data-crucible/Halyard-Ballast";
             _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = 0, WebRoot = null });
             var catalog = SyntheticCatalog.Generate(SyntheticOptions.ForTotal(30));
             _host.Snapshots.Save(Items.Repo, SyntheticCatalog.ToWorkItems(catalog, Items.Repo), null);
@@ -638,7 +649,7 @@ namespace Halyard.Core.Tests
                 var r = await _client.PostAsync(_info.Url + "api/config", new StringContent(locked));
                 Assert.Equal(400, (int)r.StatusCode);
             }
-            Assert.Equal("sun-of-anton/Halyard-Ballast", _host.Settings.Provider.SandboxRepository);
+            Assert.Equal("fleethacker-data-crucible/Halyard-Ballast", _host.Settings.Provider.SandboxRepository);
             var ok = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"labelFilter\":\"team::x\"}"));
             Assert.Equal(200, (int)ok.StatusCode);
             Assert.Equal("team::x", (string)JObject.Parse(await ok.Content.ReadAsStringAsync())["config"]!["labelFilter"]!);
@@ -699,7 +710,7 @@ namespace Halyard.Core.Tests
             var byKey = JObject.Parse(await _client.GetStringAsync(_info.Url + "api/item?key=" + Uri.EscapeDataString(key)));
             Assert.Equal(key, (string)byKey["key"]!);
             Assert.True((bool)byKey["inSandbox"]!);
-            Assert.Equal("sun-of-anton/Halyard-Ballast", (string)byKey["repository"]!);
+            Assert.Equal("fleethacker-data-crucible/Halyard-Ballast", (string)byKey["repository"]!);
             // A snapshot of a source repository only: every proposal path refuses, with a message that names the sandbox.
             var source = new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/other-backlog");
             var sourceItems = SyntheticCatalog.ToWorkItems(SyntheticCatalog.Generate(SyntheticOptions.ForTotal(20)), source);
