@@ -53,3 +53,13 @@ Notes:
 - A hidden PowerShell console counts: if the window is hidden or minimised, the user has no Ctrl+C.
 - To find what holds a DLL, open it with `FILE_READ_ATTRIBUTES` and call `NtQueryInformationFile` with `FileProcessIdsUsingFileInformation` (class 47); it needs no admin in any session. Don't use the Restart Manager (`RmGetList`): it returns access denied to a standard user in session 0. `Process.Modules` misses .NET-mapped assemblies.
 - Reference implementation: Halyard (`web/src/lib/api.ts` `startHeartbeat`, `Host/HalyardHost.cs`, `scripts/Halyard-Process.ps1`, `Stop-Halyard.ps1`, `Start-Halyard.ps1`).
+
+## Intelligence router
+
+Direction (2026-10-26): Fleet tools stop hard-coding external endpoints and default to the Fleet intelligence router, [Fairlead](https://github.com/fleethacker-data-crucible/Fairlead), for AI/LLM endpoints, git repository access and database connections. Fairlead will own endpoint selection, credentials (through Lazarette / Windows Credential Manager, never in tool config), policy and routing. Until Halyard is moved behind it, the current settings in the table below stay as they are; nothing has changed in code yet.
+
+| Access | Today | Where | Settings |
+| --- | --- | --- | --- |
+| AI/LLM | OpenAI-compatible chat completions; hard-coded default `https://api.openai.com/v1/chat/completions` (model `gpt-4o-mini`); optional Databricks profile with no default URL | `src/Halyard.Core/Llm/LlmClient.cs:39`; settings `src/Halyard.Core/Config/HalyardSettings.cs:135-145` | `HALYARD_LLM_PROFILE`, `LLM_URL`/`OPENAI_BASE_URL`, `LLM_MODEL`/`OPENAI_MODEL`, `LLM_TOKEN`/`OPENAI_API_KEY`, `DATABRICKS_URL`/`_MODEL`/`_TOKEN`; vault items `HALYARD_LAZARETTE_ITEM_Llm`/`_Databricks` |
+| Git repositories | GitHub REST + GraphQL (hard-coded default `https://api.github.com`) or GitLab REST `/api/v4` (no default); issues/epics only, no clone | `src/Halyard.Core/Providers/ProviderSettings.cs:44`; settings `HalyardSettings.cs:99-116` | `HALYARD_PROVIDER`, `GITHUB_API_URL`, `GITHUB_TOKEN`/`GH_TOKEN`, `GITLAB_URL`, `GITLAB_TOKEN`, `HALYARD_SOURCE_REPO`, `HALYARD_SANDBOX_REPO`; vault items `HALYARD_LAZARETTE_ITEM_GitHub`/`_GitLab` |
+| Databases | none |  |  |
