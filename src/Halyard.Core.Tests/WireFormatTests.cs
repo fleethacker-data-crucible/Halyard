@@ -473,7 +473,7 @@ namespace Halyard.Core.Tests
             sb.Append(await Call("POST", "api/session/stop", ""));
             var status = await Call("GET", "api/status");
             sb.Append(status);
-            Golden.Check("api-responses.txt", Golden.Normalize(sb.ToString(), "webRoot", "file", "envFile", "rootDirectory"));
+            Golden.Check("api-responses.txt", Golden.Normalize(sb.ToString(), "webRoot", "file", "envFile", "rootDirectory", "ageDays", "ageBusinessDays"));
         }
 
         [Fact]
