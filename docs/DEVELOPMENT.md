@@ -75,7 +75,7 @@ state per repository and answers the refine, vision and skills prompts.
   read-only auto-properties (`{ get; }`), index initializers (`{ ["k"] = v }`), nullable reference
   annotations. `dotnet build src\Halyard.Core` (LangVersion 5) catches these; CI also compiles with the real
   compiler (`build\Test-HalyardAddType.ps1`).
-- Engine code references framework assemblies only (`System`, `System.Core`, `System.Net.Http`; keep
+- Engine code references framework assemblies only (`System`, `System.Core`, `System.Net.Http`, `System.Security`; keep
   `$HalyardCoreReferences` in `Halyard.psm1` and the csproj in step). No NuGet package, no third-party DLL,
   no `Assembly.Load*`: the workstation blocks loading custom DLL files.
 - JSON goes through `Halyard.Core.Serialization`. The API's wire format and the files under `output/` are

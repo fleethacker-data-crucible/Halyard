@@ -61,7 +61,7 @@ Leadership, Plan and the skill tagger read these on every request, so editing th
 **Model**
 
 ```
-HALYARD_LLM_PROFILE=auto           # auto | openai | databricks
+HALYARD_LLM_PROFILE=auto           # auto | openai | databricks | custom
 # LLM_URL=https://api.openai.com/v1/chat/completions   (or a base such as https://gateway.example.com/v1)
 # LLM_MODEL=gpt-4o-mini
 # LLM_TOKEN=                                            (or OPENAI_API_KEY)
@@ -69,7 +69,34 @@ HALYARD_LLM_PROFILE=auto           # auto | openai | databricks
 
 The key and model can also be entered on the **Settings** page. The key stays in memory for the session;
 with *remember* ticked it is written to `config\halyard.env` (git-ignored) so the next launch has it. The
-endpoint URL can only be set in the file, so a key entered in the browser never goes anywhere else.
+endpoint URL of these profiles can only be set in the file, so a key entered there never goes anywhere else.
+
+**Testing a gateway endpoint: Settings > Set from curl**
+
+To try whatever endpoint a gateway documents, paste its curl command into *Set from curl* and the token into the
+token field next to it, then press *Set from curl* and *Test*. Halyard reads the URL (the first argument or
+`--url`), the body's `model` and the body format: `input` is the OpenAI Responses API (sent as
+`{model, input, max_output_tokens}`, no streaming; the answer is read from the `output_text` items), `messages`
+is chat completions, and a `/serving-endpoints/<name>/invocations` URL is Databricks. Other non-secret `-H`
+headers are kept and sent; `Authorization`, `Content-Type` and anything that looks like a credential are
+dropped. The profile switches to `custom`; the OpenAI and Databricks profiles and their keys are untouched.
+
+- The token comes only from the token field. A token written into the curl command is not kept (keep
+  placeholders such as `$AI_ENDPOINT_TOKEN` in the command). It is sent only to the endpoint it was entered
+  with: changing to another host needs the token again.
+- The URL must be `https://` (plain `http://` only for `localhost`/`127.0.0.1`), with no user name, password or
+  credential in the query string. A placeholder left in the URL (`$VAR`, `${VAR:-x}`, `<...>`) is refused.
+- With *remember* ticked the endpoint goes to `config\halyard.env` and the token is stored encrypted with
+  Windows DPAPI for your account (`dpapi:...`), readable only by you on this machine:
+
+```
+HALYARD_LLM_PROFILE=custom
+HALYARD_LLM_CUSTOM_URL=https://gateway.example.invalid/serving-endpoints/responses
+HALYARD_LLM_CUSTOM_MODEL=example-model
+HALYARD_LLM_CUSTOM_FORMAT=responses          # responses | chat | databricks
+# HALYARD_LLM_CUSTOM_HEADERS={"X-Team":"delivery"}
+# HALYARD_LLM_CUSTOM_TOKEN=dpapi:...          (written by Settings; a plain token also works here)
+```
 
 **Workstation, self-hosted GitLab**
 

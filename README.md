@@ -90,7 +90,7 @@ read-only; only the sandbox project can be written.
 | Sandbox | Seed a deterministic synthetic hierarchy with a chosen share of gaps; delete it by run |
 | Connection | Test the token; take a snapshot of the source or sandbox |
 | Diagnostics | Engine log, every write attempt, background jobs |
-| Settings | Model API key and model name; profile; label filter; the configured repositories (read-only) |
+| Settings | Model API key and model name; profile; a model endpoint set from a pasted curl command plus token (for testing gateways); label filter; the configured repositories (read-only) |
 
 PowerShell equivalents: `Invoke-SandboxSeed.ps1`, `Invoke-SandboxTeardown.ps1`, `Send-HalyardReport.ps1`
 (leadership dashboard by Outlook or SMTP), `Register-HalyardReportSchedule.ps1` (weekly task), and the
@@ -120,4 +120,5 @@ Writes default to the sandbox repository only. Production needs `HALYARD_WRITE_M
 Every proposal, including a hand edit, is previewed as a diff and goes through the same gateway.
 Deletes only touch items labelled `halyard-synthetic`, unless you type the wipe phrase. Every write is
 audited. Provider tokens stay in process memory and never reach the browser, logs or transcripts; the
-model key may be entered in the browser but only ever goes to the endpoint named in `config\halyard.env`.
+model key may be entered in the browser but only ever goes to the endpoint named in `config\halyard.env`;
+an endpoint set from a pasted curl command gets only the token typed in for it (DPAPI-encrypted if remembered).
