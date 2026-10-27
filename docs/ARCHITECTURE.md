@@ -21,7 +21,7 @@ used through a browser on `127.0.0.1`.
 |---|---|---|
 | Launcher | `Launch-Halyard.bat` → `powershell.exe -File scripts\Start-Halyard.ps1` | The only entry point the workstation already allows. |
 | Shell | PowerShell module `module/Halyard` | Reads `config/halyard.env`, unlocks Lazarette once, compiles the engine, opens the browser, hides the console. Nothing else. |
-| Core | C# 5 source `src/Halyard.Core`, compiled in memory at launch by `Add-Type -Path *.cs -CompilerParameters` (the inbox .NET Framework 4.8 compiler, C# 5 only) | Types, real concurrency, testable logic, one write gateway. References framework assemblies only (`System`, `System.Core`, `System.Net.Http`). PowerShell 7 compiles the same files. The tests compile them too. |
+| Core | C# 5 source `src/Halyard.Core`, compiled in memory at launch by `Add-Type -Path *.cs -CompilerParameters` (the inbox .NET Framework 4.8 compiler, C# 5 only) | Types, real concurrency, testable logic, one write gateway. References framework assemblies only (`System`, `System.Core`, `System.Net.Http`, `System.Security` for DPAPI). PowerShell 7 compiles the same files. The tests compile them too. |
 | JSON | `Halyard.Core.Serialization`: a small hand-written reader, writer and reflection serializer | Framework only (no Newtonsoft.Json). Writes the same JSON text Newtonsoft did; `fixtures/wire` pins the API responses and file formats. |
 | Local server | `TcpListener` on 127.0.0.1 inside the core | `HttpListener` needs HTTP.sys URL reservations a standard user lacks. One task per connection; long work runs as background jobs. |
 | UI | React 19 + TypeScript, Tailwind CSS 4, d3 (hierarchy, zoom, shape), zod | Built to static files by esbuild + Tailwind's compiler. Validates every response. |
@@ -49,7 +49,7 @@ Launch-Halyard.bat
                  ├─ Analysis    topology audit, hierarchy tree, parent candidates, review report, delivery (feature progress, velocity, blockers) + HTML report
                  ├─ Planning    team.json / skills.json / Shellback cards, sprint calendar, capacity-and-skills sprint planner
                  ├─ Intelligence sizing, refinement drafts, skill tagging, vision drafting, intake classification (model); metadata repair, parents, planner, deterministic fallbacks; manual edits, proposal store, projection + applier
-                 ├─ Llm         OpenAI-compatible and Databricks serving-endpoint client
+                 ├─ Llm         OpenAI-compatible (chat completions or Responses API) and Databricks serving-endpoint client; curl parser for Settings > Set from curl
                  ├─ Synthetic   deterministic catalogue, sandbox seeder, teardown
                  └─ Snapshots   point-in-time copies the analysis runs on
 ```
@@ -79,8 +79,12 @@ The analysis, UI and tests do not change.
    Repository identifiers are validated (no `.`/`..` segments) and escaped before they reach a URL.
 4. Provider, API URL, source and sandbox come only from `config/halyard.env`. The browser can change the
    label filter, the model profile, the model name and the model API key, nothing that decides where
-   Halyard reads, writes or sends tokens: the model endpoint URL is file-only, so a key entered in the
-   browser can only go where the file points. The sandbox is read only from `HALYARD_SANDBOX_REPO`.
+   Halyard reads, writes or sends tokens: the OpenAI and Databricks endpoint URLs are file-only, so a key
+   entered for them can only go where the file points. The one exception is the `custom` model profile
+   (Settings > Set from curl, a debugging aid the owner asked for): its URL comes from a pasted curl command,
+   and its token only from the token field entered with it, so no configured token is ever sent there and a
+   new host needs the token again. https only (http for loopback), no credentials in the URL, no redirects.
+   The sandbox is read only from `HALYARD_SANDBOX_REPO`.
 5. Everything created is stamped with the `halyard` label; synthetic items also get `halyard-synthetic`
    and `halyard-run::<id>`.
 6. Deletes re-read the item first and check `halyard-synthetic` on the live copy, not the caller's. On GitHub
@@ -103,7 +107,8 @@ The analysis, UI and tests do not change.
   token or a write can never be forwarded to a URL nobody configured.
 - Ending the session needs the token and an `X-Halyard-Intent: end-session` header.
 - Static files are served from one directory with path normalisation; no directory listing.
-- Tokens live only in process memory. Logs and LLM transcripts redact token-shaped strings.
+- Tokens live only in process memory. Logs and LLM transcripts redact token-shaped strings. The one token
+  kept at rest by Halyard itself, the custom (curl) endpoint's, is DPAPI-protected for the current Windows user.
 
 ## The analysis pipeline
 
