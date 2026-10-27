@@ -18,6 +18,22 @@ namespace Halyard.Core.Llm
         OpenAi = 1,
         /// <summary>Databricks model-serving endpoint (<c>/serving-endpoints/{name}/invocations</c>; no <c>stream</c> flag).</summary>
         Databricks = 2,
+        /// <summary>
+        /// An endpoint set from a pasted curl command (Settings, "Set from curl") or HALYARD_LLM_CUSTOM_*: the exact URL,
+        /// one of the <see cref="LlmWireFormat"/> body formats, and a token entered for it alone.
+        /// </summary>
+        Custom = 3,
+    }
+
+    /// <summary>The request/response body format of an endpoint.</summary>
+    public enum LlmWireFormat
+    {
+        /// <summary>OpenAI chat completions: <c>messages</c> in, <c>choices[0].message.content</c> out.</summary>
+        Chat = 0,
+        /// <summary>OpenAI Responses API: <c>input</c> in, <c>output[].content[]</c> items of type <c>output_text</c> out.</summary>
+        Responses = 1,
+        /// <summary>Databricks serving endpoint: chat completions without the <c>stream</c> flag, <c>max_tokens</c>.</summary>
+        Databricks = 2,
     }
 
     public sealed class LlmSettings
@@ -29,6 +45,14 @@ namespace Halyard.Core.Llm
         public string DatabricksUrl { get; set; }
         public string DatabricksModel { get; set; }
         public string DatabricksToken { get; set; }
+        /// <summary>Custom profile: the exact endpoint URL (no path is added).</summary>
+        public string CustomUrl { get; set; }
+        public string CustomModel { get; set; }
+        public LlmWireFormat CustomFormat { get; set; }
+        /// <summary>Custom profile: the token entered with the endpoint. Only ever sent to <see cref="CustomUrl"/>.</summary>
+        public string CustomToken { get; set; }
+        /// <summary>Custom profile: extra non-secret headers taken from the curl command.</summary>
+        public Dictionary<string, string> CustomHeaders { get; set; }
         public int MaxTokens { get; set; }
         public double Temperature { get; set; }
         public int TimeoutSeconds { get; set; }
@@ -38,7 +62,7 @@ namespace Halyard.Core.Llm
         public const string DefaultOpenAiUrl = "https://api.openai.com/v1/chat/completions";
         public const string DefaultOpenAiModel = "gpt-4o-mini";
 
-        public static readonly LlmProfile[] Concrete = { LlmProfile.OpenAi, LlmProfile.Databricks };
+        public static readonly LlmProfile[] Concrete = { LlmProfile.OpenAi, LlmProfile.Databricks, LlmProfile.Custom };
 
         public LlmSettings()
         {
@@ -46,6 +70,8 @@ namespace Halyard.Core.Llm
             MaxTokens = 4000;
             Temperature = 0.2;
             TimeoutSeconds = 300;
+            CustomFormat = LlmWireFormat.Chat;
+            CustomHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
 
         public static LlmProfile? ParseProfile(string text)
@@ -55,6 +81,7 @@ namespace Halyard.Core.Llm
                 case "": case "auto": return LlmProfile.Auto;
                 case "openai": case "openai-compatible": case "gateway": return LlmProfile.OpenAi;
                 case "databricks": return LlmProfile.Databricks;
+                case "custom": case "curl": return LlmProfile.Custom;
                 default: return null;
             }
         }
@@ -64,12 +91,40 @@ namespace Halyard.Core.Llm
             return profile.ToString().ToLowerInvariant();
         }
 
+        public static LlmWireFormat? ParseFormat(string text)
+        {
+            switch ((text ?? string.Empty).Trim().ToLowerInvariant())
+            {
+                case "": case "chat": case "chat-completions": case "openai": return LlmWireFormat.Chat;
+                case "responses": case "openai-responses": return LlmWireFormat.Responses;
+                case "databricks": return LlmWireFormat.Databricks;
+                default: return null;
+            }
+        }
+
+        public static string FormatToken(LlmWireFormat format)
+        {
+            return format.ToString().ToLowerInvariant();
+        }
+
+        /// <summary>The body format a profile uses.</summary>
+        public LlmWireFormat Format(LlmProfile profile)
+        {
+            switch (profile)
+            {
+                case LlmProfile.Databricks: return LlmWireFormat.Databricks;
+                case LlmProfile.Custom: return CustomFormat;
+                default: return LlmWireFormat.Chat;
+            }
+        }
+
         /// <summary>Resolves Auto to a concrete profile from whichever token is configured; OpenAI-compatible wins ties.</summary>
         public LlmProfile Resolve()
         {
             if (Profile != LlmProfile.Auto) return Profile;
             if (!string.IsNullOrWhiteSpace(OpenAiToken)) return LlmProfile.OpenAi;
             if (!string.IsNullOrWhiteSpace(DatabricksToken)) return LlmProfile.Databricks;
+            if (IsConfigured(LlmProfile.Custom)) return LlmProfile.Custom;
             return LlmProfile.OpenAi;
         }
 
@@ -78,6 +133,7 @@ namespace Halyard.Core.Llm
             switch (profile)
             {
                 case LlmProfile.Databricks: return (DatabricksUrl ?? string.Empty).Trim().TrimEnd('/');
+                case LlmProfile.Custom: return (CustomUrl ?? string.Empty).Trim();
                 default: return NormalizeOpenAiUrl(OpenAiUrl);
             }
         }
@@ -100,6 +156,7 @@ namespace Halyard.Core.Llm
             switch (profile)
             {
                 case LlmProfile.Databricks: return (DatabricksModel ?? string.Empty).Trim();
+                case LlmProfile.Custom: return (CustomModel ?? string.Empty).Trim();
                 default: return string.IsNullOrWhiteSpace(OpenAiModel) ? DefaultOpenAiModel : OpenAiModel.Trim();
             }
         }
@@ -109,6 +166,7 @@ namespace Halyard.Core.Llm
             switch (profile)
             {
                 case LlmProfile.Databricks: return Clean(DatabricksToken);
+                case LlmProfile.Custom: return Clean(CustomToken);
                 default: return Clean(OpenAiToken);
             }
         }
@@ -117,6 +175,7 @@ namespace Halyard.Core.Llm
         {
             if (string.IsNullOrWhiteSpace(Token(profile))) return false;
             if (profile == LlmProfile.Databricks) return !string.IsNullOrWhiteSpace(DatabricksUrl);
+            if (profile == LlmProfile.Custom) return MissingFor(profile) == null;
             return true;
         }
 
@@ -127,6 +186,15 @@ namespace Halyard.Core.Llm
             {
                 if (string.IsNullOrWhiteSpace(DatabricksUrl)) return "DATABRICKS_URL is not set.";
                 if (string.IsNullOrWhiteSpace(Token(profile))) return "DATABRICKS_TOKEN is not set.";
+                return null;
+            }
+            if (profile == LlmProfile.Custom)
+            {
+                if (string.IsNullOrWhiteSpace(CustomUrl)) return "No endpoint: paste a curl command in Settings (Set from curl).";
+                var problem = CurlCommand.UrlProblem(CustomUrl);
+                if (problem != null) return problem;
+                if (CustomFormat != LlmWireFormat.Databricks && string.IsNullOrWhiteSpace(CustomModel)) return "No model: the curl body needs a model.";
+                if (string.IsNullOrWhiteSpace(Token(profile))) return "No token: enter it in the token field next to the curl command.";
                 return null;
             }
             return string.IsNullOrWhiteSpace(Token(profile)) ? "No API key: set LLM_TOKEN (or OPENAI_API_KEY) in config/halyard.env, or enter one in Settings." : null;
@@ -207,6 +275,7 @@ namespace Halyard.Core.Llm
         public LlmProfile Profile { get; private set; }
         public string Model { get { return _settings.Model(Profile); } }
         public string Url { get { return _settings.Url(Profile); } }
+        public LlmWireFormat Format { get { return _settings.Format(Profile); } }
 
         public async Task<LlmResponse> ChatAsync(IReadOnlyList<LlmMessage> messages, CancellationToken cancellation)
         {
@@ -215,15 +284,26 @@ namespace Halyard.Core.Llm
             var missing = _settings.MissingFor(Profile);
             if (missing != null) throw new InvalidOperationException("LLM profile " + LlmSettings.ProfileToken(Profile) + " is not usable: " + missing);
 
-            var payload = new JObject
+            var format = Format;
+            JObject payload;
+            if (format == LlmWireFormat.Responses)
             {
-                { "messages", new JArray(messages.Select(m => new JObject { { "role", m.Role }, { "content", m.Content } })) },
-                { "model", Model },
-                { "temperature", _settings.Temperature },
-            };
-            // OpenAI's current chat models take max_completion_tokens; Databricks and older gateways take max_tokens.
-            payload[Profile == LlmProfile.Databricks ? "max_tokens" : "max_completion_tokens"] = _settings.MaxTokens;
-            if (Profile != LlmProfile.Databricks) payload["stream"] = false;
+                payload = ResponsesApi.BuildRequest(messages, Model, _settings.MaxTokens);
+            }
+            else
+            {
+                payload = new JObject
+                {
+                    { "messages", new JArray(messages.Select(m => new JObject { { "role", m.Role }, { "content", m.Content } })) },
+                    { "model", Model },
+                    { "temperature", _settings.Temperature },
+                };
+                // A custom Databricks endpoint may name the model in its URL only.
+                if (Profile == LlmProfile.Custom && string.IsNullOrWhiteSpace(Model)) payload.Remove("model");
+                // OpenAI's current chat models take max_completion_tokens; Databricks and older gateways take max_tokens.
+                payload[format == LlmWireFormat.Databricks ? "max_tokens" : "max_completion_tokens"] = _settings.MaxTokens;
+                if (format != LlmWireFormat.Databricks) payload["stream"] = false;
+            }
 
             var started = DateTimeOffset.UtcNow;
             string transcript = null;
@@ -233,6 +313,10 @@ namespace Halyard.Core.Llm
             for (var attempt = 0; ; attempt++)
             {
                 var call = new HttpCall("POST", Url) { JsonBody = payload.ToString(Formatting.None), Timeout = TimeSpan.FromSeconds(_settings.TimeoutSeconds) };
+                if (Profile == LlmProfile.Custom && _settings.CustomHeaders != null)
+                {
+                    foreach (var h in _settings.CustomHeaders) call.Headers[h.Key] = h.Value;
+                }
                 call.Headers["Authorization"] = "Bearer " + token;
                 call.Headers["Accept"] = "application/json";
                 call.Headers["User-Agent"] = "Halyard/1.0";
@@ -256,7 +340,7 @@ namespace Halyard.Core.Llm
                 else payload.Remove(rejected);
             }
             var json = JToken.Parse(string.IsNullOrWhiteSpace(reply.Body) ? "{}" : reply.Body);
-            var text = ExtractText(json);
+            var text = format == LlmWireFormat.Responses ? (ResponsesApi.Text(json) ?? ExtractText(json)).Trim() : ExtractText(json);
             EndTranscript(transcript, reply.Body, null);
             var usage = json["usage"] as JObject;
             return new LlmResponse
@@ -264,8 +348,8 @@ namespace Halyard.Core.Llm
                 Text = text,
                 Profile = Profile.ToString(),
                 Model = Model,
-                PromptTokens = usage == null ? null : (int?)usage["prompt_tokens"],
-                CompletionTokens = usage == null ? null : (int?)usage["completion_tokens"],
+                PromptTokens = usage == null ? null : (int?)(usage["prompt_tokens"] ?? usage["input_tokens"]),
+                CompletionTokens = usage == null ? null : (int?)(usage["completion_tokens"] ?? usage["output_tokens"]),
                 Elapsed = DateTimeOffset.UtcNow - started,
                 TranscriptPath = transcript,
             };
@@ -278,7 +362,7 @@ namespace Halyard.Core.Llm
         public static string RejectedParameter(string body, JObject payload)
         {
             if (string.IsNullOrWhiteSpace(body)) return null;
-            var candidates = new[] { "max_tokens", "max_completion_tokens", "temperature", "stream" };
+            var candidates = new[] { "max_tokens", "max_completion_tokens", "max_output_tokens", "temperature", "stream" };
             string param = null;
             string message = body;
             try

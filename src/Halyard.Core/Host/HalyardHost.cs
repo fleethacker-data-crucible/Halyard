@@ -346,7 +346,7 @@ namespace Halyard.Core.Host
             if (!string.IsNullOrWhiteSpace(profileText))
             {
                 var parsed = LlmSettings.ParseProfile(profileText);
-                if (parsed == null) throw new BadRequestException("Unknown LLM profile '" + profileText + "'. Use auto, openai or databricks.");
+                if (parsed == null) throw new BadRequestException("Unknown LLM profile '" + profileText + "'. Use auto, openai, databricks or custom.");
                 profile = parsed == LlmProfile.Auto ? (LlmProfile?)null : parsed;
             }
             var client = new LlmClient(Settings.Llm, Options.Transport, profile);
