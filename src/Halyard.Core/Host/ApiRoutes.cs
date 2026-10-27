@@ -88,6 +88,7 @@ namespace Halyard.Core.Host
             });
             Router.Get("/api/writes", r => Task.FromResult(Json.Ok(new { policy = PolicyPayload(), entries = Gateway.Audit.Reverse().Take(500) })));
             Router.Post("/api/llm/test", TestLlm);
+            Router.Post("/api/llm/curl", SetLlmFromCurl);
             Router.Post("/api/heartbeat", r =>
             {
                 var body = Json.Body(r);
@@ -185,7 +186,7 @@ namespace Halyard.Core.Host
             if (llmProfile != null)
             {
                 var parsed = Llm.LlmSettings.ParseProfile(llmProfile);
-                if (parsed == null) throw new BadRequestException("llmProfile must be auto, openai or databricks.");
+                if (parsed == null) throw new BadRequestException("llmProfile must be auto, openai, databricks or custom.");
                 Settings.Llm.Profile = parsed.Value;
                 changed.Add("llmProfile");
             }
@@ -1018,6 +1019,80 @@ namespace Halyard.Core.Host
                 return await ResyncAfterWrite(ctx, provider, new { totals.Applied, totals.Skipped, totals.Failed, totals.Messages, batches = batches.Count }).ConfigureAwait(false);
             });
             return Task.FromResult(Json.Accepted(new { job, batches = batches.Count, approved }));
+        }
+
+        /// <summary>
+        /// Sets the custom model endpoint from a pasted curl command plus a token typed in its own field (owner request,
+        /// for testing gateway endpoints). The URL, model, format and non-secret headers come from the curl text; the token
+        /// only from <c>token</c>, never from the curl. A token is never sent to a new origin unless it was entered with
+        /// it. Neither the curl text nor the token is logged or returned. "remember" writes the endpoint to
+        /// config/halyard.env and the token DPAPI-protected for this Windows account.
+        /// </summary>
+        private Task<HttpResponse> SetLlmFromCurl(HttpRequest r)
+        {
+            var body = Json.Body(r);
+            var curl = Json.Read<string>(body, "curl");
+            var token = LlmSettings.Clean(Json.Read<string>(body, "token"));
+            var remember = Json.Read<bool?>(body, "remember") == true;
+            if (token != null && (token.Length < 8 || token.Length > 8192)) throw new BadRequestException("The token does not look like an API token.");
+            if (token != null && token.IndexOfAny(new[] { ' ', '\t' }) >= 0) throw new BadRequestException("The token field holds more than one word. Paste only the token (without \"Bearer\").");
+            if (token != null && CurlCommand.UrlProblem(token) == null) throw new BadRequestException("The token field holds a URL. Paste the curl command in the curl box and the token in the token field.");
+            CurlEndpoint parsed;
+            try { parsed = CurlCommand.Parse(curl); }
+            catch (CurlParseException ex)
+            {
+                Log.Warn("LLM_CURL_REJECTED", ex.Message);
+                throw new BadRequestException(ex.Message);
+            }
+            var llm = Settings.Llm;
+            var sameOrigin = CurlCommand.Origin(parsed.Url) == CurlCommand.Origin(llm.CustomUrl);
+            if (token == null && parsed.HadLiteralToken) throw new BadRequestException(CurlCommand.LiteralTokenWarning);
+            if (token == null && !(sameOrigin && !string.IsNullOrWhiteSpace(llm.CustomToken)))
+                throw new BadRequestException("Enter the token in the token field. Halyard never takes it from the curl command, and a token is only sent to the endpoint it was entered for.");
+
+            llm.CustomUrl = parsed.Url;
+            llm.CustomModel = parsed.Model.Length == 0 ? null : parsed.Model;
+            llm.CustomFormat = parsed.Format;
+            llm.CustomHeaders = new Dictionary<string, string>(parsed.Headers, StringComparer.OrdinalIgnoreCase);
+            if (token != null) llm.CustomToken = token;
+            llm.Profile = LlmProfile.Custom;
+
+            var remembered = false;
+            var tokenRemembered = false;
+            var notes = new List<string>(parsed.Warnings);
+            if (remember)
+            {
+                string protectedToken = null;
+                if (token != null)
+                {
+                    if (Config.SecretProtector.IsAvailable) { protectedToken = Config.SecretProtector.Protect(token); tokenRemembered = true; }
+                    else notes.Add("Windows DPAPI is not available here, so the token is kept for this session only; enter it again after a relaunch.");
+                }
+                else tokenRemembered = Settings.CustomTokenRemembered;
+                var values = Config.HalyardSettings.CustomEndpointEnv(llm, protectedToken);
+                // A new origin without a remembered token must not inherit the old stored one.
+                if (token != null && protectedToken == null) values[Config.HalyardSettings.CustomTokenKey] = null;
+                Config.HalyardSettings.UpsertEnvFile(Settings.EnvFilePath, values);
+                Settings.CustomTokenRemembered = tokenRemembered;
+                remembered = true;
+                Log.Info("CONFIG_PERSISTED", string.Join(", ", values.Keys.Where(k => values[k] != null)) + " written to " + Settings.EnvFilePath);
+            }
+            Log.Info("LLM_CURL_SET", LlmSettings.FormatToken(parsed.Format) + " " + HttpClientTransport.SafeUrl(parsed.Url) + " model=" + (parsed.Model.Length == 0 ? "(none)" : parsed.Model) + " headers=" + parsed.Headers.Count + (token != null ? " token=entered" : " token=kept") + (remembered ? " remembered" : string.Empty));
+            return Task.FromResult(Json.Ok(new
+            {
+                profile = LlmSettings.ProfileToken(LlmProfile.Custom),
+                url = parsed.Url,
+                model = parsed.Model,
+                format = LlmSettings.FormatToken(parsed.Format),
+                headers = parsed.Headers.Keys.ToList(),
+                ignoredHeaders = parsed.IgnoredHeaders,
+                literalTokenIgnored = parsed.HadLiteralToken,
+                tokenSet = !string.IsNullOrWhiteSpace(llm.Token(LlmProfile.Custom)),
+                remembered,
+                tokenRemembered,
+                warnings = notes,
+                config = Settings.ToPublicDictionary(),
+            }));
         }
 
         private async Task<HttpResponse> TestLlm(HttpRequest r)
