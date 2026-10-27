@@ -35,6 +35,8 @@
   <ItemGroup>
     <!-- Keep in step with $HalyardCoreReferences in module\Halyard\Halyard.psm1. -->
     <Reference Include="System.Net.Http" />
+    <!-- DPAPI (Config/SecretProtector.cs) for the token of an endpoint set from a pasted curl command. -->
+    <Reference Include="System.Security" />
   </ItemGroup>
 
 </Project>

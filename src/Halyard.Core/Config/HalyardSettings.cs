@@ -140,10 +140,67 @@ namespace Halyard.Core.Config
             s.Llm.DatabricksUrl = env("DATABRICKS_URL");
             s.Llm.DatabricksModel = env("DATABRICKS_MODEL");
             s.Llm.DatabricksToken = env("DATABRICKS_TOKEN");
+            // The endpoint set from a pasted curl command (Settings). The token is stored DPAPI-protected ("dpapi:...").
+            s.Llm.CustomUrl = app("LLM_CUSTOM_URL");
+            s.Llm.CustomModel = app("LLM_CUSTOM_MODEL");
+            s.Llm.CustomFormat = LlmSettings.ParseFormat(app("LLM_CUSTOM_FORMAT")) ?? LlmWireFormat.Chat;
+            s.Llm.CustomHeaders = ParseHeaders(app("LLM_CUSTOM_HEADERS"));
+            var customToken = app("LLM_CUSTOM_TOKEN");
+            s.CustomTokenRemembered = SecretProtector.IsProtected(customToken);
+            s.Llm.CustomToken = SecretProtector.IsProtected(customToken) ? SecretProtector.Unprotect(customToken) : customToken;
             int maxTokens;
             if (int.TryParse(app("LLM_MAX_TOKENS"), out maxTokens) && maxTokens > 0) s.Llm.MaxTokens = maxTokens;
             s.Llm.TranscriptDirectory = app("LLM_TRANSCRIPTS") == "0" ? null : s.TranscriptsDirectory;
             return s;
+        }
+
+        /// <summary>Env names for the custom (curl) endpoint, as written by <see cref="CustomEndpointEnv"/>.</summary>
+        public const string CustomUrlKey = "HALYARD_LLM_CUSTOM_URL";
+        public const string CustomModelKey = "HALYARD_LLM_CUSTOM_MODEL";
+        public const string CustomFormatKey = "HALYARD_LLM_CUSTOM_FORMAT";
+        public const string CustomHeadersKey = "HALYARD_LLM_CUSTOM_HEADERS";
+        public const string CustomTokenKey = "HALYARD_LLM_CUSTOM_TOKEN";
+
+        /// <summary>
+        /// The env-file lines that remember the custom endpoint. The token is included only DPAPI-protected
+        /// (<paramref name="protectedToken"/> is already "dpapi:..."); null leaves the stored token as it is.
+        /// </summary>
+        public static Dictionary<string, string> CustomEndpointEnv(LlmSettings llm, string protectedToken)
+        {
+            var values = new Dictionary<string, string>
+            {
+                { "HALYARD_LLM_PROFILE", LlmSettings.ProfileToken(LlmProfile.Custom) },
+                { CustomUrlKey, llm.CustomUrl },
+                { CustomModelKey, string.IsNullOrWhiteSpace(llm.CustomModel) ? null : llm.CustomModel },
+                { CustomFormatKey, LlmSettings.FormatToken(llm.CustomFormat) },
+                { CustomHeadersKey, llm.CustomHeaders == null || llm.CustomHeaders.Count == 0 ? null : FormatHeaders(llm.CustomHeaders) },
+            };
+            if (protectedToken != null) values[CustomTokenKey] = protectedToken;
+            return values;
+        }
+
+        /// <summary>Extra headers as one env-file line: a JSON object of name to value.</summary>
+        public static string FormatHeaders(IDictionary<string, string> headers)
+        {
+            var o = new Halyard.Core.Serialization.JObject();
+            foreach (var kv in headers) o[kv.Key] = kv.Value;
+            return o.ToString(Halyard.Core.Serialization.Formatting.None);
+        }
+
+        public static Dictionary<string, string> ParseHeaders(string text)
+        {
+            var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            if (string.IsNullOrWhiteSpace(text)) return result;
+            try
+            {
+                var o = Halyard.Core.Serialization.JObject.Parse(text);
+                foreach (var p in o.Properties())
+                {
+                    if (p.Value != null && p.Value.Type == Halyard.Core.Serialization.JTokenType.String) result[p.Name] = (string)p.Value;
+                }
+            }
+            catch (Halyard.Core.Serialization.JsonException) { }
+            return result;
         }
 
         /// <summary>
@@ -250,6 +307,9 @@ namespace Halyard.Core.Config
             return m.Groups[1].Value + name + rest;
         }
 
+        /// <summary>True when the custom endpoint's token is stored DPAPI-protected in the env file.</summary>
+        public bool CustomTokenRemembered { get; set; }
+
         /// <summary>Non-secret view for the UI and diagnostics.</summary>
         public Dictionary<string, object> ToPublicDictionary()
         {
@@ -275,7 +335,8 @@ namespace Halyard.Core.Config
                 { "llmUrl", Llm.Url(resolved) },
                 { "hasLlmToken", Llm.IsConfigured(resolved) },
                 { "llmMissing", Llm.MissingFor(resolved) },
-                { "llmProfiles", LlmSettings.Concrete.Select(p => new Dictionary<string, object> { { "profile", LlmSettings.ProfileToken(p) }, { "model", Llm.Model(p) }, { "url", Llm.Url(p) }, { "configured", Llm.IsConfigured(p) }, { "missing", Llm.MissingFor(p) } }).ToList() },
+                { "llmProfiles", LlmSettings.Concrete.Select(p => new Dictionary<string, object> { { "profile", LlmSettings.ProfileToken(p) }, { "model", Llm.Model(p) }, { "url", Llm.Url(p) }, { "configured", Llm.IsConfigured(p) }, { "missing", Llm.MissingFor(p) }, { "format", LlmSettings.FormatToken(Llm.Format(p)) } }).ToList() },
+                { "llmCustom", new Dictionary<string, object> { { "url", Llm.Url(LlmProfile.Custom) }, { "model", Llm.Model(LlmProfile.Custom) }, { "format", LlmSettings.FormatToken(Llm.CustomFormat) }, { "headers", Llm.CustomHeaders == null ? new List<string>() : Llm.CustomHeaders.Keys.OrderBy(k => k, StringComparer.OrdinalIgnoreCase).ToList() }, { "tokenSet", !string.IsNullOrWhiteSpace(Llm.Token(LlmProfile.Custom)) }, { "tokenRemembered", CustomTokenRemembered } } },
                 { "envFile", EnvFilePath },
                 { "envFileExists", File.Exists(EnvFilePath) },
                 { "rootDirectory", RootDirectory },

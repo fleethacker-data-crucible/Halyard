@@ -48,7 +48,7 @@ Describe 'Module surface' {
         $fromRepo = @([AppDomain]::CurrentDomain.GetAssemblies() | Where-Object { -not $_.IsDynamic -and $_.Location -and $_.Location.StartsWith($script:Root, [StringComparison]::OrdinalIgnoreCase) })
         $fromRepo | Should -BeNullOrEmpty
         $refs = @([Halyard.Core.Facade].Assembly.GetReferencedAssemblies() | ForEach-Object { $_.Name })
-        foreach ($r in $refs) { @('mscorlib', 'System', 'System.Core', 'System.Net.Http', 'System.Runtime', 'netstandard') | Should -Contain $r }
+        foreach ($r in $refs) { @('mscorlib', 'System', 'System.Core', 'System.Net.Http', 'System.Security', 'System.Security.Cryptography.ProtectedData', 'System.Runtime', 'netstandard') | Should -Contain $r }
         (Get-HalyardCoreLoadInfo) | Should -Not -BeNullOrEmpty
     }
     It 'lists the engine source without build output folders' {
