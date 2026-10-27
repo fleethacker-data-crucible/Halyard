@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import { clsx, type ClassValue } from 'clsx';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { twMerge } from 'tailwind-merge';
 import { LuCheck, LuChevronDown, LuCircleAlert, LuInfo, LuLoaderCircle, LuTriangleAlert, LuX } from 'react-icons/lu';
 import { LEVEL_LABEL, levelVar } from '../lib/levels';
@@ -182,6 +182,10 @@ const control = 'h-8 w-full rounded-ctl border border-line bg-surface px-2.5 tex
 
 export function Input(props: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...props} className={cn(control, props.className)} />;
+}
+
+export function TextArea(props: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...props} className={cn('w-full rounded-ctl border border-line bg-surface px-2.5 py-1.5 font-mono text-[12px] text-ink placeholder:text-ink-3 focus:border-focus', props.className)} />;
 }
 
 export function Select({ className, children, ...rest }: SelectHTMLAttributes<HTMLSelectElement>) {

@@ -29,7 +29,9 @@ export const Config = z.object({
   llmUrl: z.string(),
   hasLlmToken: z.boolean(),
   llmMissing: Nullable(z.string()),
-  llmProfiles: z.array(z.object({ profile: z.string(), model: z.string(), url: z.string(), configured: z.boolean(), missing: Nullable(z.string()) })),
+  llmProfiles: z.array(z.object({ profile: z.string(), model: z.string(), url: z.string(), configured: z.boolean(), missing: Nullable(z.string()), format: z.string().optional() })),
+  /** The endpoint set from a pasted curl command; never the token itself. */
+  llmCustom: z.object({ url: z.string(), model: z.string(), format: z.string(), headers: z.array(z.string()), tokenSet: z.boolean(), tokenRemembered: z.boolean() }).optional(),
   envFile: z.string(),
   envFileExists: z.boolean(),
   rootDirectory: z.string(),
