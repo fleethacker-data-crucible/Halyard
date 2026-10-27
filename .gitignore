@@ -32,6 +32,7 @@ TestResults/
 
 # Web build output and dependencies
 web/node_modules
+web/package-lock.json
 # web/dist is committed: the workstation runs straight from a clone with no Node.js. Rebuild it (npm run build) with any UI change.
 node_modules/
 
