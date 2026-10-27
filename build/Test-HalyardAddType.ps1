@@ -46,7 +46,7 @@ try { Add-Type -TypeDefinition 'public static class HalyardCs6Probe { public sta
 '@
 $probeFile = Join-Path ([IO.Path]::GetTempPath()) ('halyard-addtype-' + [guid]::NewGuid().ToString('N') + '.ps1')
 Set-Content -Path $probeFile -Value $probe -Encoding UTF8
-$allowed = @('mscorlib', 'System', 'System.Core', 'System.Net.Http')
+$allowed = @('mscorlib', 'System', 'System.Core', 'System.Net.Http', 'System.Security')
 $results = @()
 try {
     for ($i = 1; $i -le $Runs; $i++) {
