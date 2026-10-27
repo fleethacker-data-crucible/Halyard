@@ -42,7 +42,7 @@ function Get-HalyardRoot {
 
 # Framework assemblies the engine source may reference. Nothing else: no NuGet package, no third-party DLL.
 # Keep in step with <Reference> in src\Halyard.Core\Halyard.Core.csproj (the C# 5 check build).
-$script:HalyardCoreReferences = @('System.dll', 'System.Core.dll', 'System.Net.Http.dll')
+$script:HalyardCoreReferences = @('System.dll', 'System.Core.dll', 'System.Net.Http.dll', 'System.Security.dll')
 $script:HalyardCoreLoad = $null
 
 function Get-HalyardCoreSource {
@@ -98,8 +98,15 @@ function Import-HalyardCore {
             [void]$cp.ReferencedAssemblies.AddRange([string[]]$script:HalyardCoreReferences)
             Add-Type -Path $source.Files -CompilerParameters $cp -ErrorAction Stop
         } else {
-            # PowerShell 7 compiles against its own .NET reference set (which includes these framework assemblies).
-            Add-Type -Path $source.Files -IgnoreWarnings -WarningAction SilentlyContinue -ErrorAction Stop
+            # PowerShell 7 compiles against its own .NET reference set (which includes these framework assemblies);
+            # DPAPI (ProtectedData) ships with PowerShell 7 on Windows and is added when it loads.
+            $refs = @()
+            try {
+                Add-Type -AssemblyName System.Security.Cryptography.ProtectedData -ErrorAction Stop
+                $refs += [System.Security.Cryptography.ProtectedData].Assembly.Location
+            } catch { }
+            if ($refs.Count -gt 0) { Add-Type -Path $source.Files -ReferencedAssemblies $refs -IgnoreWarnings -WarningAction SilentlyContinue -ErrorAction Stop }
+            else { Add-Type -Path $source.Files -IgnoreWarnings -WarningAction SilentlyContinue -ErrorAction Stop }
         }
     } catch {
         $msg = $_.Exception.Message
