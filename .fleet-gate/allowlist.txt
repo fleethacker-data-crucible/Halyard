@@ -1,0 +1,2 @@
+# Halyard fleet-gate allowlist (same format as the org default; see comms ci/fleet-gate/README.md).
+line:="c[a]scade\.",\w+=\w+\+"migrated-from-c[a]scade"   # built UI (web/dist): the one-time browser-storage migration from the previous name's key prefix (web/src/lib/storage-migrate.ts); requested by Anthony (owner)
