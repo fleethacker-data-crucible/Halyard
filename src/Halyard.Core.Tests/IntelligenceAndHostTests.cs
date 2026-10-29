@@ -626,6 +626,25 @@ namespace Halyard.Core.Tests
         }
 
         [Fact]
+        public async Task HiddenTabKeepsTheEngineThroughThrottledHeartbeats()
+        {
+            // A background tab gets its timers about once a minute (a sleeping tab none): the visible-tab timeout
+            // would stop an engine whose tab is still open.
+            await _client.PostAsync(_info.Url + "api/heartbeat", new StringContent("{\"leaving\":false,\"hidden\":true}", System.Text.Encoding.UTF8, "application/json"));
+            Assert.False(_host.BrowserGone(DateTimeOffset.UtcNow + TimeSpan.FromSeconds(90)), "hidden: a throttled minute between heartbeats is not gone");
+            Assert.False(_host.BrowserGone(DateTimeOffset.UtcNow + TimeSpan.FromMinutes(30)), "hidden: a sleeping tab still counts as open");
+            Assert.True(_host.BrowserGone(DateTimeOffset.UtcNow + TimeSpan.FromMinutes(61)), "hidden past the hidden timeout");
+
+            // Closing a background tab still stops the engine within seconds.
+            await _client.PostAsync(_info.Url + "api/heartbeat", new StringContent("{\"leaving\":true}", System.Text.Encoding.UTF8, "application/json"));
+            Assert.True(_host.BrowserGone(DateTimeOffset.UtcNow + TimeSpan.FromSeconds(6)), "a hidden tab that closes is gone after the grace");
+
+            // Back in front: the short timeout applies again.
+            await _client.PostAsync(_info.Url + "api/heartbeat", new StringContent("{\"leaving\":false,\"hidden\":false}", System.Text.Encoding.UTF8, "application/json"));
+            Assert.True(_host.BrowserGone(DateTimeOffset.UtcNow + TimeSpan.FromSeconds(25)), "visible again: the 20 s timeout is back");
+        }
+
+        [Fact]
         public async Task ReviewAndHierarchyServeTheSnapshot()
         {
             var review = JObject.Parse(await _client.GetStringAsync(_info.Url + "api/review"));
