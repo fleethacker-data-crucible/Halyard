@@ -93,7 +93,8 @@ namespace Halyard.Core.Host
             {
                 var body = Json.Body(r);
                 var leaving = Json.Read<bool?>(body, "leaving") ?? false;
-                RecordPresence(leaving);
+                var hidden = Json.Read<bool?>(body, "hidden") ?? false;
+                RecordPresence(leaving, hidden);
                 return Task.FromResult(Json.Ok(PresenceState()));
             });
         }
