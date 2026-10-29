@@ -9,7 +9,10 @@ it hides from the user, holds its DLLs and ports, breaks the next build, and war
 1. **The browser tab owns the engine's life.** The UI sends a heartbeat to the engine every 5 seconds
    and a "leaving" beacon on `pagehide`. With no heartbeat for 20 seconds, or 5 seconds after a leaving
    beacon with no new heartbeat, the engine stops itself. A page reload sends a fresh heartbeat inside the
-   grace period and nothing happens.
+   grace period and nothing happens. Each heartbeat also says whether the tab is hidden (sent at once on
+   `visibilitychange`, and as a beacon on Chromium's `freeze`): browsers run background-tab timers about
+   once a minute and stop them in sleeping tabs, so a hidden tab gets 60 minutes instead of 20 seconds.
+   Closing a hidden tab still sends the leaving beacon, so the engine stops within seconds as before.
 2. **Never stop mid-write.** Auto-stop waits while a background job (seed, apply, sync, send) is running
    and stops on the next tick after it finishes.
 3. **An explicit way out, in the UI.** An *End session* control (or equivalent) that stops the engine
