@@ -35,6 +35,11 @@ namespace Halyard.Core.Host
         /// </summary>
         public bool AutoStop { get; set; }
         public TimeSpan HeartbeatTimeout { get; set; }
+        /// <summary>
+        /// Timeout while the tab reports itself hidden or frozen: background tabs get timers about once a minute and
+        /// sleeping tabs none, so the visible-tab timeout would stop an engine whose tab is still open.
+        /// </summary>
+        public TimeSpan HiddenHeartbeatTimeout { get; set; }
         /// <summary>Grace after a "leaving" beacon before stopping; a reload sends a new heartbeat well inside it.</summary>
         public TimeSpan LeavingGrace { get; set; }
 
@@ -45,6 +50,7 @@ namespace Halyard.Core.Host
             LauncherState = new Dictionary<string, object>();
             AutoStop = true;
             HeartbeatTimeout = TimeSpan.FromSeconds(20);
+            HiddenHeartbeatTimeout = TimeSpan.FromMinutes(60);
             LeavingGrace = TimeSpan.FromSeconds(5);
         }
     }
@@ -123,23 +129,39 @@ namespace Halyard.Core.Host
         private readonly object _presenceLock = new object();
         private DateTimeOffset? _lastHeartbeat;
         private DateTimeOffset? _leavingAt;
+        private bool _hidden;
         private System.Threading.Timer _presenceTimer;
 
         /// <summary>Recorded by the UI's heartbeat. <paramref name="leaving"/> marks the tab as unloading.</summary>
         public void RecordPresence(bool leaving)
         {
+            RecordPresence(leaving, false);
+        }
+
+        /// <summary>
+        /// Recorded by the UI's heartbeat. <paramref name="hidden"/> says the tab is in the background or frozen, where
+        /// browsers slow timers to about once a minute (Edge's sleeping tabs stop them): the engine then waits
+        /// <see cref="HostOptions.HiddenHeartbeatTimeout"/> instead. Closing the tab still sends "leaving".
+        /// </summary>
+        public void RecordPresence(bool leaving, bool hidden)
+        {
             lock (_presenceLock)
             {
                 var now = DateTimeOffset.UtcNow;
                 if (leaving) { _leavingAt = now; }
-                else { _lastHeartbeat = now; _leavingAt = null; }
+                else { _lastHeartbeat = now; _leavingAt = null; _hidden = hidden; }
             }
         }
 
         /// <summary>Presence state for diagnostics and tests.</summary>
         public object PresenceState()
         {
-            lock (_presenceLock) return new { autoStop = Options.AutoStop, lastHeartbeat = _lastHeartbeat, leavingAt = _leavingAt, timeoutSeconds = (int)Options.HeartbeatTimeout.TotalSeconds };
+            lock (_presenceLock) return new { autoStop = Options.AutoStop, lastHeartbeat = _lastHeartbeat, leavingAt = _leavingAt, hidden = _hidden, timeoutSeconds = (int)CurrentTimeout().TotalSeconds };
+        }
+
+        private TimeSpan CurrentTimeout()
+        {
+            return _hidden && Options.HiddenHeartbeatTimeout > Options.HeartbeatTimeout ? Options.HiddenHeartbeatTimeout : Options.HeartbeatTimeout;
         }
 
         /// <summary>True when the browser has been gone long enough and nothing is running: the engine should stop.</summary>
@@ -150,7 +172,7 @@ namespace Halyard.Core.Host
             {
                 if (_lastHeartbeat == null) return false; // nothing ever connected; the launcher's own timeout handles that
                 if (_leavingAt != null && now - _leavingAt.Value >= Options.LeavingGrace) return true;
-                return now - _lastHeartbeat.Value >= Options.HeartbeatTimeout;
+                return now - _lastHeartbeat.Value >= CurrentTimeout();
             }
         }
 
