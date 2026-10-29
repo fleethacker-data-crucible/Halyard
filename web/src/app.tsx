@@ -225,6 +225,10 @@ function StatusStrip({ status, error }: { status: Status | undefined; error: str
   if (error && !status) {
     return <Notice tone="err" className="m-3">Cannot reach the local engine: {error}. If you closed the launcher window, start Halyard again.</Notice>;
   }
+  if (error) {
+    // The engine answered before and has stopped since: say so, or every button on the page seems to do nothing.
+    return <Notice tone="err" className="m-3">Lost the local engine ({error}). It may have stopped itself or been closed; nothing on this page can be saved until Halyard is started again with Launch-Halyard.bat.</Notice>;
+  }
   if (!status) return <div className="h-9 border-b border-line-2 bg-surface" />;
   const repo = status.config.sourceRepository || status.config.sandboxRepository || 'no repository';
   return (

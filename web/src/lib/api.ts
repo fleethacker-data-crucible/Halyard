@@ -89,16 +89,19 @@ export function describeError(e: unknown): string {
  * Presence: the engine stops itself when the tab that drives it is gone. A heartbeat every few seconds
  * says "still here"; a keepalive "leaving" beacon on unload lets it stop within seconds instead of waiting
  * for the timeout. A reload sends a fresh heartbeat inside the grace period, so nothing stops.
+ * Every heartbeat says whether the tab is hidden: browsers run background timers about once a minute and
+ * freeze sleeping tabs, so the engine waits much longer for a hidden tab than for a visible one.
  */
 export function startHeartbeat(intervalMs = 5000): () => void {
   const token = sessionToken();
   if (!token) return () => {};
+  const hidden = () => document.visibilityState === 'hidden';
   const send = (leaving: boolean) => {
     try {
       void fetch('/api/heartbeat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Halyard-Session': token },
-        body: JSON.stringify({ leaving }),
+        body: JSON.stringify({ leaving, hidden: hidden() }),
         keepalive: true,
       }).catch(() => {});
     } catch {
@@ -119,12 +122,28 @@ export function startHeartbeat(intervalMs = 5000): () => void {
     if (!sent) send(true);
   };
   const onShow = () => send(false);
+  // Going to the background, or back: tell the engine at once rather than on the next (possibly throttled) tick.
+  const onVisibility = () => send(false);
+  // Chromium freezes sleeping tabs without a pagehide; a fetch may not get out, a beacon does.
+  const onFreeze = () => {
+    try {
+      if (navigator.sendBeacon && navigator.sendBeacon('/api/heartbeat', new Blob([JSON.stringify({ leaving: false, hidden: true, session: token })], { type: 'application/json' }))) return;
+    } catch {
+      /* fall through */
+    }
+    send(false);
+  };
   window.addEventListener('pagehide', onHide);
   window.addEventListener('pageshow', onShow);
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') send(false); });
+  document.addEventListener('visibilitychange', onVisibility);
+  document.addEventListener('freeze', onFreeze);
+  document.addEventListener('resume', onShow);
   return () => {
     window.clearInterval(timer);
     window.removeEventListener('pagehide', onHide);
     window.removeEventListener('pageshow', onShow);
+    document.removeEventListener('visibilitychange', onVisibility);
+    document.removeEventListener('freeze', onFreeze);
+    document.removeEventListener('resume', onShow);
   };
 }
