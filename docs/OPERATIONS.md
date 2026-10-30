@@ -197,8 +197,8 @@ stop an engine because it was opened as administrator, it names the PID and asks
 
 Halyard was renamed from a previous name. What an installed copy needs on its first launch after the rename still works:
 
-- `Launch-Cascade.bat` and `Update-Cascade.bat` are gone: point shortcuts at `Launch-Halyard.bat` (and, on a
-  development PC, `Update-Halyard.bat`).
+- Legacy launch and update aliases forward to `Launch-Halyard.bat` and
+  `Update-Halyard.bat`; existing shortcuts keep working. The release bundle includes the launch alias.
 - On the first launch, `config\cascade.env` is copied once to `config\halyard.env` with the variable names updated
   (`CASCADE_*` to `HALYARD_*`, `CASCADE_ARC_ITEM_*` to `HALYARD_LAZARETTE_ITEM_*`, `CASCADE_USE_ARC` to
   `HALYARD_USE_LAZARETTE`, and `sun-of-anton/cascade-sandbox` to `fleethacker-data-crucible/Halyard-Ballast`). The old file is
