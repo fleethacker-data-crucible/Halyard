@@ -1381,6 +1381,10 @@
   --fl-accent-night: #9b98f3;
   --fl-accent-chart: #4b45b8;
 }
+[data-app='fairlead'] {
+  --fl-accent-night: #a3d65c;
+  --fl-accent-chart: #4d7a1a;
+}
 :root, :root[data-theme='dark'] {
   --fl-background: #071a26;
   --fl-sidebar: #0a2130;
