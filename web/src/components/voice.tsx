@@ -71,7 +71,7 @@ export function DictationPanel({ onCopied }: { onCopied: () => void }) {
     r.continuous = true;
     r.interimResults = false;
     r.processLocally = true;
-    r.onresult = (e) => setText((t) => (t ? t + '\n' : '') + Array.from(e.results).map((x) => x[0].transcript).join(' ').trim());
+    r.onresult = (e) => setText((t) => (t ? t + '\n' : '') + Array.from(e.results).map((x) => x[0]?.transcript ?? "").join(' ').trim());
     r.onerror = (e) => { setNote(e.error === 'language-not-supported' || e.error === 'service-not-allowed' ? 'Speech recognition is not available on this computer for your language; type the note instead.' : `Dictation stopped: ${e.error}.`); setListening(false); };
     r.onend = () => setListening(false);
     recognition.current = r;
