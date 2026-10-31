@@ -6,6 +6,8 @@ import { describeError, post } from '../lib/api';
 import { shortDate } from '../lib/format';
 import { PlanResult, TeamInfo, type PlannedStory, type Status } from '../lib/schemas';
 import { invalidate, useResource } from '../lib/useResource';
+import { ShellbackRefresh } from '../components/fleet-actions';
+import { SprintReviewPanel } from '../components/sprint-review';
 import { Skeleton } from './overview';
 
 /**
@@ -18,6 +20,7 @@ export function PlanPage({ status }: { status: Status | undefined }) {
   const [sprintsAhead, setSprintsAhead] = useState(2);
   const [includeCurrent, setIncludeCurrent] = useState(true);
   const [requireReady, setRequireReady] = useState(true);
+  const [useReview, setUseReview] = useState(false);
   const [commitShare, setCommitShare] = useState<string>('');
   const [plan, setPlan] = useState<PlanResult | null>(null);
   const [busy, setBusy] = useState<'preview' | 'propose' | null>(null);
@@ -28,6 +31,7 @@ export function PlanPage({ status }: { status: Status | undefined }) {
     try {
       const body: Record<string, unknown> = { sprintsAhead, includeCurrent, requireReady };
       if (commitShare) body.commitShare = Number(commitShare) / 100;
+      if (useReview) body.useReview = true;
       const r = PlanResult.parse(await post(save ? '/api/plan/propose' : '/api/plan/preview', body));
       setPlan(r);
       if (save && r.batch) {
@@ -59,10 +63,12 @@ export function PlanPage({ status }: { status: Status | undefined }) {
             <div className="col-span-2 flex flex-col justify-end gap-1.5 pb-5">
               <Checkbox label="Top up the current sprint first" checked={includeCurrent} onChange={(e) => setIncludeCurrent(e.target.checked)} />
               <Checkbox label="Only stories that meet the definition of ready" checked={requireReady} onChange={(e) => setRequireReady(e.target.checked)} />
+              <Checkbox label="Commit what the team delivered (sprint review), slipped stories first" checked={useReview} onChange={(e) => setUseReview(e.target.checked)} />
             </div>
           </div>
         </Section>
-        <Section title="Team" aside={t ? <span className="text-[12px] text-ink-3">{t.cardsImported} Shellback cards</span> : null}>
+        <Section title="Team" aside={t ? <span className="flex items-center gap-2 text-[12px] text-ink-3">{t.cardsImported} Shellback cards<ShellbackRefresh onDone={() => invalidate('/api/team')} /></span> : null}>
+        <SprintReviewPanel />
           {!t ? <Skeleton rows={3} /> : t.teams.length === 0 ? <Empty title="No team configured">Add teams and people to <Mono>config/team.json</Mono>; drop Shellback peer cards in <Mono>config/shellback/</Mono> for skills.</Empty> : (
             <div className="px-4 py-3 text-[12.5px]">
               {t.teams.map((tm) => <div key={tm.id} className="mb-2 flex items-center gap-2"><LuUsers size={14} className="text-ink-3" /><span className="font-medium">{tm.name}</span><span className="text-ink-3">{tm.pointsPerSprint} pts/sprint · {tm.members} people · {Math.round(tm.committed * 100)}% committed</span></div>)}

@@ -14,7 +14,7 @@ namespace Halyard.Core.Llm
     public enum LlmProfile
     {
         Auto = 0,
-        /// <summary>Any OpenAI-compatible chat-completions endpoint: api.openai.com, Azure OpenAI, an organisation gateway, a local server.</summary>
+        /// <summary>Any OpenAI-compatible chat-completions endpoint: the Fairlead router (default), Azure OpenAI, an organisation gateway, a local server.</summary>
         OpenAi = 1,
         /// <summary>Databricks model-serving endpoint (<c>/serving-endpoints/{name}/invocations</c>; no <c>stream</c> flag).</summary>
         Databricks = 2,
@@ -58,8 +58,14 @@ namespace Halyard.Core.Llm
         public int TimeoutSeconds { get; set; }
         /// <summary>Directory for redacted request/response transcripts; null disables them.</summary>
         public string TranscriptDirectory { get; set; }
+        /// <summary>HALYARD_LLM_PRIVACY=local sends <c>X-Fairlead-Privacy: local</c> so the router only uses local engines.</summary>
+        public string Privacy { get; set; }
 
-        public const string DefaultOpenAiUrl = "https://api.openai.com/v1/chat/completions";
+        /// <summary>
+        /// The Fleet intelligence router (Fairlead) on this machine. No external endpoint is built in: a team that allows a provider sets
+        /// <c>LLM_URL</c>, and Fairlead decides which engine answers.
+        /// </summary>
+        public const string DefaultOpenAiUrl = "http://127.0.0.1:8776/v1/chat/completions";
         public const string DefaultOpenAiModel = "gpt-4o-mini";
 
         public static readonly LlmProfile[] Concrete = { LlmProfile.OpenAi, LlmProfile.Databricks, LlmProfile.Custom };
@@ -139,7 +145,7 @@ namespace Halyard.Core.Llm
         }
 
         /// <summary>
-        /// Accepts a full chat-completions URL or a base such as <c>https://api.openai.com/v1</c> (the shape
+        /// Accepts a full chat-completions URL or a base such as <c>https://gateway.example.com/v1</c> (the shape
         /// OPENAI_BASE_URL uses) and returns the chat-completions URL.
         /// </summary>
         public static string NormalizeOpenAiUrl(string url)
@@ -318,6 +324,7 @@ namespace Halyard.Core.Llm
                     foreach (var h in _settings.CustomHeaders) call.Headers[h.Key] = h.Value;
                 }
                 call.Headers["Authorization"] = "Bearer " + token;
+                if (string.Equals(_settings.Privacy, "local", StringComparison.OrdinalIgnoreCase)) call.Headers["X-Fairlead-Privacy"] = "local";
                 call.Headers["Accept"] = "application/json";
                 call.Headers["User-Agent"] = "Halyard/1.0";
                 transcript = BeginTranscript(payload);

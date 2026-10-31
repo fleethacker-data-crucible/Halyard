@@ -19,7 +19,8 @@
         'Invoke-HalyardSeed',
         'Invoke-HalyardTeardown',
         'Get-HalyardWorkItem',
-        'Send-HalyardReportMessage'
+        'Send-HalyardReportMessage',
+        'Get-HalyardCommand'
     )
     CmdletsToExport   = @()
     VariablesToExport = @()
