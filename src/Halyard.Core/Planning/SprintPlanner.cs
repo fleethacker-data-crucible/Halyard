@@ -21,6 +21,11 @@ namespace Halyard.Core.Planning
         public bool RequireReady { get; set; }
         public HashSet<long> OnlyNumbers { get; set; }
         public HashSet<string> OnlyKeys { get; set; }
+        /// <summary>
+        /// Result of <see cref="SprintReview.Build"/>. When set, the commit share defaults to what the team has actually delivered
+        /// (unless <see cref="CommitShare"/> is given) and stories that slipped out of finished sprints are placed first.
+        /// </summary>
+        public SprintReviewReport Review { get; set; }
 
         public PlanOptions()
         {
@@ -150,7 +155,9 @@ namespace Halyard.Core.Planning
             if (team.Teams.Count == 0) { result.Notes.Add("No teams in config/team.json; add a team with pointsPerSprint to plan."); return result; }
             var theTeam = team.Teams[0];
             var members = team.People.Where(p => string.Equals(p.Team, theTeam.Id, StringComparison.OrdinalIgnoreCase)).ToList();
-            var share = options.CommitShare ?? theTeam.Committed;
+            var share = options.CommitShare ?? (options.Review != null && options.Review.RecommendedShare != null ? options.Review.RecommendedShare.Value : theTeam.Committed);
+            if (options.CommitShare == null && options.Review != null && options.Review.RecommendedShare != null && Math.Abs(share - theTeam.Committed) > 0.005)
+                result.Notes.Add("Commitment set to " + (int)Math.Round(share * 100) + "% from the sprint review (configured " + (int)Math.Round(theTeam.Committed * 100) + "%).");
 
             // Sprint frames with what is already planned into them.
             var first = options.IncludeCurrent ? current : current + 1;
@@ -202,6 +209,7 @@ namespace Halyard.Core.Planning
                 var startedCount = feature != null && featureProgress.TryGetValue(feature.Key, out started) ? started : 0;
                 // Days to the feature's target dominate; a feature already in progress wins over one not started when targets are within a week.
                 var priority = (hasTarget ? (int)Math.Max(0, (targetDate - now).TotalDays) : 9000) * 10 + (startedCount > 0 ? 0 : 70);
+                if (options.Review != null && options.Review.CarryOverKeys.Contains(kv.Key.Key)) priority -= 100000; // slipped work first
                 return new { Story = kv.Key, Points = kv.Value, Feature = feature, Target = target, Started = startedCount, Priority = priority, Index = index };
             }).OrderBy(x => x.Priority).ThenBy(x => x.Index).Take(options.MaxStories).ToList();
 
@@ -217,6 +225,7 @@ namespace Halyard.Core.Planning
                 };
                 var why = new List<string>();
                 why.Add(c.Target != null ? "feature target " + c.Target : "no feature target");
+                if (options.Review != null && options.Review.CarryOverKeys.Contains(c.Story.Key)) why.Add("slipped out of a finished sprint");
                 if (c.Started > 0) why.Add("feature already has " + c.Started + " done stor" + (c.Started == 1 ? "y" : "ies"));
                 SprintPlan frame = null;
                 foreach (var f in result.Sprints) if (f.Remaining >= c.Points) { frame = f; break; }
