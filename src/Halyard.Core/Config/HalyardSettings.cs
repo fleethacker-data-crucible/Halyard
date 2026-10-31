@@ -65,6 +65,8 @@ namespace Halyard.Core.Config
             catch (UnauthorizedAccessException) { return null; }
         }
         public string IntakesDirectory { get { return Path.Combine(OutputDirectory, "intakes"); } }
+        /// <summary>HALYARD_REPORT_WEBHOOK: an https Teams/Slack incoming webhook for the leadership summary. Holds a secret URL; never shown or logged.</summary>
+        public string ReportWebhookUrl { get; set; }
         public string ProposalsDirectory { get { return Path.Combine(OutputDirectory, "proposals"); } }
         /// <summary>One file per apply run, with the body each written item had before (for rollback).</summary>
         public string ApplyJournalDirectory { get { return Path.Combine(OutputDirectory, "applied"); } }
@@ -116,6 +118,7 @@ namespace Halyard.Core.Config
             s.ShellbackExportPath = app("SHELLBACK_EXPORT");
             s.ShellbackUrl = app("SHELLBACK_URL");
             s.ShellbackToken = app("SHELLBACK_TOKEN");
+            s.ReportWebhookUrl = app("REPORT_WEBHOOK");
             var kindText = app("PROVIDER") ?? "github";
             s.Provider.Kind = kindText.Equals("gitlab", StringComparison.OrdinalIgnoreCase) ? ProviderKind.GitLab : ProviderKind.GitHub;
             if (s.Provider.Kind == ProviderKind.GitLab)
