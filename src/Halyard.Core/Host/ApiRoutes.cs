@@ -65,6 +65,7 @@ namespace Halyard.Core.Host
             Router.Post("/api/plan/preview", r => PlanRoute(r, false));
             Router.Post("/api/plan/propose", r => PlanRoute(r, true));
             RegisterGoalRoutes();
+            RegisterSprintReviewRoutes();
             Router.Get("/api/proposals", r => Task.FromResult(Json.Ok(Proposals.LoadAll().Select(BatchSummary))));
             Router.Post("/api/proposals/manual", ManualProposal);
             Router.Get("/api/proposals/{batchId}", GetBatch);
@@ -825,6 +826,7 @@ namespace Halyard.Core.Host
             var target = ProposalTarget(visible, out items);
             options.OnlyKeys = new HashSet<string>(items.Select(i => i.Key), StringComparer.OrdinalIgnoreCase);
             var report = Review.Run(visible, Taxonomy, label, all);
+            if (Json.Read<bool?>(body, "useReview") == true) options.Review = SprintReview.Build(visible, Team, DateTimeOffset.UtcNow, 6);
             var plan = SprintPlanner.Plan(visible, report, Team, DateTimeOffset.UtcNow, options);
             ProposalBatch batch = null;
             if (save)

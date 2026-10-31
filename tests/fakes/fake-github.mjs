@@ -7,8 +7,10 @@
 // Then point Halyard at it: GITHUB_API_URL=http://127.0.0.1:8790, GITHUB_TOKEN=fake,
 // LLM_URL=http://127.0.0.1:8790/v1/chat/completions, LLM_TOKEN=fake.
 import { createServer } from 'node:http';
+import { writeFileSync, renameSync } from 'node:fs';
 
 const port = Number(process.argv[2] ?? 8790);
+const readyFile = process.argv[3];
 const SANDBOX = 'fleethacker-data-crucible/Halyard-Ballast';
 // One issue store per repository, so a source backlog and the sandbox can coexist (intake copies between them).
 const repos = new Map();
@@ -209,4 +211,11 @@ const server = createServer(async (req, res) => {
   return send(res, 404, { message: 'Not Found' });
 });
 
-server.listen(port, '127.0.0.1', () => console.log(`fake GitHub on http://127.0.0.1:${port}`));
+server.listen(port, '127.0.0.1', () => {
+  const actualPort = server.address().port;
+  if (readyFile) {
+    writeFileSync(readyFile + '.tmp', String(actualPort));
+    renameSync(readyFile + '.tmp', readyFile);
+  }
+  console.log(`fake GitHub on http://127.0.0.1:${actualPort}`);
+});
