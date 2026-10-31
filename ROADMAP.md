@@ -2,7 +2,7 @@
 
 Goal: an autonomous product owner that works downward (raw tickets → ready, sized, skilled, planned
 work) and upward (delivery status and vision for leadership), sandbox first, human-gated,
-provider-agnostic. Last updated 2026-10-24.
+provider-agnostic. Last updated 2026-10-31.
 
 ## Done
 
@@ -19,7 +19,24 @@ provider-agnostic. Last updated 2026-10-24.
 | Planning | Sprint planner: ready stories by feature target and progress, first-fit into committed capacity, owners by skill match, skill gaps; becomes proposals |
 | Intake | Raw source tickets categorized and copied into the sandbox with a link back; de-duplicated; source never written |
 | Proposals | Eight kinds behind one projection for preview and apply; diff per row; approve, reject, apply, apply all, delete batch |
-| Tests | xUnit (145), Pester (16), UI unit tests, offline end-to-end loop over every flow above, CI on the Windows runner |
+| Tests | xUnit, Pester and UI unit tests, an offline end-to-end loop over every flow above, CI on the Windows runner. GitLab is covered against a stateful fake project and report delivery with mocked Outlook/SMTP (draft PR); nothing has run against a real GitLab, Outlook or mail server |
+
+## Status of the open work
+
+Built and tested against fakes, in draft pull requests (not on `main` until merged). "Live" parts need a real model, real tickets, a real
+GitLab, Teams/Slack or Shellback and are listed for the owner rather than faked.
+
+| Item | State | Pull request | Still needs a live check |
+|---|---|---|---|
+| GitLab provider and report-script tests | built | #32 | a run against the real GitLab (Next 3) |
+| 4 Live Shellback export | export file/folder and endpoint reader, consent-only cache, refresh route; no UI button | #36 | a real Shellback export or endpoint |
+| 5 Sprint review loop | planned vs delivered per sprint, recommended commitment, slipped stories first, Plan page panel | #35 | a few real sprints of history |
+| 6 Rollback of the last apply | journal, preview, conflict-safe restore, API and Applied-changes panel | #34 | a rollback in the real sandbox |
+| 8 Webhook delivery | Teams/Slack summary, dry run | #38 | a real webhook URL |
+| 10 Shared proposal state | write lease only; concurrent batch edits are not merged | #39 | two machines on a share |
+| 11 Production promote | gated preview and confirmed run, no UI | #37 | never run against a real production repository |
+| 7 Multi-step goals, 9 GitLab native links | not started | | |
+| 1, 2, 3 | not started: need a real model key, real tickets, the locked-down GitLab workstation | | |
 
 ## Next
 
