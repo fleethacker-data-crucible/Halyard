@@ -353,5 +353,48 @@ function Get-HalyardWorkItem {
     }
 }
 
-Export-ModuleMember -Function Get-HalyardRoot, Import-HalyardCore, Get-HalyardCoreSource, Get-HalyardCoreLoadInfo, Initialize-HalyardEnvironment, Connect-HalyardLazarette, Start-Halyard, Test-HalyardConnection, New-HalyardSyntheticCatalog, Invoke-HalyardSeed, Invoke-HalyardTeardown, Get-HalyardWorkItem
+function Send-HalyardReportMessage {
+    <#
+    .SYNOPSIS
+      Delivers a rendered report: through the Outlook desktop app (COM), through SMTP (Send-MailMessage), or not at all (File).
+    .DESCRIPTION
+      Used by scripts\Send-HalyardReport.ps1. Kept in the module so the delivery rules can be tested without a mail server
+      or Outlook. Returns an object saying how the report was delivered. Throws, before anything is sent, when the
+      recipients or the SMTP settings are missing.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][ValidateSet('Outlook', 'Smtp', 'File')][string]$Via,
+        [Parameter(Mandatory)][string]$Html,
+        [Parameter(Mandatory)][string]$Subject,
+        [string[]]$To,
+        [string]$SmtpServer,
+        [string]$From
+    )
+    $recipients = @($To | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    switch ($Via) {
+        'Outlook' {
+            if ($recipients.Count -eq 0) { throw 'Specify -To for Outlook delivery.' }
+            $outlook = $null
+            try { $outlook = New-Object -ComObject Outlook.Application } catch { throw 'Outlook is not available on this machine (COM automation failed). Use -Via Smtp or -Via File.' }
+            $mail = $outlook.CreateItem(0)
+            $mail.To = ($recipients -join ';')
+            $mail.Subject = $Subject
+            $mail.HTMLBody = $Html
+            $mail.Send()
+            return [pscustomobject]@{ Via = 'Outlook'; Sent = $true; To = $recipients; Server = $null }
+        }
+        'Smtp' {
+            if ($recipients.Count -eq 0) { throw 'Specify -To for SMTP delivery.' }
+            if (-not $SmtpServer -or -not $From) { throw 'Specify -SmtpServer and -From for SMTP delivery.' }
+            Send-MailMessage -To $recipients -From $From -Subject $Subject -Body $Html -BodyAsHtml -SmtpServer $SmtpServer -Encoding ([System.Text.Encoding]::UTF8)
+            return [pscustomobject]@{ Via = 'Smtp'; Sent = $true; To = $recipients; Server = $SmtpServer }
+        }
+        default {
+            return [pscustomobject]@{ Via = 'File'; Sent = $false; To = @(); Server = $null }
+        }
+    }
+}
+
+Export-ModuleMember -Function Send-HalyardReportMessage, Get-HalyardRoot, Import-HalyardCore, Get-HalyardCoreSource, Get-HalyardCoreLoadInfo, Initialize-HalyardEnvironment, Connect-HalyardLazarette, Start-Halyard, Test-HalyardConnection, New-HalyardSyntheticCatalog, Invoke-HalyardSeed, Invoke-HalyardTeardown, Get-HalyardWorkItem
 

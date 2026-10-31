@@ -69,6 +69,7 @@ namespace Halyard.Core.Host
             Router.Post("/api/proposals/{batchId}/apply", StartApply);
             Router.Post("/api/proposals/{batchId}/delete", DeleteBatch);
             Router.Post("/api/proposals/apply-all", StartApplyAll);
+            RegisterApplyRunRoutes();
             Router.Get("/api/proposals/{batchId}/{proposalId}/preview", PreviewProposal);
 
             Router.Get("/api/jobs", r => Task.FromResult(Json.Ok(Jobs.List())));
@@ -89,6 +90,7 @@ namespace Halyard.Core.Host
             Router.Get("/api/writes", r => Task.FromResult(Json.Ok(new { policy = PolicyPayload(), entries = Gateway.Audit.Reverse().Take(500) })));
             Router.Post("/api/llm/test", TestLlm);
             Router.Post("/api/llm/curl", SetLlmFromCurl);
+            RegisterPromoteRoutes();
             Router.Post("/api/heartbeat", r =>
             {
                 var body = Json.Body(r);
@@ -977,8 +979,9 @@ namespace Halyard.Core.Host
             var job = Jobs.Start("apply", async ctx =>
             {
                 var progress = new Progress<string>(m => ctx.Report(0, 0, m));
-                var result = await ProposalApplier.ApplyAsync(batch, Proposals, provider, Gateway, sandbox, progress, ctx.Cancellation).ConfigureAwait(false);
-                return await ResyncAfterWrite(ctx, provider, result).ConfigureAwait(false);
+                var run = new ApplyRun { Target = sandbox.Key };
+                var result = await ProposalApplier.ApplyAsync(batch, Proposals, provider, Gateway, sandbox, progress, ctx.Cancellation, run, Journal).ConfigureAwait(false);
+                return await ResyncAfterWrite(ctx, provider, new { result.BatchId, result.Applied, result.Skipped, result.Failed, result.Messages, applyRunId = run.Entries.Count > 0 ? run.Id : null }).ConfigureAwait(false);
             });
             return Task.FromResult(Json.Accepted(new { job, batchId = batch.Id, approved = batch.Proposals.Count(p => p.Decision == ProposalDecision.Approved) }));
         }
@@ -1006,18 +1009,19 @@ namespace Halyard.Core.Host
             var job = Jobs.Start("apply", async ctx =>
             {
                 var totals = new ApplyResult { BatchId = "all" };
+                var run = new ApplyRun { Target = sandbox.Key };
                 var done = 0;
                 foreach (var batch in batches)
                 {
                     ctx.Cancellation.ThrowIfCancellationRequested();
                     var progress = new Progress<string>(m => ctx.Report(done, approved, batch.Kind + ": " + m));
-                    var result = await ProposalApplier.ApplyAsync(batch, Proposals, provider, Gateway, sandbox, progress, ctx.Cancellation).ConfigureAwait(false);
+                    var result = await ProposalApplier.ApplyAsync(batch, Proposals, provider, Gateway, sandbox, progress, ctx.Cancellation, run, Journal).ConfigureAwait(false);
                     totals.Applied += result.Applied; totals.Skipped += result.Skipped; totals.Failed += result.Failed;
                     totals.Messages.AddRange(result.Messages);
                     done += result.Applied + result.Skipped + result.Failed;
                 }
                 ctx.Report(done, approved, "Applied " + totals.Applied + ", skipped " + totals.Skipped + ", failed " + totals.Failed + " across " + batches.Count + " batches");
-                return await ResyncAfterWrite(ctx, provider, new { totals.Applied, totals.Skipped, totals.Failed, totals.Messages, batches = batches.Count }).ConfigureAwait(false);
+                return await ResyncAfterWrite(ctx, provider, new { totals.Applied, totals.Skipped, totals.Failed, totals.Messages, batches = batches.Count, applyRunId = run.Entries.Count > 0 ? run.Id : null }).ConfigureAwait(false);
             });
             return Task.FromResult(Json.Accepted(new { job, batches = batches.Count, approved }));
         }
