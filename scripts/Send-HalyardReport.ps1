@@ -47,24 +47,10 @@ if (-not $OutFile) { $OutFile = Join-Path $reports ('leadership-' + (Get-Date -F
 Write-Host ('Report saved: ' + $OutFile) -ForegroundColor Green
 if (-not $Subject) { $Subject = $Title + ' - ' + (Get-Date -Format 'dd MMM yyyy') }
 
-switch ($Via) {
-    'Outlook' {
-        if (-not $To) { throw 'Specify -To for Outlook delivery.' }
-        $outlook = $null
-        try { $outlook = New-Object -ComObject Outlook.Application } catch { throw 'Outlook is not available on this machine (COM automation failed). Use -Via Smtp or -Via File.' }
-        $mail = $outlook.CreateItem(0)
-        $mail.To = ($To -join ';')
-        $mail.Subject = $Subject
-        $mail.HTMLBody = $html
-        $mail.Send()
-        Write-Host ('Sent through Outlook to ' + ($To -join ', ')) -ForegroundColor Green
-    }
-    'Smtp' {
-        if (-not $To) { throw 'Specify -To for SMTP delivery.' }
-        if (-not $SmtpServer -or -not $From) { throw 'Specify -SmtpServer and -From for SMTP delivery.' }
-        Send-MailMessage -To $To -From $From -Subject $Subject -Body $html -BodyAsHtml -SmtpServer $SmtpServer -Encoding ([System.Text.Encoding]::UTF8)
-        Write-Host ('Sent through ' + $SmtpServer + ' to ' + ($To -join ', ')) -ForegroundColor Green
-    }
+$delivery = Send-HalyardReportMessage -Via $Via -Html $html -Subject $Subject -To $To -SmtpServer $SmtpServer -From $From
+switch ($delivery.Via) {
+    'Outlook' { Write-Host ('Sent through Outlook to ' + ($delivery.To -join ', ')) -ForegroundColor Green }
+    'Smtp' { Write-Host ('Sent through ' + $delivery.Server + ' to ' + ($delivery.To -join ', ')) -ForegroundColor Green }
     default { }
 }
 return $OutFile
