@@ -199,7 +199,7 @@ namespace Halyard.Core.Tests
             Assert.Equal(0, result.Conflicts);
             Assert.Equal("Original text.", _gitlab.BodyOf(iid));
             Assert.Equal(2, result.Rows.Count);
-            Assert.Equal(afterFirst, run.Entries.OrderBy(e => e.AppliedAt).Last().PreviousBody);
+            Assert.Equal(afterFirst, run.Entries.Last().PreviousBody);
         }
 
         [Fact]
