@@ -44,6 +44,7 @@ namespace Halyard.Core.Host
             RegisterWebhookRoutes();
             Router.Get("/api/leadership/report.html", r => Task.FromResult(HttpResponse.Text(200, DeliveryHtml.Render(BuildDelivery(Query(r, "label")), "Halyard Leadership Dashboard", Settings.BrandLogoBase64()), "text/html; charset=utf-8")));
             Router.Get("/api/team", r => Task.FromResult(Json.Ok(TeamPayload())));
+            RegisterSemaphoreExportRoutes();
             RegisterShellbackRoutes();
 
             Router.Get("/api/sandbox/preview", PreviewCatalog);
