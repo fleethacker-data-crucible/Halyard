@@ -66,6 +66,8 @@ namespace Halyard.Core.Config
         }
         public string IntakesDirectory { get { return Path.Combine(OutputDirectory, "intakes"); } }
         public string ProposalsDirectory { get { return Path.Combine(OutputDirectory, "proposals"); } }
+        /// <summary>One file per apply run, with the body each written item had before (for rollback).</summary>
+        public string ApplyJournalDirectory { get { return Path.Combine(OutputDirectory, "applied"); } }
         public string SnapshotsDirectory { get { return Path.Combine(OutputDirectory, "snapshots"); } }
         public string SeedsDirectory { get { return Path.Combine(OutputDirectory, "seeds"); } }
         public string TranscriptsDirectory { get { return Path.Combine(OutputDirectory, "llm_transcripts"); } }

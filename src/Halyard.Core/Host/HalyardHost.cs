@@ -100,6 +100,7 @@ namespace Halyard.Core.Host
             Gateway = new WriteGateway(Settings.BuildWritePolicy());
             Snapshots = new SnapshotStore(Settings.SnapshotsDirectory);
             Proposals = new ProposalStore(Settings.ProposalsDirectory);
+            Journal = new ApplyJournal(Settings.ApplyJournalDirectory);
             Visions = new VisionStore(Settings.VisionDirectory);
             Taxonomy = Schema.Taxonomy.Load(Settings.TaxonomyPath);
             SessionToken = string.IsNullOrEmpty(options.SessionToken) ? NewToken() : options.SessionToken;
@@ -115,6 +116,7 @@ namespace Halyard.Core.Host
         public WriteGateway Gateway { get; private set; }
         public SnapshotStore Snapshots { get; private set; }
         public ProposalStore Proposals { get; private set; }
+        public ApplyJournal Journal { get; private set; }
         public VisionStore Visions { get; private set; }
         public Taxonomy Taxonomy { get; private set; }
         public Router Router { get; private set; }
