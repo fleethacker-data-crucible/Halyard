@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/emblem-dark.png">
-    <img src="assets/brand/emblem-light.png" width="280" alt="Halyard emblem: a mast with a pulley block and a line of signal flags, inside a brass compass ring">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/emblem-dark-transparent.png">
+    <img src="assets/brand/emblem-light-transparent.png" width="280" alt="Halyard emblem: a mast with a pulley block and a line of signal flags, inside a brass compass ring">
   </picture>
 </p>
 
