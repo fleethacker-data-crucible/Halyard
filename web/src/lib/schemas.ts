@@ -479,3 +479,39 @@ export const SprintReviewReport = z.object({
   notes: z.array(z.string()),
 });
 export type SprintReviewReport = z.infer<typeof SprintReviewReport>;
+
+export const ApplyRunSummary = z.object({
+  id: z.string(),
+  target: z.string(),
+  startedAt: z.string(),
+  batchIds: z.array(z.string()),
+  entries: z.number(),
+  pending: z.number(),
+  rolledBack: z.number(),
+  canRollBack: z.boolean(),
+});
+export type ApplyRunSummary = z.infer<typeof ApplyRunSummary>;
+
+export const RollbackRow = z.object({
+  batchId: z.string(),
+  proposalId: z.string(),
+  itemNumber: z.number(),
+  itemCanonicalId: z.string(),
+  itemTitle: z.string(),
+  status: z.enum(['restore', 'restored', 'alreadyRestored', 'conflict', 'missing', 'failed']),
+  note: z.string(),
+});
+export const RollbackResult = z.object({
+  runId: z.string(),
+  dryRun: z.boolean(),
+  restored: z.number(),
+  alreadyRestored: z.number(),
+  conflicts: z.number(),
+  missing: z.number(),
+  failed: z.number(),
+  rows: z.array(RollbackRow),
+  messages: z.array(z.string()),
+});
+export type RollbackResult = z.infer<typeof RollbackResult>;
+export const RollbackPreview = z.object({ run: ApplyRunSummary, preview: RollbackResult });
+export type RollbackPreview = z.infer<typeof RollbackPreview>;
