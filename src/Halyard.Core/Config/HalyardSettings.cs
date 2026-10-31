@@ -129,6 +129,7 @@ namespace Halyard.Core.Config
                 // are often set to a real project and must never become writable by accident.
                 s.Provider.SandboxRepository = app("SANDBOX_REPO") ?? string.Empty;
                 s.Provider.Token = env("GITLAB_TOKEN");
+                s.Provider.GitLabVersion = app("GITLAB_VERSION");
             }
             else
             {

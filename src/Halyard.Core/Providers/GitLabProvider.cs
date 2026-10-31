@@ -40,6 +40,12 @@ namespace Halyard.Core.Providers
             return b.EndsWith("/api/v4", StringComparison.OrdinalIgnoreCase) ? b : b + "/api/v4";
         }
 
+        /// <summary>The configured server version (HALYARD_GITLAB_VERSION), or null when it has not been confirmed.</summary>
+        public string ServerVersion { get; set; }
+
+        /// <summary>Related-issue links can be read (REST issue links API, all tiers from 13.4). Off while the version is unknown.</summary>
+        public bool NativeLinksAvailable { get { return GitLabServerVersion.AtLeast(ServerVersion, 13, 4); } }
+
         public ProviderKind Kind { get { return ProviderKind.GitLab; } }
         public RepositoryRef Repository { get; private set; }
         public ProviderCapabilities Capabilities { get; private set; }
@@ -56,7 +62,7 @@ namespace Halyard.Core.Providers
         {
             // The writer is a separate object so a provider can never be cast to a writer; only the
             // write gateway calls this, after the policy check.
-            return new Writer(target.Equals(Repository) ? this : new GitLabProvider(Http, BaseUrl, Token, target, WriteDelayMs));
+            return new Writer(target.Equals(Repository) ? this : new GitLabProvider(Http, BaseUrl, Token, target, WriteDelayMs) { ServerVersion = ServerVersion });
         }
 
         private sealed class Writer : IWorkItemWriter
@@ -74,7 +80,7 @@ namespace Halyard.Core.Providers
 
         public IWorkItemReader ForRepository(RepositoryRef repository)
         {
-            return repository.Equals(Repository) ? this : new GitLabProvider(Http, BaseUrl, Token, repository, WriteDelayMs);
+            return repository.Equals(Repository) ? this : new GitLabProvider(Http, BaseUrl, Token, repository, WriteDelayMs) { ServerVersion = ServerVersion };
         }
 
         public async Task<ProviderIdentity> TestConnectionAsync(CancellationToken cancellation)
@@ -170,6 +176,27 @@ namespace Halyard.Core.Providers
                 if (ex.Status != 404) throw;
                 return null;
             }
+        }
+
+        /// <summary>
+        /// Native issue links of one issue (relates_to; blocks and is_blocked_by on tiers that have them). Read-only. Throws
+        /// <see cref="InvalidOperationException"/> while the server version is unknown or older than 13.4.
+        /// </summary>
+        public async Task<IReadOnlyList<IssueLink>> ListLinksAsync(long number, CancellationToken cancellation)
+        {
+            if (!NativeLinksAvailable) throw new InvalidOperationException("Native links need a confirmed GitLab 13.4 or newer: set HALYARD_GITLAB_VERSION.");
+            var result = new List<IssueLink>();
+            foreach (var j in ParseJson((await SendAsync(NewCall("GET", ProjectApi + "/issues/" + number + "/links"), cancellation).ConfigureAwait(false)).Body))
+            {
+                var iid = (long?)j["iid"];
+                if (iid == null) continue;
+                result.Add(new IssueLink
+                {
+                    Type = (string)j["link_type"] ?? "relates_to", TargetNumber = iid.Value, TargetProject = ((long?)j["project_id"]) == null ? null : ((long?)j["project_id"]).Value.ToString(),
+                    Title = (string)j["title"] ?? string.Empty, State = StateFromText((string)j["state"] == "opened" ? "open" : (string)j["state"]), Url = (string)j["web_url"],
+                });
+            }
+            return result;
         }
 
         // ---- writer (reachable only through WriteGateway) ----

@@ -62,6 +62,7 @@ namespace Halyard.Core.Host
             C("halyard hierarchy show", "GET", "/api/hierarchy", "The work item tree with rollups."),
             C("halyard item show", "GET", "/api/item", "One work item by key."),
             C("halyard item get", "GET", "/api/items/{number}", "One sandbox work item by number."),
+            C("halyard item links", "GET", "/api/items/{number}/links", "Native GitLab issue links of an item (needs HALYARD_GITLAB_VERSION)."),
             C("halyard leadership show", "GET", "/api/leadership", "Feature progress, velocity, readiness, capacity, blockers."),
             C("halyard leadership report", "GET", "/api/leadership/report.html", "The leadership report as self-contained HTML."),
             C("halyard team show", "GET", "/api/team", "Teams, people, skills and the sprint calendar."),
