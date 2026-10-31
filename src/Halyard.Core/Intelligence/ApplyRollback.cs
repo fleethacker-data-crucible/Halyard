@@ -63,7 +63,7 @@ namespace Halyard.Core.Intelligence
     }
 
     /// <summary>
-    /// Undoes an apply run from its journal. Entries are walked newest first, so several proposals that touched one
+    /// Undoes an apply run from its journal. Entries are walked newest first (reverse of the order they were written), so several proposals that touched one
     /// item unwind in order. An item is restored only while its live body is still exactly what Halyard wrote; if someone
     /// edited it since, the entry is a conflict and is left alone unless <c>force</c> is set. A dry run writes nothing and
     /// does not open a writer. Restored proposals go back to Pending so they must be reviewed again before re-applying.
@@ -77,7 +77,7 @@ namespace Halyard.Core.Intelligence
             var result = new RollbackResult { RunId = run.Id, DryRun = dryRun };
             if (!string.Equals(run.Target, target.Key, StringComparison.OrdinalIgnoreCase))
                 throw new WriteBlockedException("ROLLBACK BLOCKED: apply run " + run.Id + " wrote to " + run.Target + ", not the sandbox " + target.Key + ".", target);
-            var open = run.Entries.Where(e => e.RolledBackAt == null).OrderByDescending(e => e.AppliedAt).ToList();
+            var open = run.Entries.Where(e => e.RolledBackAt == null).Reverse().ToList(); // entries are appended in apply order; timestamps can tie on .NET Framework
             if (open.Count == 0)
             {
                 result.Messages.Add("Apply run " + run.Id + " has nothing left to undo.");
