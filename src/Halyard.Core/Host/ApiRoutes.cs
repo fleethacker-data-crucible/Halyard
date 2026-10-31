@@ -40,6 +40,7 @@ namespace Halyard.Core.Host
             Router.Get("/api/items/{number}", GetItem);
             Router.Get("/api/item", GetItem);
             Router.Get("/api/leadership", r => Task.FromResult(Json.Ok(LeadershipPayload(Query(r, "label")))));
+            RegisterWebhookRoutes();
             Router.Get("/api/leadership/report.html", r => Task.FromResult(HttpResponse.Text(200, DeliveryHtml.Render(BuildDelivery(Query(r, "label")), "Halyard Leadership Dashboard", Settings.BrandLogoBase64()), "text/html; charset=utf-8")));
             Router.Get("/api/team", r => Task.FromResult(Json.Ok(TeamPayload())));
 

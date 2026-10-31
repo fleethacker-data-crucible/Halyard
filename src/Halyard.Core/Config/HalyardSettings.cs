@@ -50,6 +50,8 @@ namespace Halyard.Core.Config
             catch (UnauthorizedAccessException) { return null; }
         }
         public string IntakesDirectory { get { return Path.Combine(OutputDirectory, "intakes"); } }
+        /// <summary>HALYARD_REPORT_WEBHOOK: an https Teams/Slack incoming webhook for the leadership summary. Holds a secret URL; never shown or logged.</summary>
+        public string ReportWebhookUrl { get; set; }
         public string ProposalsDirectory { get { return Path.Combine(OutputDirectory, "proposals"); } }
         public string SnapshotsDirectory { get { return Path.Combine(OutputDirectory, "snapshots"); } }
         public string SeedsDirectory { get { return Path.Combine(OutputDirectory, "seeds"); } }
@@ -96,6 +98,7 @@ namespace Halyard.Core.Config
             // HALYARD_* first. The former CASCADE_* names are read as a fallback for one release after the rename, then removed.
             Func<string, string> app = suffix => env("HALYARD_" + suffix) ?? env("CASCADE_" + suffix);
 
+            s.ReportWebhookUrl = app("REPORT_WEBHOOK");
             var kindText = app("PROVIDER") ?? "github";
             s.Provider.Kind = kindText.Equals("gitlab", StringComparison.OrdinalIgnoreCase) ? ProviderKind.GitLab : ProviderKind.GitHub;
             if (s.Provider.Kind == ProviderKind.GitLab)
