@@ -144,7 +144,7 @@ namespace Halyard.Core.Tests
         }
 
         [Theory]
-        [InlineData(null, "https://api.openai.com/v1/chat/completions")]
+        [InlineData(null, "http://127.0.0.1:8776/v1/chat/completions")]
         [InlineData("https://api.openai.com/v1", "https://api.openai.com/v1/chat/completions")]
         [InlineData("https://gateway.example.test/v1/chat/completions/", "https://gateway.example.test/v1/chat/completions")]
         [InlineData("https://gateway.example.test", "https://gateway.example.test/v1/chat/completions")]
