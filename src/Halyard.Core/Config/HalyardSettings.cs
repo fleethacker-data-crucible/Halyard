@@ -53,6 +53,8 @@ namespace Halyard.Core.Config
         /// <summary>HALYARD_REPORT_WEBHOOK: an https Teams/Slack incoming webhook for the leadership summary. Holds a secret URL; never shown or logged.</summary>
         public string ReportWebhookUrl { get; set; }
         public string ProposalsDirectory { get { return Path.Combine(OutputDirectory, "proposals"); } }
+        /// <summary>One file per apply run, with the body each written item had before (for rollback).</summary>
+        public string ApplyJournalDirectory { get { return Path.Combine(OutputDirectory, "applied"); } }
         public string SnapshotsDirectory { get { return Path.Combine(OutputDirectory, "snapshots"); } }
         public string SeedsDirectory { get { return Path.Combine(OutputDirectory, "seeds"); } }
         public string TranscriptsDirectory { get { return Path.Combine(OutputDirectory, "llm_transcripts"); } }

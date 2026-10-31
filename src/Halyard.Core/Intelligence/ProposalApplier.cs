@@ -94,8 +94,18 @@ namespace Halyard.Core.Intelligence
             foreach (var kv in changes) meta.Set(kv.Key, kv.Value);
         }
 
-        public static async Task<ApplyResult> ApplyAsync(ProposalBatch batch, ProposalStore store, IWorkItemProvider provider, WriteGateway gateway, RepositoryRef target,
+        public static Task<ApplyResult> ApplyAsync(ProposalBatch batch, ProposalStore store, IWorkItemProvider provider, WriteGateway gateway, RepositoryRef target,
             IProgress<string> progress, CancellationToken cancellation)
+        {
+            return ApplyAsync(batch, store, provider, gateway, target, progress, cancellation, null, null);
+        }
+
+        /// <summary>
+        /// As above; when <paramref name="run"/> and <paramref name="journal"/> are given, every body that is written is
+        /// recorded with the body it replaced so the run can be undone by <see cref="RollbackAsync"/>.
+        /// </summary>
+        public static async Task<ApplyResult> ApplyAsync(ProposalBatch batch, ProposalStore store, IWorkItemProvider provider, WriteGateway gateway, RepositoryRef target,
+            IProgress<string> progress, CancellationToken cancellation, ApplyRun run, ApplyJournal journal)
         {
             if (batch == null) throw new ArgumentNullException("batch");
             var result = new ApplyResult { BatchId = batch.Id };
@@ -140,6 +150,17 @@ namespace Halyard.Core.Intelligence
                     proposal.Decision = ProposalDecision.Applied;
                     proposal.AppliedAt = DateTimeOffset.UtcNow;
                     result.Applied++;
+                    if (run != null && journal != null)
+                    {
+                        run.Target = target.Key;
+                        if (!run.BatchIds.Contains(batch.Id)) run.BatchIds.Add(batch.Id);
+                        run.Entries.Add(new ApplyJournalEntry
+                        {
+                            BatchId = batch.Id, ProposalId = proposal.Id, Kind = proposal.Kind, ItemKey = item.Key, ItemNumber = item.Number, ItemCanonicalId = proposal.ItemCanonicalId,
+                            ItemTitle = item.Title, PreviousBody = item.Body, AppliedBody = projection.Body, AppliedAt = proposal.AppliedAt.Value,
+                        });
+                        journal.Save(run);
+                    }
                 }
                 catch (WriteBlockedException ex)
                 {
