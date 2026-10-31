@@ -34,6 +34,11 @@ namespace Halyard.Core.Providers
         public string SandboxRepository { get; set; }
         /// <summary>Held in memory only. Never persisted by the core.</summary>
         public string Token { get; set; }
+        /// <summary>
+        /// HALYARD_GITLAB_VERSION: the GitLab server version (for example 16.9), set by hand once it is confirmed. Unset means unknown, and
+        /// anything that needs a newer server stays off.
+        /// </summary>
+        public string GitLabVersion { get; set; }
         public int WriteDelayMs { get; set; }
 
         public string EffectiveBaseUrl
@@ -123,7 +128,7 @@ namespace Halyard.Core.Providers
                 case ProviderKind.GitHub:
                     return new GitHubProvider(http, settings.EffectiveBaseUrl, settings.Token, repo, settings.WriteDelayMs);
                 case ProviderKind.GitLab:
-                    return new GitLabProvider(http, settings.EffectiveBaseUrl, settings.Token, repo, settings.WriteDelayMs);
+                    return new GitLabProvider(http, settings.EffectiveBaseUrl, settings.Token, repo, settings.WriteDelayMs) { ServerVersion = settings.GitLabVersion };
                 default:
                     throw new NotSupportedException("Unknown provider " + settings.Kind);
             }
