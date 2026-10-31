@@ -8,7 +8,7 @@
     "build": "node build.mjs",
     "dev": "node build.mjs --watch",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "test": "node --import tsx --test test/*.test.ts"
+    "test": "node --import tsx --test test/*.test.ts test/*.test.tsx"
   },
   "dependencies": {
     "@headlessui/react": "2.2.10",

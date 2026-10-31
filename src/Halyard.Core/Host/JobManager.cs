@@ -135,7 +135,21 @@ namespace Halyard.Core.Host
             _log = log;
         }
 
+        /// <summary>Job kinds that write to the sandbox (or production) and so need the operator lease.</summary>
+        public static readonly string[] WriteKinds = { "apply", "rollback", "promote", "seed", "teardown", "intake" };
+
+        /// <summary>When set, a write job takes this lease before it starts and releases it when it ends.</summary>
+        public OperatorLease Lease { get; set; }
+
         public JobInfo Start(string kind, Func<JobContext, Task<object>> body, bool exclusive = true)
+        {
+            IDisposable lease = null;
+            if (Lease != null && Array.IndexOf(WriteKinds, kind) >= 0) lease = Lease.Acquire(kind);
+            try { return StartCore(kind, body, exclusive, lease); }
+            catch { if (lease != null) lease.Dispose(); throw; }
+        }
+
+        private JobInfo StartCore(string kind, Func<JobContext, Task<object>> body, bool exclusive, IDisposable lease)
         {
             if (exclusive)
             {
@@ -174,6 +188,10 @@ namespace Halyard.Core.Host
                 {
                     job.Fail(ex.Message, ex.GetType().Name);
                     _log.Error("JOB_FAILED", kind + " " + job.Id + ": " + ex.GetType().Name + " " + ex.Message);
+                }
+                finally
+                {
+                    if (lease != null) lease.Dispose();
                 }
             });
             Prune();

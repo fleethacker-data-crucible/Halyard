@@ -97,6 +97,7 @@ namespace Halyard.Core.Host
             Settings = options.Settings;
             Log = new Diagnostics(Settings.LogDirectory);
             Jobs = new JobManager(Log);
+            Jobs.Lease = new OperatorLease(System.IO.Path.Combine(Settings.OutputDirectory, "write.lease"), OperatorLease.DefaultHolder(), TimeSpan.FromHours(2));
             Gateway = new WriteGateway(Settings.BuildWritePolicy());
             Snapshots = new SnapshotStore(Settings.SnapshotsDirectory);
             Proposals = new ProposalStore(Settings.ProposalsDirectory);
@@ -121,7 +122,14 @@ namespace Halyard.Core.Host
         public Taxonomy Taxonomy { get; private set; }
         public Router Router { get; private set; }
         /// <summary>Teams, people and the sprint calendar; re-read from disk on each use so edits to config/team.json apply without a relaunch.</summary>
-        public Planning.TeamConfig Team { get { return Planning.TeamConfig.Load(Settings.TeamPath, Settings.ShellbackDirectories); } }
+        public Planning.TeamConfig Team
+        {
+            get
+            {
+                RefreshShellbackFile();
+                return Planning.TeamConfig.Load(Settings.TeamPath, Settings.ShellbackDirectories);
+            }
+        }
         public Planning.SkillsTaxonomy Skills { get { return Planning.SkillsTaxonomy.Load(Settings.SkillsPath); } }
         public string SessionToken { get; private set; }
         public DateTimeOffset StartedAt { get; private set; }

@@ -426,6 +426,9 @@
   .max-h-64 {
     max-height: calc(var(--spacing) * 64);
   }
+  .max-h-\[30vh\] {
+    max-height: 30vh;
+  }
   .max-h-\[50vh\] {
     max-height: 50vh;
   }
@@ -603,6 +606,9 @@
   }
   .cursor-pointer {
     cursor: pointer;
+  }
+  .list-disc {
+    list-style-type: disc;
   }
   .appearance-none {
     appearance: none;
@@ -1002,6 +1008,9 @@
   }
   .pl-4 {
     padding-left: calc(var(--spacing) * 4);
+  }
+  .pl-5 {
+    padding-left: calc(var(--spacing) * 5);
   }
   .text-center {
     text-align: center;
