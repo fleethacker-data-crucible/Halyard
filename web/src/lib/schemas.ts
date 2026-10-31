@@ -462,3 +462,20 @@ export type IntakeManifest = z.infer<typeof IntakeManifest>;
 
 export const Repositories = z.array(z.object({ identifier: z.string(), displayName: z.string(), url: Nullable(z.string()), key: z.string() }));
 export const Labels = z.object({ repository: z.string(), labels: z.array(z.string()) });
+
+export const SprintReviewReport = z.object({
+  generatedAt: z.string(),
+  currentSprint: z.string(),
+  sprints: z.array(z.object({
+    sprint: z.string(), number: z.number(), storiesPlanned: z.number(), storiesDelivered: z.number(), pointsPlanned: z.number(), pointsDelivered: z.number(),
+    pointsSlipped: z.number(), deliveryRate: Nullable(z.number()), teamCapacity: z.number(), slippedKeys: z.array(z.string()),
+  })),
+  averageDelivered: z.number(),
+  averageDeliveryRate: Nullable(z.number()),
+  teamCapacity: z.number(),
+  recommendedCommitPoints: z.number(),
+  recommendedShare: Nullable(z.number()),
+  configuredShare: z.number(),
+  notes: z.array(z.string()),
+});
+export type SprintReviewReport = z.infer<typeof SprintReviewReport>;
