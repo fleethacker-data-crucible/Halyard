@@ -57,6 +57,7 @@ namespace Halyard.Core.Host
             Router.Post("/api/intake/preview", r => IntakeRoute(r, false));
             Router.Post("/api/intake/run", r => IntakeRoute(r, true));
             Router.Get("/api/intake/runs", r => Task.FromResult(Json.Ok(Intake.ReadManifests(Settings.IntakesDirectory))));
+            RegisterHandoffRoutes();
             Router.Get("/api/vision", r => Task.FromResult(Json.Ok(Visions.LoadAll().Select(VisionSummary))));
             Router.Get("/api/vision/{id}", r => { var v = Visions.Load(r.RouteValues["id"]); if (v == null) throw new NotFoundException("No such vision draft."); return Task.FromResult(Json.Ok(v)); });
             Router.Post("/api/vision/draft", StartVision);
