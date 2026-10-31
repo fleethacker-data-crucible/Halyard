@@ -97,6 +97,7 @@ namespace Halyard.Core.Host
             Settings = options.Settings;
             Log = new Diagnostics(Settings.LogDirectory);
             Jobs = new JobManager(Log);
+            Jobs.Lease = new OperatorLease(System.IO.Path.Combine(Settings.OutputDirectory, "write.lease"), OperatorLease.DefaultHolder(), TimeSpan.FromHours(2));
             Gateway = new WriteGateway(Settings.BuildWritePolicy());
             Snapshots = new SnapshotStore(Settings.SnapshotsDirectory);
             Proposals = new ProposalStore(Settings.ProposalsDirectory);
