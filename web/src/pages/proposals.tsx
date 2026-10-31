@@ -3,6 +3,7 @@ import { LuArrowRight, LuCheck, LuChevronDown, LuChevronRight, LuPlay, LuSparkle
 import { navigate } from '../app';
 import { ApplyHistory } from '../components/apply-history';
 import { DiffView } from '../components/diff';
+import { GoalPanel } from '../components/fleet-actions';
 import { Button, Checkbox, ConfirmDialog, Empty, Field, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, cn, useToast } from '../components/ui';
 import { describeError, post } from '../lib/api';
 import { humanizeCode, relativeTime } from '../lib/format';
@@ -76,6 +77,7 @@ export function ProposalsPage({ params, status }: { params: URLSearchParams; sta
     >
       <div className="grid gap-5 xl:grid-cols-[minmax(300px,1fr)_minmax(0,2.6fr)]">
         <div className="flex flex-col gap-5">
+          <GoalPanel onBatch={() => invalidate('/api/proposals')} />
           <NewAnalysis status={status} onBatch={(id) => { invalidate('/api/proposals'); setSelectedId(id); }} />
           <Section title="Batches" aside={<span className="flex items-center gap-1"><ApplyAll batches={batches.data} status={status} onDone={() => { invalidate('/api/proposals'); invalidate('/api/snapshot'); invalidate('/api/review'); invalidate('/api/hierarchy'); }} /><Button size="sm" variant="quiet" onClick={() => setConfirmClear(true)} busy={clearing} disabled={finished.length === 0} title={finished.length === 0 ? 'Nothing to clear: every batch still has pending or approved proposals. Delete a batch with its trash icon.' : 'Delete every batch with nothing pending or approved'}>Clear finished ({finished.length})</Button></span>}>
             <ConfirmDialog open={confirmClear} title={`Clear ${finished.length} finished ${finished.length === 1 ? 'batch' : 'batches'}?`} confirmLabel="Clear" danger onCancel={() => setConfirmClear(false)} onConfirm={() => void clearFinished()}>

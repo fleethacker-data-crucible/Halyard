@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LuDownload, LuExternalLink } from 'react-icons/lu';
 import { navigate } from '../app';
+import { WebhookPanel } from '../components/fleet-actions';
 import { CapacityMeters, StatusOverTime, ThemeBars, VelocityChart } from '../components/delivery-charts';
 import { Button, Empty, Mono, Notice, Page, Pill, Section, Stat, cn, useToast } from '../components/ui';
 import { describeError, getText } from '../lib/api';
@@ -51,6 +52,7 @@ export function LeadershipPage({ status }: { status: Status | undefined }) {
     >
       {data.error ? <Notice tone="err">{data.error}</Notice> : null}
       {d?.notes.map((n, i) => <Notice key={i} tone="info">{n}</Notice>)}
+      {d ? <WebhookPanel /> : null}
       <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
         <Section><Stat label="Features on track" value={d ? `${d.featuresOnTrack} / ${d.features.length}` : '…'} hint={d ? `${d.featuresActive} active` : ''} accent={d && d.features.length && d.featuresOnTrack / d.features.length < 0.6 ? 'var(--warn)' : 'var(--ok)'} /></Section>
         <Section><Stat label="Velocity (last 3)" value={velocityText || '—'} hint={d ? `pts / sprint · avg ${d.averageVelocity}` : ''} /></Section>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { LuExternalLink, LuRefreshCw, LuSprout, LuTrash2 } from 'react-icons/lu';
 import { LevelBars } from '../components/charts';
+import { PromotePanel } from '../components/fleet-actions';
 import { Button, Checkbox, ConfirmDialog, Empty, Field, Input, LevelChip, Mono, Notice, Page, Pill, Progress, Section, useToast } from '../components/ui';
 import { relativeTime, shortDate } from '../lib/format';
 import { resyncedBy, useJob } from '../lib/jobs';
@@ -18,6 +19,7 @@ export function SandboxPage({ status, refreshStatus }: { status: Status | undefi
       lede={sandbox ? <>Synthetic work items in <Mono>{status?.config.provider}:{sandbox}</Mono>. Seed a full Theme → Task hierarchy to prove the workflow, then delete it by run. Only items labelled <Mono>halyard-synthetic</Mono> can be removed.</> : 'No sandbox repository is configured. Set one in Settings before seeding.'}
     >
       {status && status.policy.mode === 'production' ? <Notice tone="warn">Production write mode is on in the environment. Seeding still targets only the sandbox allow-list.</Notice> : null}
+      <PromotePanel />
       <div className="grid gap-5 xl:grid-cols-2">
         <Seeder status={status} onDone={() => { invalidate('/api/sandbox/runs'); void refreshStatus(); }} />
         <Runs runs={runs.data} error={runs.error} status={status} onChanged={() => { invalidate('/api/sandbox/runs'); void refreshStatus(); }} />

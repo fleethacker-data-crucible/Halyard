@@ -38,7 +38,22 @@ namespace Halyard.Core.Config
         /// <summary>Exported Shellback peer cards (<c>config/shellback/</c>).</summary>
         public string ShellbackDirectory { get { return Path.Combine(ConfigDirectory, "shellback"); } }
         /// <summary>Card folders to read.</summary>
-        public string[] ShellbackDirectories { get { return new[] { ShellbackDirectory }; } }
+        public string[] ShellbackDirectories
+        {
+            get
+            {
+                // Cards from a live export (see ShellbackFeed) are read first, so they win over hand-dropped copies of the same file name.
+                return Directory.Exists(ShellbackLiveDirectory) ? new[] { ShellbackLiveDirectory, ShellbackDirectory } : new[] { ShellbackDirectory };
+            }
+        }
+        /// <summary>Cache of consented cards refreshed from <see cref="ShellbackExportPath"/> or <see cref="ShellbackUrl"/>.</summary>
+        public string ShellbackLiveDirectory { get { return Path.Combine(OutputDirectory, "shellback-live"); } }
+        /// <summary>HALYARD_SHELLBACK_EXPORT: a Shellback export file or folder, re-read whenever the team is loaded.</summary>
+        public string ShellbackExportPath { get; set; }
+        /// <summary>HALYARD_SHELLBACK_URL: an endpoint serving peer cards, fetched on an explicit refresh (GET only).</summary>
+        public string ShellbackUrl { get; set; }
+        /// <summary>HALYARD_SHELLBACK_TOKEN: bearer token for the endpoint. Never shown or logged.</summary>
+        public string ShellbackToken { get; set; }
         public string VisionDirectory { get { return Path.Combine(OutputDirectory, "vision"); } }
         public string ReportsDirectory { get { return Path.Combine(OutputDirectory, "reports"); } }
         /// <summary>The Halyard mark as a 64 px PNG for the emailed report (assets/brand/mark-64.png), or null when the file is absent.</summary>
@@ -50,6 +65,8 @@ namespace Halyard.Core.Config
             catch (UnauthorizedAccessException) { return null; }
         }
         public string IntakesDirectory { get { return Path.Combine(OutputDirectory, "intakes"); } }
+        /// <summary>HALYARD_REPORT_WEBHOOK: an https Teams/Slack incoming webhook for the leadership summary. Holds a secret URL; never shown or logged.</summary>
+        public string ReportWebhookUrl { get; set; }
         public string ProposalsDirectory { get { return Path.Combine(OutputDirectory, "proposals"); } }
         /// <summary>One file per apply run, with the body each written item had before (for rollback).</summary>
         public string ApplyJournalDirectory { get { return Path.Combine(OutputDirectory, "applied"); } }
@@ -98,6 +115,10 @@ namespace Halyard.Core.Config
             // HALYARD_* first. The former CASCADE_* names are read as a fallback for one release after the rename, then removed.
             Func<string, string> app = suffix => env("HALYARD_" + suffix) ?? env("CASCADE_" + suffix);
 
+            s.ShellbackExportPath = app("SHELLBACK_EXPORT");
+            s.ShellbackUrl = app("SHELLBACK_URL");
+            s.ShellbackToken = app("SHELLBACK_TOKEN");
+            s.ReportWebhookUrl = app("REPORT_WEBHOOK");
             var kindText = app("PROVIDER") ?? "github";
             s.Provider.Kind = kindText.Equals("gitlab", StringComparison.OrdinalIgnoreCase) ? ProviderKind.GitLab : ProviderKind.GitHub;
             if (s.Provider.Kind == ProviderKind.GitLab)

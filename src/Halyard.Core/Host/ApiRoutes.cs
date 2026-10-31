@@ -40,8 +40,10 @@ namespace Halyard.Core.Host
             Router.Get("/api/items/{number}", GetItem);
             Router.Get("/api/item", GetItem);
             Router.Get("/api/leadership", r => Task.FromResult(Json.Ok(LeadershipPayload(Query(r, "label")))));
+            RegisterWebhookRoutes();
             Router.Get("/api/leadership/report.html", r => Task.FromResult(HttpResponse.Text(200, DeliveryHtml.Render(BuildDelivery(Query(r, "label")), "Halyard Leadership Dashboard", Settings.BrandLogoBase64()), "text/html; charset=utf-8")));
             Router.Get("/api/team", r => Task.FromResult(Json.Ok(TeamPayload())));
+            RegisterShellbackRoutes();
 
             Router.Get("/api/sandbox/preview", PreviewCatalog);
             Router.Post("/api/sandbox/seed", StartSeed);
@@ -62,6 +64,7 @@ namespace Halyard.Core.Host
             Router.Post("/api/vision/draft", StartVision);
             Router.Post("/api/plan/preview", r => PlanRoute(r, false));
             Router.Post("/api/plan/propose", r => PlanRoute(r, true));
+            RegisterGoalRoutes();
             RegisterSprintReviewRoutes();
             Router.Get("/api/proposals", r => Task.FromResult(Json.Ok(Proposals.LoadAll().Select(BatchSummary))));
             Router.Post("/api/proposals/manual", ManualProposal);
@@ -461,6 +464,7 @@ namespace Halyard.Core.Host
             dict["skillsPath"] = Settings.SkillsPath;
             dict["skillCount"] = skills.Skills.Count;
             dict["shellbackDirectory"] = Settings.ShellbackDirectory;
+            dict["shellbackSource"] = !string.IsNullOrWhiteSpace(Settings.ShellbackUrl) ? "endpoint" : !string.IsNullOrWhiteSpace(Settings.ShellbackExportPath) ? "export" : "folder";
             return dict;
         }
 
