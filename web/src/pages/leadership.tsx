@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LuDownload, LuExternalLink } from 'react-icons/lu';
 import { navigate } from '../app';
+import { ReadAloud } from '../components/voice';
 import { CapacityMeters, StatusOverTime, ThemeBars, VelocityChart } from '../components/delivery-charts';
 import { Button, Empty, Mono, Notice, Page, Pill, Section, Stat, cn, useToast } from '../components/ui';
 import { describeError, getText } from '../lib/api';
@@ -47,7 +48,7 @@ export function LeadershipPage({ status }: { status: Status | undefined }) {
     <Page
       title="Leadership"
       lede={d ? <>Sprint <span className="font-medium text-ink">{d.currentSprint}</span> ({shortDate(d.sprintStart).split(',')[0]} – {shortDate(d.sprintEnd).split(',')[0]}) · snapshot of <Mono>{d.snapshot.repository}</Mono> {relativeTime(d.snapshot.takenAt)}. Feature progress • velocity • capacity • blockers.</> : 'Feature progress, velocity, capacity and blockers on one page.'}
-      actions={<Button onClick={() => void download()} busy={downloading} disabled={!d}><LuDownload size={14} />Download HTML report</Button>}
+      actions={<span className="flex items-center gap-2"><ReadAloud data={d} /><Button onClick={() => void download()} busy={downloading} disabled={!d}><LuDownload size={14} />Download HTML report</Button></span>}
     >
       {data.error ? <Notice tone="err">{data.error}</Notice> : null}
       {d?.notes.map((n, i) => <Notice key={i} tone="info">{n}</Notice>)}
