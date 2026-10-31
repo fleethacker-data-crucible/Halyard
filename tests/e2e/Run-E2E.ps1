@@ -8,7 +8,7 @@
   pwsh tests/e2e/Run-E2E.ps1 -Total 30
 #>
 [CmdletBinding()]
-param([int]$Total = 30, [int]$FakePort = 8790, [int]$Port = 8799)
+param([int]$Total = 30, [ValidateRange(0,65535)][int]$FakePort = 0, [ValidateRange(0,65535)][int]$Port = 0)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $node = Get-Command node -ErrorAction SilentlyContinue | Select-Object -First 1
@@ -17,15 +17,21 @@ if (-not $node) { throw 'node is required for the fake GitHub server and the loo
 $work = Join-Path ([IO.Path]::GetTempPath()) ('halyard-e2e-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $work | Out-Null
 Copy-Item (Join-Path $root 'config') (Join-Path $work 'config') -Recurse   # team.json, skills.json, Shellback cards
-$fake = Start-Process -FilePath $node.Source -ArgumentList @(('"' + (Join-Path $root 'tests\fakes\fake-github.mjs') + '"'), $FakePort) -PassThru -NoNewWindow
+$readyFile = Join-Path $work 'fake-port.txt'
+$fake = $null
 $hostObj = $null
 try {
+    $fake = Start-Process -FilePath $node.Source -ArgumentList @(('"' + (Join-Path $root 'tests\fakes\fake-github.mjs') + '"'), $FakePort, ('"' + $readyFile + '"')) -PassThru -WindowStyle Hidden -RedirectStandardOutput (Join-Path $work 'fake.log') -RedirectStandardError (Join-Path $work 'fake-error.log')
     $deadline = (Get-Date).AddSeconds(15)
-    $up = $false
-    while (-not $up -and (Get-Date) -lt $deadline) {
-        try { $c = New-Object Net.Sockets.TcpClient; $c.Connect('127.0.0.1', $FakePort); $c.Close(); $up = $true } catch { Start-Sleep -Milliseconds 200 }
+    # Only this child's readiness file proves it owns the endpoint. A listening
+    # fixed port could belong to another runner or a stale test process.
+    while (-not (Test-Path -LiteralPath $readyFile) -and (Get-Date) -lt $deadline) {
+        if ($fake.HasExited) { throw ('fake GitHub exited before readiness (exit ' + $fake.ExitCode + ')') }
+        Start-Sleep -Milliseconds 200
     }
-    if (-not $up) { throw 'fake GitHub did not start' }
+    if (-not (Test-Path -LiteralPath $readyFile)) { throw 'fake GitHub did not start' }
+    $FakePort = [int](Get-Content -LiteralPath $readyFile -Raw)
+    if ($FakePort -lt 1 -or $FakePort -gt 65535 -or $fake.HasExited) { throw 'fake GitHub reported invalid readiness' }
 
     $vars = @{
         HALYARD_PROVIDER = 'github'; GITHUB_API_URL = "http://127.0.0.1:$FakePort"; GITHUB_TOKEN = 'fake'
@@ -38,6 +44,7 @@ try {
     Import-Module (Join-Path $root 'module\Halyard\Halyard.psd1') -Force
     Import-HalyardCore -Root $root
     $settings = [Halyard.Core.Facade]::SettingsFromEnvironment($work)
+    $settings.PreferredPort = $Port
     $hostObj = [Halyard.Core.Facade]::CreateHost($settings, $null, $Port, $null)
     $info = $hostObj.Start()
     & $node.Source (Join-Path $root 'tests\e2e\sandbox-loop.mjs') ('http://127.0.0.1:' + $info.Port) $info.SessionToken $Total '--fake' ("http://127.0.0.1:$FakePort")
