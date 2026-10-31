@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { LuArrowRight, LuCheck, LuChevronDown, LuChevronRight, LuPlay, LuSparkles, LuTrash2, LuWrench, LuX } from 'react-icons/lu';
 import { navigate } from '../app';
+import { ApplyHistory } from '../components/apply-history';
 import { DiffView } from '../components/diff';
 import { Button, Checkbox, ConfirmDialog, Empty, Field, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, cn, useToast } from '../components/ui';
 import { describeError, post } from '../lib/api';
@@ -102,6 +103,7 @@ export function ProposalsPage({ params, status }: { params: URLSearchParams; sta
               </ul>
             )}
           </Section>
+          <ApplyHistory onDone={() => { invalidate('/api/snapshot'); invalidate('/api/review'); invalidate('/api/hierarchy'); }} />
         </div>
         {selectedId ? <BatchView key={selectedId} batchId={selectedId} status={status} onChanged={() => invalidate('/api/proposals')} onDeleted={afterDelete} /> : <Section><Empty title="Select a batch">{batches.data && batches.data.length === 0 ? 'Run an analysis to create one.' : 'Pick a batch on the left.'}</Empty></Section>}
       </div>
