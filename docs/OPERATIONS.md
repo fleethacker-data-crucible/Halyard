@@ -1,4 +1,4 @@
-# Operations
+﻿# Operations
 
 ## Running Halyard
 
@@ -54,7 +54,7 @@ sandbox items; Intake is how source tickets become sandbox copies.
 |---|---|
 | `config\team.json` | Sprint calendar (`sprintStart`, length, numbering), teams with `pointsPerSprint` and the committed / allocated / experiment split, people with team, skills and an optional Shellback card name |
 | `config\skills.json` | Skill taxonomy; the ids are Shellback's so cards need no translation |
-| `config\shellback\*.json` | Exported Shellback peer cards. Only cards with consent are read; skills and confidence (0–4) and availability are merged into the matching person by name |
+| `config\shellback\*.json` | Exported Shellback peer cards. Only cards with consent are read; skills and confidence (0â€“4) and availability are merged into the matching person by name |
 
 Leadership, Plan and the skill tagger read these on every request, so editing the files needs no restart.
 
@@ -62,7 +62,7 @@ Leadership, Plan and the skill tagger read these on every request, so editing th
 
 ```
 HALYARD_LLM_PROFILE=auto           # auto | openai | databricks | custom
-# LLM_URL=https://api.openai.com/v1/chat/completions   (or a base such as https://gateway.example.com/v1)
+# LLM_URL=https://api.github.com/v1/chat/completions   (or a base such as https://gateway.example.com/v1)
 # LLM_MODEL=gpt-4o-mini
 # LLM_TOKEN=                                            (or OPENAI_API_KEY)
 ```
@@ -165,7 +165,7 @@ the script, and workstation policy may block creating scheduled tasks; then send
 copied (a copy records `source_project`, `source_iid` and `source_url`, and the page de-duplicates on
 them). *Preview* classifies each ticket as theme / epic / feature / story / task, deterministically or
 with the model, and shows the structured draft (title, body sections, labels `halyard`,
-`halyard-intake`, `type::…`, `refine::sandbox-review`). *Run* creates the chosen copies in the sandbox
+`halyard-intake`, `type::â€¦`, `refine::sandbox-review`). *Run* creates the chosen copies in the sandbox
 through the write gateway; the source is never touched. Manifests are kept in `output\intakes\`.
 
 ## Vision and planning
@@ -227,11 +227,11 @@ engine alive after the tab closes. The pattern is written up as a standard in
 
 ## Review workflow
 
-1. **Connection** → Test connection → Synchronize (source or sandbox, optionally one label).
+1. **Connection** â†’ Test connection â†’ Synchronize (source or sandbox, optionally one label).
 2. **Overview** shows the next actions; **Review** lists every item with its gaps and the path that fixes
    them (*Repair meta*, *Find parent*, *Draft sections*, *Size*). Nothing is written.
 3. Make proposals, either for selected rows from the bulk bar on **Review**, or for everything from
-   **Proposals** → *New analysis*:
+   **Proposals** â†’ *New analysis*:
    - **Repair metadata** (deterministic): builds or completes the halyard-meta block from labels, the
      title and TBD placeholders; invalid points become TBD; wrong-level sizing keys are removed.
    - **Propose parents** (deterministic): evidence-ranked candidates.
@@ -259,7 +259,7 @@ each marked with the review label, and the seed manifest records which codes the
 | `output\snapshots\` | Last 10 snapshots (JSON) |
 | `output\proposals\` | Proposal batches and their decisions |
 | `output\seeds\` | Seed run manifests |
-| `output\intakes\` | Intake run manifests (source → sandbox copy) |
+| `output\intakes\` | Intake run manifests (source â†’ sandbox copy) |
 | `output\vision\` | Saved vision drafts |
 | `output\reports\` | Leadership reports written by `Send-HalyardReport.ps1 -Via File` |
 | `output\llm_transcripts\` | Redacted model requests and responses (`HALYARD_LLM_TRANSCRIPTS=0` turns off) |

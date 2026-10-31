@@ -1,4 +1,4 @@
-<p align="center">
+﻿<p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="assets/brand/emblem-dark.png">
     <img src="assets/brand/emblem-light.png" width="280" alt="Halyard emblem: a mast with a pulley block and a line of signal flags, inside a brass compass ring">
@@ -9,8 +9,8 @@
 
 A product owner's assistant that works a backlog upward to leadership and downward to stories and tasks.
 
-Halyard reads one or more repositories on GitHub or GitLab, checks every issue against the Theme → Epic →
-Feature → Story → Task model, and proposes the work a product owner would do: raw tickets triaged into the
+Halyard reads one or more repositories on GitHub or GitLab, checks every issue against the Theme â†’ Epic â†’
+Feature â†’ Story â†’ Task model, and proposes the work a product owner would do: raw tickets triaged into the
 hierarchy (intake), missing sections drafted, metadata repaired, parents inferred, sizes estimated, skills
 tagged, sprints planned against team capacity and skills, a portfolio vision drafted for leadership, and a
 one-page leadership dashboard that can go out by email every week. It writes only what you approve, and
@@ -35,7 +35,7 @@ The overview of a synthetic 100-item backlog seeded into an offline fake GitHub
 
 ## Quick start (GitHub + an OpenAI-compatible model)
 
-> **Intelligence router:** the model endpoint (default `https://api.openai.com/v1/chat/completions`) and the GitHub API host (default `https://api.github.com`) will move behind the Fleet intelligence router, [Fairlead](https://github.com/fleethacker-data-crucible/Fairlead), so Halyard defaults to the router instead of a hard-coded endpoint. Until then the settings below stay as they are. See [TechStack](TechStack), "Intelligence router".
+> **Intelligence router:** the model endpoint (default `https://api.github.com/v1/chat/completions`) and the GitHub API host (default `https://api.github.com`) will move behind the Fleet intelligence router, [Fairlead](https://github.com/fleethacker-data-crucible/Fairlead), so Halyard defaults to the router instead of a hard-coded endpoint. Until then the settings below stay as they are. See [TechStack](TechStack), "Intelligence router".
 
 On the workstation (no .NET SDK or Node.js needed):
 
@@ -58,15 +58,15 @@ is built there.
 
 In the browser:
 
-1. **Settings** → paste your OpenAI API key (held in memory; tick *remember* to keep it in the
+1. **Settings** â†’ paste your OpenAI API key (held in memory; tick *remember* to keep it in the
    git-ignored `config\halyard.env`) and test the model.
-2. **Sandbox** → seed 100 items: about 80 are complete, 20 carry one of 21 kinds of gap.
-3. **Connection** → synchronize the sandbox.
+2. **Sandbox** â†’ seed 100 items: about 80 are complete, 20 carry one of 21 kinds of gap.
+3. **Connection** â†’ synchronize the sandbox.
 4. **Overview** shows what needs doing; **Review** lists every gap with the path that fixes it; select
    rows and use the bulk bar, or go to **Proposals** and run *Repair metadata*, *Draft missing
    sections*, *Propose parents*, *Propose sizes*.
-5. **Proposals** → open a row to read the before/after diff, approve, then *Apply to sandbox*.
-6. **Sandbox** → delete the run when done.
+5. **Proposals** â†’ open a row to read the before/after diff, approve, then *Apply to sandbox*.
+6. **Sandbox** â†’ delete the run when done.
 
 ## On a locked-down workstation (GitLab)
 
