@@ -6,6 +6,7 @@ import { describeError, post } from '../lib/api';
 import { shortDate } from '../lib/format';
 import { PlanResult, TeamInfo, type PlannedStory, type Status } from '../lib/schemas';
 import { invalidate, useResource } from '../lib/useResource';
+import { ShellbackRefresh } from '../components/fleet-actions';
 import { Skeleton } from './overview';
 
 /**
@@ -62,7 +63,7 @@ export function PlanPage({ status }: { status: Status | undefined }) {
             </div>
           </div>
         </Section>
-        <Section title="Team" aside={t ? <span className="text-[12px] text-ink-3">{t.cardsImported} Shellback cards</span> : null}>
+        <Section title="Team" aside={t ? <span className="flex items-center gap-2 text-[12px] text-ink-3">{t.cardsImported} Shellback cards<ShellbackRefresh onDone={() => invalidate('/api/team')} /></span> : null}>
           {!t ? <Skeleton rows={3} /> : t.teams.length === 0 ? <Empty title="No team configured">Add teams and people to <Mono>config/team.json</Mono>; drop Shellback peer cards in <Mono>config/shellback/</Mono> for skills.</Empty> : (
             <div className="px-4 py-3 text-[12.5px]">
               {t.teams.map((tm) => <div key={tm.id} className="mb-2 flex items-center gap-2"><LuUsers size={14} className="text-ink-3" /><span className="font-medium">{tm.name}</span><span className="text-ink-3">{tm.pointsPerSprint} pts/sprint · {tm.members} people · {Math.round(tm.committed * 100)}% committed</span></div>)}
