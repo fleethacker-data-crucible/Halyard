@@ -62,7 +62,8 @@ Leadership, Plan and the skill tagger read these on every request, so editing th
 
 ```
 HALYARD_LLM_PROFILE=auto           # auto | openai | databricks | custom
-# LLM_URL=https://api.openai.com/v1/chat/completions   (or a base such as https://gateway.example.com/v1)
+# LLM_URL=http://127.0.0.1:8776/v1/chat/completions   (default: the Fairlead router; or a base such as https://gateway.example.com/v1)
+# HALYARD_LLM_PRIVACY=local                             (Fairlead then uses local engines only)
 # LLM_MODEL=gpt-4o-mini
 # LLM_TOKEN=                                            (or OPENAI_API_KEY)
 ```

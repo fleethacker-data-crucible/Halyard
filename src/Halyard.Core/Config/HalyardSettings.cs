@@ -137,6 +137,7 @@ namespace Halyard.Core.Config
 
             s.Llm.Profile = LlmSettings.ParseProfile(app("LLM_PROFILE")) ?? LlmProfile.Auto;
             s.Llm.OpenAiUrl = env("LLM_URL") ?? env("OPENAI_BASE_URL");
+            s.Llm.Privacy = app("LLM_PRIVACY");
             s.Llm.OpenAiModel = env("LLM_MODEL") ?? env("OPENAI_MODEL");
             s.Llm.OpenAiToken = env("LLM_TOKEN") ?? env("OPENAI_API_KEY");
             s.Llm.DatabricksUrl = env("DATABRICKS_URL");
