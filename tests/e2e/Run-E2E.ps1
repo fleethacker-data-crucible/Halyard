@@ -8,11 +8,16 @@
   pwsh tests/e2e/Run-E2E.ps1 -Total 30
 #>
 [CmdletBinding()]
-param([int]$Total = 30, [int]$FakePort = 8790, [int]$Port = 8799)
+param([int]$Total = 30, [int]$FakePort = 0, [int]$Port = 0)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $node = Get-Command node -ErrorAction SilentlyContinue | Select-Object -First 1
 if (-not $node) { throw 'node is required for the fake GitHub server and the loop script.' }
+
+# Ports are chosen per run unless given: several CI runs share one runner, and a fixed port made them collide (EADDRINUSE).
+function Get-FreePort { $l = New-Object Net.Sockets.TcpListener ([Net.IPAddress]::Loopback), 0; $l.Start(); try { return ([Net.IPEndPoint]$l.LocalEndpoint).Port } finally { $l.Stop() } }
+if ($FakePort -eq 0) { $FakePort = Get-FreePort }
+if ($Port -eq 0) { $Port = Get-FreePort }
 
 $work = Join-Path ([IO.Path]::GetTempPath()) ('halyard-e2e-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $work | Out-Null
