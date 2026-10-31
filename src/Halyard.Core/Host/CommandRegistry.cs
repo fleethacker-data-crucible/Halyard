@@ -65,6 +65,8 @@ namespace Halyard.Core.Host
             C("halyard leadership show", "GET", "/api/leadership", "Feature progress, velocity, readiness, capacity, blockers."),
             C("halyard leadership report", "GET", "/api/leadership/report.html", "The leadership report as self-contained HTML."),
             C("halyard team show", "GET", "/api/team", "Teams, people, skills and the sprint calendar."),
+            C("halyard export semaphore", "POST", "/api/export/semaphore", "Write the backlog-health CSV tables for Semaphore to output/exports/semaphore/."),
+            C("halyard export table", "GET", "/api/export/semaphore/{table}", "One backlog-health table (health, items, features, velocity) as CSV."),
             C("halyard team refresh", "POST", "/api/team/shellback/refresh", "Re-read the Shellback export or endpoint (consented cards only)."),
             C("halyard sprint review", "GET", "/api/sprint-review", "Planned versus delivered per finished sprint and the recommended commitment."),
             C("halyard goal ready", "POST", "/api/goals/ready", "Run the ordered backlog-ready steps; stops at the first with proposals."),
