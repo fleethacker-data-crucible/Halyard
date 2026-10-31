@@ -89,6 +89,7 @@ namespace Halyard.Core.Host
             Router.Get("/api/writes", r => Task.FromResult(Json.Ok(new { policy = PolicyPayload(), entries = Gateway.Audit.Reverse().Take(500) })));
             Router.Post("/api/llm/test", TestLlm);
             Router.Post("/api/llm/curl", SetLlmFromCurl);
+            RegisterPromoteRoutes();
             Router.Post("/api/heartbeat", r =>
             {
                 var body = Json.Body(r);
