@@ -17,16 +17,21 @@ namespace Halyard.Core.Host
             public Route(string method, string template, RouteHandler handler)
             {
                 Method = method;
+                Template = template;
                 Segments = template.Trim('/').Split('/');
                 Handler = handler;
             }
 
             public string Method;
+            public string Template;
             public string[] Segments;
             public RouteHandler Handler;
         }
 
         private readonly List<Route> _routes = new List<Route>();
+
+        /// <summary>Every registered route as "METHOD /template" (used by the command parity test).</summary>
+        public IReadOnlyList<string> Templates { get { return _routes.Select(r => r.Method + " " + r.Template).ToList(); } }
 
         public Router Map(string method, string template, RouteHandler handler)
         {

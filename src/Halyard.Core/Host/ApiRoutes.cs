@@ -20,6 +20,7 @@ namespace Halyard.Core.Host
     {
         private void RegisterRoutes()
         {
+            RegisterCommandRoutes();
             Router.Get("/api/health", r => Task.FromResult(Json.Ok(new { ok = true, version = Version })));
             Router.Get("/api/status", r => Task.FromResult(Json.Ok(StatusPayload())));
             Router.Post("/api/session/stop", StopSession);
