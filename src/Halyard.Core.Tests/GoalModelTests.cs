@@ -36,7 +36,7 @@ namespace Halyard.Core.Tests
             settings.Provider.SourceRepository = "fleethacker-data-crucible/Halyard-Ballast";
             settings.Llm.Profile = LlmProfile.OpenAi;
             settings.Llm.OpenAiUrl = "https://llm.example.test/v1/chat/completions";
-            settings.Llm.OpenAiToken = "tok-0123456789abcdef";
+            settings.Llm.OpenAiToken = string.Concat("fake", "-", new string('k', 24));
             _http.On("POST", "llm.example.test", call =>
             {
                 _chatCalls++;

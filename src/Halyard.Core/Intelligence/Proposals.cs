@@ -171,7 +171,13 @@ namespace Halyard.Core.Intelligence
             if (!File.Exists(path)) return null;
             lock (_lock)
             {
-                return JsonConvert.DeserializeObject<ProposalBatch>(File.ReadAllText(path));
+                // A writer in another process may be replacing the file at this moment; a read that collides is retried briefly.
+                for (var attempt = 0; ; attempt++)
+                {
+                    try { return JsonConvert.DeserializeObject<ProposalBatch>(File.ReadAllText(path)); }
+                    catch (IOException) { if (attempt >= 20) throw; System.Threading.Thread.Sleep(10); }
+                    catch (UnauthorizedAccessException) { if (attempt >= 20) throw; System.Threading.Thread.Sleep(10); }
+                }
             }
         }
 
@@ -264,11 +270,14 @@ namespace Halyard.Core.Intelligence
                 {
                     return new LockFile(new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose));
                 }
-                catch (IOException)
+                catch (Exception ex)
                 {
+                    if (!(ex is IOException) && !(ex is UnauthorizedAccessException)) throw;
+                    // (.NET Framework reports a lock file that is still being deleted as access denied.)
                     // A lock older than a minute belongs to a process that died; anything younger is a live writer, so wait for it.
                     try { if (File.Exists(path) && DateTime.UtcNow - File.GetLastWriteTimeUtc(path) > TimeSpan.FromMinutes(1)) File.Delete(path); }
                     catch (IOException) { }
+                    catch (UnauthorizedAccessException) { }
                     if (DateTime.UtcNow > deadline) throw new IOException("Another operator is changing proposal batch " + batchId + "; try again in a moment.");
                     System.Threading.Thread.Sleep(20);
                 }
