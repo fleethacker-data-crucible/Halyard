@@ -74,6 +74,26 @@ namespace Halyard.Core
             return Analysis.DeliveryHtml.Render(report, string.IsNullOrWhiteSpace(title) ? "Halyard Leadership Dashboard" : title, settings.BrandLogoBase64());
         }
 
+        /// <summary>
+        /// Posts the leadership summary to HALYARD_REPORT_WEBHOOK (used by Send-HalyardReport.ps1 -Via Webhook). With <paramref name="dryRun"/> it only
+        /// returns the message. Throws when no webhook is configured or the receiver refuses; the address is never in the message of the error.
+        /// </summary>
+        public static string NotifyWebhook(HalyardSettings settings, string labelFilter, string title, bool dryRun)
+        {
+            var store = new Snapshots.SnapshotStore(settings.SnapshotsDirectory);
+            var snap = store.Current;
+            if (snap == null) throw new InvalidOperationException("No snapshot under " + settings.SnapshotsDirectory + "; synchronize first.");
+            var items = string.IsNullOrWhiteSpace(labelFilter) ? snap.Items : snap.Items.Where(i => i.HasLabel(labelFilter)).ToList();
+            var team = Planning.TeamConfig.Load(settings.TeamPath, settings.ShellbackDirectories);
+            var report = Analysis.Delivery.Build(items, team, DateTimeOffset.UtcNow, snap.Repository);
+            var heading = string.IsNullOrWhiteSpace(title) ? "Halyard leadership summary" : title;
+            var text = Providers.WebhookNotifier.Summarise(report, heading);
+            if (dryRun) return text;
+            if (string.IsNullOrWhiteSpace(settings.ReportWebhookUrl)) throw new InvalidOperationException("Set HALYARD_REPORT_WEBHOOK (an https Teams or Slack incoming webhook) in config/halyard.env.");
+            Providers.WebhookNotifier.SendAsync(new Providers.HttpClientTransport(), settings.ReportWebhookUrl, heading, text, System.Threading.CancellationToken.None).GetAwaiter().GetResult();
+            return text;
+        }
+
         /// <summary>Synchronizes every configured source (or the sandbox) into a new snapshot without the host; used by scheduled reports.</summary>
         public static Snapshots.Snapshot SyncSnapshot(HalyardSettings settings, string which = "source", bool includeClosed = true)
         {

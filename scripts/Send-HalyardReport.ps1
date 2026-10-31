@@ -7,6 +7,7 @@
   the one-page leadership view (feature % complete, velocity, ready backlog, capacity, blockers) and delivers it:
     -Via Outlook   through the Outlook desktop app (COM; no SMTP settings needed, works on a workstation)
     -Via Smtp      through Send-MailMessage with -SmtpServer / -From
+    -Via Webhook   posts a short text summary to the Teams/Slack webhook in HALYARD_REPORT_WEBHOOK (the HTML is still saved)
     -Via File      saved only (default). The HTML is always saved under output\reports\.
   Schedule it weekly with scripts\Register-HalyardReportSchedule.ps1.
 .EXAMPLE
@@ -18,7 +19,7 @@
 param(
     [string[]]$To,
     [string]$Subject,
-    [ValidateSet('Outlook', 'Smtp', 'File')][string]$Via = 'File',
+    [ValidateSet('Outlook', 'Smtp', 'File', 'Webhook')][string]$Via = 'File',
     [string]$SmtpServer,
     [string]$From,
     [string]$Title = 'Halyard Leadership Dashboard',
@@ -47,6 +48,11 @@ if (-not $OutFile) { $OutFile = Join-Path $reports ('leadership-' + (Get-Date -F
 Write-Host ('Report saved: ' + $OutFile) -ForegroundColor Green
 if (-not $Subject) { $Subject = $Title + ' - ' + (Get-Date -Format 'dd MMM yyyy') }
 
+if ($Via -eq 'Webhook') {
+    [void][Halyard.Core.Facade]::NotifyWebhook($settings, $LabelFilter, $Title, $false)
+    Write-Host 'Summary posted to the configured webhook.' -ForegroundColor Green
+    return $OutFile
+}
 $delivery = Send-HalyardReportMessage -Via $Via -Html $html -Subject $Subject -To $To -SmtpServer $SmtpServer -From $From
 switch ($delivery.Via) {
     'Outlook' { Write-Host ('Sent through Outlook to ' + ($delivery.To -join ', ')) -ForegroundColor Green }

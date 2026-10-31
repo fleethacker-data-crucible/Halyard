@@ -459,6 +459,9 @@
   .min-h-9 {
     min-height: calc(var(--spacing) * 9);
   }
+  .min-h-24 {
+    min-height: calc(var(--spacing) * 24);
+  }
   .min-h-\[160px\] {
     min-height: 160px;
   }
@@ -888,6 +891,9 @@
   }
   .p-0 {
     padding: 0px;
+  }
+  .p-2 {
+    padding: calc(var(--spacing) * 2);
   }
   .p-3 {
     padding: calc(var(--spacing) * 3);

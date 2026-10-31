@@ -193,32 +193,98 @@ namespace Halyard.Core.Intelligence
 
         public Proposal Decide(string batchId, string proposalId, ProposalDecision decision, string note)
         {
-            var batch = Load(batchId);
-            if (batch == null) return null;
-            var p = batch.Proposals.FirstOrDefault(x => x.Id == proposalId);
-            if (p == null) return null;
-            if (p.Decision == ProposalDecision.Applied) return p;
-            p.Decision = decision;
-            p.DecisionNote = note;
-            p.DecidedAt = DateTimeOffset.UtcNow;
-            Save(batch);
-            return p;
+            Proposal result = null;
+            Update(batchId, batch =>
+            {
+                var p = batch.Proposals.FirstOrDefault(x => x.Id == proposalId);
+                if (p == null) return false;
+                result = p;
+                if (p.Decision == ProposalDecision.Applied) return false;
+                p.Decision = decision;
+                p.DecisionNote = note;
+                p.DecidedAt = DateTimeOffset.UtcNow;
+                return true;
+            });
+            return result;
         }
 
         public int DecideAll(string batchId, ProposalDecision decision, string minimumConfidence)
         {
-            var batch = Load(batchId);
-            if (batch == null) return 0;
             var count = 0;
-            foreach (var p in batch.Proposals.Where(x => x.Decision == ProposalDecision.Pending))
+            Update(batchId, batch =>
             {
-                if (minimumConfidence != null && Rank(p.Confidence) < Rank(minimumConfidence)) continue;
-                p.Decision = decision;
-                p.DecidedAt = DateTimeOffset.UtcNow;
-                count++;
-            }
-            Save(batch);
+                foreach (var p in batch.Proposals.Where(x => x.Decision == ProposalDecision.Pending))
+                {
+                    if (minimumConfidence != null && Rank(p.Confidence) < Rank(minimumConfidence)) continue;
+                    p.Decision = decision;
+                    p.DecidedAt = DateTimeOffset.UtcNow;
+                    count++;
+                }
+                return count > 0;
+            });
             return count;
+        }
+
+        /// <summary>
+        /// Read-modify-write of one batch under a lock that holds across processes (a lock file next to the batch), so two operators
+        /// deciding on the same batch, or an apply saving progress while someone approves another proposal, cannot overwrite each other.
+        /// The change is made to the batch as it is on disk now, not to a copy read earlier. Returns the batch, or null when it does not exist.
+        /// </summary>
+        public ProposalBatch Update(string batchId, Func<ProposalBatch, bool> mutate)
+        {
+            using (Lock(batchId))
+            {
+                var batch = Load(batchId);
+                if (batch == null) return null;
+                if (mutate(batch)) Save(batch);
+                return batch;
+            }
+        }
+
+        /// <summary>Writes one proposal's state into the batch on disk, leaving every other proposal as it is there.</summary>
+        public void SaveProposal(string batchId, Proposal proposal)
+        {
+            Update(batchId, batch =>
+            {
+                var i = batch.Proposals.FindIndex(x => x.Id == proposal.Id);
+                if (i < 0) return false;
+                batch.Proposals[i] = proposal;
+                return true;
+            });
+        }
+
+        private IDisposable Lock(string batchId)
+        {
+            System.IO.Directory.CreateDirectory(_directory);
+            var path = PathFor(batchId) + ".lock";
+            var deadline = DateTime.UtcNow.AddSeconds(15);
+            while (true)
+            {
+                try
+                {
+                    return new LockFile(new FileStream(path, FileMode.CreateNew, FileAccess.Write, FileShare.None, 1, FileOptions.DeleteOnClose));
+                }
+                catch (IOException)
+                {
+                    // A lock older than a minute belongs to a process that died; anything younger is a live writer, so wait for it.
+                    try { if (File.Exists(path) && DateTime.UtcNow - File.GetLastWriteTimeUtc(path) > TimeSpan.FromMinutes(1)) File.Delete(path); }
+                    catch (IOException) { }
+                    if (DateTime.UtcNow > deadline) throw new IOException("Another operator is changing proposal batch " + batchId + "; try again in a moment.");
+                    System.Threading.Thread.Sleep(20);
+                }
+            }
+        }
+
+        private sealed class LockFile : IDisposable
+        {
+            private FileStream _stream;
+            public LockFile(FileStream stream) { _stream = stream; }
+            public void Dispose()
+            {
+                var s = _stream;
+                _stream = null;
+                if (s != null) s.Dispose();
+            }
         }
 
         private static int Rank(string confidence)

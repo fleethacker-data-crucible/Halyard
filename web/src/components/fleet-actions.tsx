@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { LuArrowUpFromLine, LuListChecks, LuMegaphone, LuRefreshCw } from 'react-icons/lu';
-import { Button, Empty, Field, Input, Mono, Notice, Pill, Section, useToast } from './ui';
+import { Button, Checkbox, Empty, Field, Input, Mono, Notice, Pill, Section, useToast } from './ui';
 import { describeError, post } from '../lib/api';
 import { useJob } from '../lib/jobs';
 import { invalidate, useResource } from '../lib/useResource';
@@ -135,17 +135,19 @@ export function GoalPanel({ onBatch }: { onBatch: () => void }) {
   const toast = useToast();
   const [run, setRun] = useState<z.infer<typeof GoalRun> | null>(null);
   const [busy, setBusy] = useState(false);
+  const [useModel, setUseModel] = useState(false);
   const go = async () => {
     setBusy(true);
-    try { setRun(GoalRun.parse(await post('/api/goals/ready'))); invalidate('/api/proposals'); onBatch(); }
+    try { setRun(GoalRun.parse(await post('/api/goals/ready', { useModel }))); invalidate('/api/proposals'); onBatch(); }
     catch (e) { toast.push('err', describeError(e)); }
     finally { setBusy(false); }
   };
-  const tone = (s: string) => (s === 'proposed' ? 'info' : s === 'clean' || s === 'done' ? 'ok' : 'neutral') as 'info' | 'ok' | 'neutral';
+  const tone = (s: string) => (s === 'proposed' ? 'info' : s === 'clean' || s === 'done' ? 'ok' : s === 'failed' ? 'err' : 'neutral') as 'info' | 'ok' | 'neutral' | 'err';
   return (
     <Section title="Get the backlog ready" aside={<Button size="sm" variant="quiet" onClick={() => void go()} busy={busy}><LuListChecks size={13} />Run</Button>}>
       <div className="flex flex-col gap-2 px-4 py-3">
-        {!run ? <p className="text-ink-2">Repairs metadata, links parents, tags skills and plans sprints in that order, and stops at the first step with proposals for you to approve. Nothing is applied.</p> : (
+        <Checkbox label="Use the model to draft sections and size stories" checked={useModel} onChange={(e) => setUseModel(e.target.checked)} />
+        {!run ? <p className="text-ink-2">Repairs metadata, links parents, drafts and sizes (with the model, when ticked), tags skills and plans sprints in that order, and stops at the first step with proposals for you to approve. Nothing is applied.</p> : (
           <>
             <ul className="text-[12.5px]">{run.steps.map((s) => <li key={s.id} className="flex items-baseline gap-2 py-0.5"><Pill tone={tone(s.status)}>{s.status}</Pill><span className="font-medium">{s.title}</span><span className="truncate text-ink-3">{s.id === 'report' ? '' : s.note}</span></li>)}</ul>
             <Notice tone="info">{run.next}</Notice>
