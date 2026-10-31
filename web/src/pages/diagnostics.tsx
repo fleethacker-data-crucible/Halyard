@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Empty, Mono, Page, Pill, Section, Select, Tabs } from '../components/ui';
+import { Button, Empty, Mono, Page, Pill, Section, Select, Tabs, tabPanelProps } from '../components/ui';
 import { shortDate } from '../lib/format';
 import { Diagnostics, Job, WriteAudit } from '../lib/schemas';
 import { useResource } from '../lib/useResource';
@@ -16,7 +16,8 @@ export function DiagnosticsPage() {
   return (
     <Page title="Diagnostics" lede="What the local engine did, every write it attempted, and the jobs it ran. Tokens never appear here; token-shaped strings are redacted before logging.">
       <Section>
-        <Tabs value={tab} onChange={setTab} items={[{ value: 'log', label: 'Engine log' }, { value: 'writes', label: 'Write audit', count: writes.data?.entries.length }, { value: 'jobs', label: 'Jobs', count: jobs.data?.length }]} />
+        <Tabs idPrefix="diagnostics" label="Diagnostics views" value={tab} onChange={setTab} items={[{ value: 'log', label: 'Engine log' }, { value: 'writes', label: 'Write audit', count: writes.data?.entries.length }, { value: 'jobs', label: 'Jobs', count: jobs.data?.length }]} />
+        <div {...tabPanelProps('diagnostics', tab)}>
         {tab === 'log' ? (
           <>
             <div className="flex items-center gap-3 px-4 py-2.5">
@@ -88,6 +89,7 @@ export function DiagnosticsPage() {
             </table>
           )
         ) : null}
+        </div>
       </Section>
     </Page>
   );
