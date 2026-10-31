@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { LuDownload, LuSparkles, LuWrench, LuX } from 'react-icons/lu';
 import { navigate } from '../app';
-import { Button, Empty, Input, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, SeverityIcon, Tabs, cn, severityTone, useToast } from '../components/ui';
+import { Button, Empty, Input, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, SeverityIcon, Tabs, cn, tabPanelProps, severityTone, useToast } from '../components/ui';
 import { describeError, post } from '../lib/api';
 import { downloadText, humanizeCode, toCsv } from '../lib/format';
 import { useJob } from '../lib/jobs';
@@ -78,6 +78,8 @@ export function ReviewPage({ params, status }: { params: URLSearchParams; status
       {r && selected.size > 0 ? <BulkActions items={r.items.filter((i) => selected.has(i.number))} status={status} onClear={() => setSelected(new Set())} /> : null}
       <Section>
         <Tabs
+          idPrefix="review"
+          label="Review views"
           value={tab}
           onChange={(t) => { setTab(t); setCode(''); }}
           items={[
@@ -87,6 +89,7 @@ export function ReviewPage({ params, status }: { params: URLSearchParams; status
             { value: 'parents', label: 'Parent candidates', count: r?.parentReviews.length },
           ]}
         />
+        <div {...tabPanelProps('review', tab)}>
         {tab === 'items' ? (
           <>
             <div className="flex flex-wrap items-center gap-3 px-4 py-2.5">
@@ -112,6 +115,7 @@ export function ReviewPage({ params, status }: { params: URLSearchParams; status
         {tab === 'gaps' && r ? <CodeTable rows={Object.entries(r.summary.deficiencyCounts).map(([c, n]) => ({ code: c, count: n }))} onPick={(c) => { setCode(c); setTab('items'); setOnlyProblems(false); }} explain={(c) => explainDeficiency(c)} empty="Every item meets its definition of ready." /> : null}
         {tab === 'findings' && r ? <FindingsTable review={r} /> : null}
         {tab === 'parents' && r ? <ParentsTable review={r} /> : null}
+        </div>
       </Section>
     </Page>
   );
