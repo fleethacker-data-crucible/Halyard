@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { LuArrowRightToLine, LuExternalLink, LuSparkles } from 'react-icons/lu';
 import { navigate } from '../app';
 import { DiffView } from '../components/diff';
+import { DictationPanel } from '../components/voice';
 import { Button, Checkbox, Empty, Input, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, cn, useToast } from '../components/ui';
 import { describeError, post } from '../lib/api';
 import { humanizeCode, relativeTime } from '../lib/format';
@@ -68,6 +69,7 @@ export function IntakePage({ status }: { status: Status | undefined }) {
       title="Intake"
       lede={s ? <>{s.items.length} tickets from {s.repositories.length === 0 ? 'the source' : <Mono>{s.repositories.join(', ')}</Mono>}, {s.items.filter((i) => i.copiedAs).length} already copied into <Mono>{s.sandbox}</Mono>. Pick tickets, check the proposed level and id, then copy. The source repository is never written.</> : 'Raw tickets from the source backlog, copied into the sandbox as structured work items.'}
     >
+      <DictationPanel onCopied={() => invalidate('/api/intake')} />
       {sources.error ? <Notice tone="err">{sources.error}</Notice> : null}
       {s && s.items.length === 0 ? <Notice tone="info">No raw tickets. A raw ticket is any issue in a source repository, or an issue in the sandbox with no halyard-meta and no Halyard labels. To bring in the real backlog, set <Mono>HALYARD_SOURCE_REPO</Mono> to it and synchronize "Sources and sandbox together".</Notice> : null}
       {selected.size > 0 && !preview ? (

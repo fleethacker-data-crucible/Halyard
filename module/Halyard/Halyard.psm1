@@ -396,5 +396,17 @@ function Send-HalyardReportMessage {
     }
 }
 
-Export-ModuleMember -Function Send-HalyardReportMessage, Get-HalyardRoot, Import-HalyardCore, Get-HalyardCoreSource, Get-HalyardCoreLoadInfo, Initialize-HalyardEnvironment, Connect-HalyardLazarette, Start-Halyard, Test-HalyardConnection, New-HalyardSyntheticCatalog, Invoke-HalyardSeed, Invoke-HalyardTeardown, Get-HalyardWorkItem
+function Get-HalyardCommand {
+    <# Lists every Halyard command (halyard <noun> <verb>) with its loopback API method and route. -Json prints the stable, versioned document. #>
+    [CmdletBinding()]
+    param([switch]$Json)
+    Import-HalyardCore
+    $text = [Halyard.Core.Facade]::CommandsJson()
+    if ($Json) { return $text }
+    foreach ($c in ($text | ConvertFrom-Json).commands) {
+        [pscustomobject]@{ Name = $c.name; Method = $c.method; Route = $c.route; Writes = $c.writes; Async = $c.async; Summary = $c.summary }
+    }
+}
+
+Export-ModuleMember -Function Get-HalyardCommand, Send-HalyardReportMessage, Get-HalyardRoot, Import-HalyardCore, Get-HalyardCoreSource, Get-HalyardCoreLoadInfo, Initialize-HalyardEnvironment, Connect-HalyardLazarette, Start-Halyard, Test-HalyardConnection, New-HalyardSyntheticCatalog, Invoke-HalyardSeed, Invoke-HalyardTeardown, Get-HalyardWorkItem
 

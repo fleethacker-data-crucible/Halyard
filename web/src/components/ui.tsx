@@ -1,6 +1,6 @@
 import { cva, type VariantProps } from 'class-variance-authority';
 import { clsx, type ClassValue } from 'clsx';
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { twMerge } from 'tailwind-merge';
 import { LuCheck, LuChevronDown, LuCircleAlert, LuInfo, LuLoaderCircle, LuTriangleAlert, LuX } from 'react-icons/lu';
 import { LEVEL_LABEL, levelVar } from '../lib/levels';
@@ -220,15 +220,50 @@ export function Progress({ done, total, label }: { done: number; total: number; 
 
 // ---- tabs ----
 
-export function Tabs<T extends string>({ value, onChange, items }: { value: T; onChange: (v: T) => void; items: Array<{ value: T; label: ReactNode; count?: number }> }) {
+/** Ids that tie a tab to its panel; the same function names both ends so they cannot drift. */
+export const tabIds = (idPrefix: string, value: string) => ({ tab: `${idPrefix}-tab-${value}`, panel: `${idPrefix}-panel-${value}` });
+
+/** Props for the one panel element that holds the selected tab's content. */
+export function tabPanelProps(idPrefix: string, value: string) {
+  const ids = tabIds(idPrefix, value);
+  return { role: 'tabpanel' as const, id: ids.panel, 'aria-labelledby': ids.tab, tabIndex: 0 };
+}
+
+/** The next tab for an arrow/Home/End key, or null for any other key. Wraps around at both ends. */
+export function nextTabIndex(key: string, current: number, count: number): number | null {
+  if (count <= 0) return null;
+  if (key === 'ArrowRight') return (current + 1) % count;
+  if (key === 'ArrowLeft') return (current - 1 + count) % count;
+  if (key === 'Home') return 0;
+  if (key === 'End') return count - 1;
+  return null;
+}
+
+/**
+ * WAI-ARIA tabs with automatic activation: one tab stop for the list, arrow keys/Home/End move and select, each tab names its panel
+ * (aria-controls) and the panel names its tab (aria-labelledby, via <code>tabPanelProps</code>).
+ */
+export function Tabs<T extends string>({ value, onChange, items, idPrefix, label }: { value: T; onChange: (v: T) => void; items: Array<{ value: T; label: ReactNode; count?: number }>; idPrefix: string; label: string }) {
+  const refs = useRef<Array<HTMLButtonElement | null>>([]);
   return (
-    <div role="tablist" className="flex gap-1 border-b border-line-2 px-2">
-      {items.map((it) => (
+    <div role="tablist" aria-label={label} className="flex gap-1 border-b border-line-2 px-2">
+      {items.map((it, index) => (
         <button
           key={it.value}
+          ref={(el) => { refs.current[index] = el; }}
           role="tab"
           type="button"
+          id={tabIds(idPrefix, it.value).tab}
           aria-selected={it.value === value}
+          aria-controls={tabIds(idPrefix, it.value).panel}
+          tabIndex={it.value === value ? 0 : -1}
+          onKeyDown={(e) => {
+            const next = nextTabIndex(e.key, index, items.length);
+            if (next === null) return;
+            e.preventDefault();
+            refs.current[next]?.focus();
+            onChange(items[next]!.value);
+          }}
           onClick={() => onChange(it.value)}
           className={cn('-mb-px flex items-center gap-1.5 border-b-2 px-3 py-2 text-[13px]', it.value === value ? 'border-accent text-ink' : 'border-transparent text-ink-2 hover:text-ink')}
         >
@@ -280,6 +315,7 @@ export function ConfirmDialog({ open, title, children, confirmLabel, danger, onC
   open: boolean; title: string; children: ReactNode; confirmLabel: string; danger?: boolean; onConfirm: () => void; onCancel: () => void; confirmDisabled?: boolean;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
+  const uid = useId();
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -287,10 +323,10 @@ export function ConfirmDialog({ open, title, children, confirmLabel, danger, onC
     if (!open && el.open) el.close();
   }, [open]);
   return (
-    <dialog ref={ref} onClose={onCancel} className="m-auto w-[480px] max-w-[calc(100vw-2rem)] rounded-panel border border-line bg-surface p-0 text-ink backdrop:bg-black/40">
+    <dialog ref={ref} onClose={onCancel} aria-labelledby={`${uid}-title`} aria-describedby={`${uid}-body`} className="m-auto w-[480px] max-w-[calc(100vw-2rem)] rounded-panel border border-line bg-surface p-0 text-ink backdrop:bg-black/40">
       <div className="flex flex-col gap-3 p-5">
-        <h2>{title}</h2>
-        <div className="text-ink-2">{children}</div>
+        <h2 id={`${uid}-title`}>{title}</h2>
+        <div id={`${uid}-body`} className="text-ink-2">{children}</div>
         <div className="mt-2 flex justify-end gap-2">
           <Button variant="quiet" onClick={onCancel}>Cancel</Button>
           <Button variant={danger ? 'danger' : 'primary'} onClick={onConfirm} disabled={confirmDisabled}>{confirmLabel}</Button>

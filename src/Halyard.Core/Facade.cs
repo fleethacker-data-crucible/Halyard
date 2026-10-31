@@ -34,6 +34,12 @@ namespace Halyard.Core
             return HalyardSettings.LoadEnvFile(path);
         }
 
+        /// <summary>Every command with its method and route, as JSON (<c>halyard commands --json</c>).</summary>
+        public static string CommandsJson()
+        {
+            return Host.CommandRegistry.Json();
+        }
+
         public static HalyardSettings SettingsFromEnvironment(string rootDirectory)
         {
             return HalyardSettings.FromEnvironment(rootDirectory);
