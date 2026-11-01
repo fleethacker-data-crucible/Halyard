@@ -180,7 +180,7 @@ namespace Halyard.Core.Tests
         {
             private readonly Func<IReadOnlyList<LlmMessage>, string> _reply;
             public ScriptedLlm(Func<IReadOnlyList<LlmMessage>, string> reply) { _reply = reply; }
-            public LlmProfile Profile { get { return LlmProfile.OpenAi; } }
+            public string Name { get { return "fairlead"; } }
             public string Model { get { return "scripted"; } }
             public Task<LlmResponse> ChatAsync(IReadOnlyList<LlmMessage> messages, CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = _reply(messages) }); }
             public Task<LlmResponse> TestAsync(CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = "OK" }); }
@@ -322,7 +322,7 @@ namespace Halyard.Core.Tests
         {
             private readonly Func<IReadOnlyList<LlmMessage>, string> _reply;
             public ScriptedLlm(Func<IReadOnlyList<LlmMessage>, string> reply) { _reply = reply; }
-            public LlmProfile Profile { get { return LlmProfile.OpenAi; } }
+            public string Name { get { return "fairlead"; } }
             public string Model { get { return "scripted"; } }
             public Task<LlmResponse> ChatAsync(IReadOnlyList<LlmMessage> messages, CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = _reply(messages) }); }
             public Task<LlmResponse> TestAsync(CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = "OK" }); }

@@ -37,12 +37,18 @@ try {
         HALYARD_PROVIDER = 'github'; GITHUB_API_URL = "http://127.0.0.1:$FakePort"; GITHUB_TOKEN = 'fake'
         HALYARD_SANDBOX_REPO = 'fleethacker-data-crucible/Halyard-Ballast'; HALYARD_SOURCE_REPO = 'sun-of-anton/raw-backlog'
         HALYARD_WRITE_DELAY_MS = '0'; HALYARD_WRITE_MODE = 'sandbox'
-        HALYARD_LLM_PROFILE = 'openai'; LLM_URL = "http://127.0.0.1:$FakePort/v1/chat/completions"; LLM_TOKEN = 'fake'; LLM_MODEL = 'fake-model'
+        HALYARD_FAIRLEAD_URL = "http://127.0.0.1:$FakePort/v1/chat/completions"; HALYARD_FAIRLEAD_MODEL = 'fake-model'
     }
     foreach ($k in $vars.Keys) { [Environment]::SetEnvironmentVariable($k, $vars[$k], 'Process') }
 
     Import-Module (Join-Path $root 'module\Halyard\Halyard.psd1') -Force
     Import-HalyardCore -Root $root
+
+    # Model calls read the Fairlead key from Credential Manager. The run uses a fixed fake key (or none) through a
+    # delegate on a static method, so no real credential is touched and every host thread can call it.
+    Add-Type -TypeDefinition 'public static class E2eFairleadKey { public static string Key = null; public static string Read(string target) { return Key; } }'
+    [Halyard.Core.Llm.CredentialReader]::Reader = [Delegate]::CreateDelegate([Func[string,string]], [E2eFairleadKey].GetMethod('Read'))
+    [E2eFairleadKey]::Key = 'fl-e2e-fake-key-0123456789'
     $settings = [Halyard.Core.Facade]::SettingsFromEnvironment($work)
     $settings.PreferredPort = $Port
     $hostObj = [Halyard.Core.Facade]::CreateHost($settings, $null, $Port, $null)

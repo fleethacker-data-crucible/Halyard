@@ -52,7 +52,7 @@ node tests/fakes/fake-github.mjs 8790 &
 #   HALYARD_PROVIDER=github  GITHUB_API_URL=http://127.0.0.1:8790  GITHUB_TOKEN=fake
 #   HALYARD_SANDBOX_REPO=fleethacker-data-crucible/Halyard-Ballast  HALYARD_SOURCE_REPO=sun-of-anton/raw-backlog
 #   HALYARD_WRITE_DELAY_MS=0
-#   HALYARD_LLM_PROFILE=openai  LLM_URL=http://127.0.0.1:8790/v1/chat/completions  LLM_TOKEN=fake
+#   HALYARD_FAIRLEAD_URL=http://127.0.0.1:8790/v1/chat/completions   (model calls also need a Fairlead key; tests/e2e/Run-E2E.ps1 shows how the e2e run fakes one)
 .\Launch-Halyard.bat --console --no-browser
 node tests/e2e/sandbox-loop.mjs http://127.0.0.1:8773 <session token from the launch URL> 30 --fake http://127.0.0.1:8790
 ```

@@ -111,8 +111,7 @@ namespace Halyard.Core.Host
             C("halyard job list", "GET", "/api/jobs", "Background jobs."),
             C("halyard job show", "GET", "/api/jobs/{id}", "One job with progress and result."),
             C("halyard job cancel", "POST", "/api/jobs/{id}/cancel", "Cancel a running job."),
-            C("halyard llm test", "POST", "/api/llm/test", "Send a test prompt to the model endpoint."),
-            C("halyard llm set-curl", "POST", "/api/llm/curl", "Set the model endpoint from a pasted curl command."),
+            C("halyard llm test", "POST", "/api/llm/test", "Send a test prompt through Fairlead."),
         };
 
         public static string Json()

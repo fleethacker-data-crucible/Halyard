@@ -408,8 +408,11 @@ namespace Halyard.Core.Tests
     }
 
     /// <summary>Every API route the UI reads, recorded against a host serving a fixed synthetic snapshot.</summary>
+    [Collection("CredentialReader")]
     public sealed class WireApiTests : IDisposable
     {
+        // The recorded answers must not depend on whether this PC has a Fairlead key installed for Halyard.
+        private readonly FakeCredentialStore _noKey = new FakeCredentialStore(null);
         private readonly string _root = Path.Combine(Path.GetTempPath(), "halyard-wire-" + Guid.NewGuid().ToString("N"));
         private readonly HalyardHost _host;
         private readonly HostInfo _info;
@@ -500,6 +503,7 @@ namespace Halyard.Core.Tests
 
         public void Dispose()
         {
+            _noKey.Dispose();
             _host.Dispose();
             _client.Dispose();
             try { Directory.Delete(_root, true); } catch (IOException) { }

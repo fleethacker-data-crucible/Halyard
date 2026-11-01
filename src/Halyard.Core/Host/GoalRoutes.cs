@@ -82,7 +82,7 @@ namespace Halyard.Core.Host
             var run = new GoalRun { Target = target.Key };
             var blocked = false;
             var useModel = Json.Read<bool?>(body, "useModel") ?? false;
-            ILlmClient llm = useModel ? CreateLlm(Json.Read<string>(body, "profile")) : null;
+            ILlmClient llm = useModel ? CreateLlm() : null;
 
             Func<string, string, Func<Task<ProposalBatch>>, Task> propose = async (id, title, make) =>
             {

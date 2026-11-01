@@ -372,19 +372,11 @@ namespace Halyard.Core.Host
             return sandbox;
         }
 
-        public ILlmClient CreateLlm(string profileText)
+        public ILlmClient CreateLlm()
         {
-            LlmProfile? profile = null;
-            if (!string.IsNullOrWhiteSpace(profileText))
-            {
-                var parsed = LlmSettings.ParseProfile(profileText);
-                if (parsed == null) throw new BadRequestException("Unknown LLM profile '" + profileText + "'. Use auto, openai, databricks or custom.");
-                profile = parsed == LlmProfile.Auto ? (LlmProfile?)null : parsed;
-            }
-            var client = new LlmClient(Settings.Llm, Options.Transport, profile);
-            var missing = Settings.Llm.MissingFor(client.Profile);
-            if (missing != null)
-                throw new ProviderNotReadyException("LLM profile " + LlmSettings.ProfileToken(client.Profile) + " is not usable: " + missing);
+            var client = new LlmClient(Settings.Llm, Options.Transport);
+            var missing = Settings.Llm.MissingFor();
+            if (missing != null) throw new ProviderNotReadyException("Model calls are not usable: " + missing);
             return client;
         }
 

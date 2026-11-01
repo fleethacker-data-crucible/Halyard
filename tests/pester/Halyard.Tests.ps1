@@ -6,8 +6,8 @@ BeforeAll {
     $script:Root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
     Import-Module (Join-Path $script:Root 'module\Halyard\Halyard.psd1') -Force
     $script:Saved = @{}
-    foreach ($n in @('HALYARD_PROVIDER', 'HALYARD_SOURCE_REPO', 'HALYARD_SANDBOX_REPO', 'GITHUB_TOKEN', 'GH_TOKEN', 'GITLAB_TOKEN', 'LLM_TOKEN', 'DATABRICKS_TOKEN', 'LAZARETTE_PATH', 'HALYARD_USE_LAZARETTE', 'HALYARD_WRITE_MODE', 'HALYARD_ALLOW_PRODUCTION', 'GITLAB_PROJECT_ID',
-               'HALYARD_LAZARETTE_ITEM_GitLab', 'HALYARD_LAZARETTE_ITEM_Llm', 'HALYARD_LAZARETTE_ITEM_Databricks', 'HALYARD_LAZARETTE_ITEM_GitHub')) {
+    foreach ($n in @('HALYARD_PROVIDER', 'HALYARD_SOURCE_REPO', 'HALYARD_SANDBOX_REPO', 'GITHUB_TOKEN', 'GH_TOKEN', 'GITLAB_TOKEN', 'LAZARETTE_PATH', 'HALYARD_USE_LAZARETTE', 'HALYARD_WRITE_MODE', 'HALYARD_ALLOW_PRODUCTION', 'GITLAB_PROJECT_ID',
+               'HALYARD_LAZARETTE_ITEM_GitLab', 'HALYARD_LAZARETTE_ITEM_GitHub')) {
         $script:Saved[$n] = [Environment]::GetEnvironmentVariable($n, 'Process')
         [Environment]::SetEnvironmentVariable($n, $null, 'Process')
     }
@@ -164,8 +164,8 @@ function Get-LazaretteSecret { param([Parameter(Mandatory)][string]$Service, [st
         $script:Child = @'
 param([string]$Manifest, [string]$LazRoot)
 $ErrorActionPreference = 'Stop'
-foreach ($n in @('GITLAB_TOKEN', 'LLM_TOKEN', 'DATABRICKS_TOKEN', 'GITHUB_TOKEN')) { [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
-$env:HALYARD_LAZARETTE_ITEM_GitLab = 'lib-gitlab'; $env:HALYARD_LAZARETTE_ITEM_Llm = 'lib-missing'
+foreach ($n in @('GITLAB_TOKEN', 'GITHUB_TOKEN')) { [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
+$env:HALYARD_LAZARETTE_ITEM_GitLab = 'lib-gitlab'; $env:HALYARD_LAZARETTE_ITEM_GitHub = 'lib-missing'
 Import-Module $Manifest -Force
 $r = Connect-HalyardLazarette -LazaretteRoot $LazRoot 6>$null
 $calls = & (Get-Module HalyardLazarette) { $script:UnlockCalls }
@@ -200,20 +200,35 @@ $script:Open = $false
 $script:UnlockCalls = 0
 function Unlock-LazaretteVaultInteractive { $script:UnlockCalls++; $script:Open = $true; return $true }
 function Test-LazaretteVaultUnlocked { return $script:Open }
-function Get-LazaretteSecret { param([Parameter(Mandatory)][string]$Service) switch ($Service) { 'my-gitlab' { 'glpat-fake-gitlab' } 'my-llm' { 'sk-fake-llm' } default { throw "no item $Service" } } }
+function Get-LazaretteSecret { param([Parameter(Mandatory)][string]$Service) switch ($Service) { 'my-gitlab' { 'glpat-fake-gitlab' } 'my-github' { 'ghp-fake-github' } default { throw "no item $Service" } } }
 '@
     }
     AfterAll { Remove-Item $script:FakeLaz2 -Recurse -Force -ErrorAction SilentlyContinue; Remove-Module HalyardLazarette -ErrorAction SilentlyContinue }
 
+    It 'does not read any model token from the vault (model calls use the Fairlead key in Credential Manager)' {
+        $env:HALYARD_LAZARETTE_ITEM_Llm = 'my-llm'; $env:HALYARD_LAZARETTE_ITEM_Databricks = 'my-databricks'
+        try {
+            [Environment]::SetEnvironmentVariable('LLM_TOKEN', $null, 'Process'); [Environment]::SetEnvironmentVariable('DATABRICKS_TOKEN', $null, 'Process')
+            $r = Connect-HalyardLazarette -LazaretteRoot $script:FakeLaz2
+            $r.Loaded | Should -Not -Contain 'LLM_TOKEN'
+            $r.Loaded | Should -Not -Contain 'DATABRICKS_TOKEN'
+            $env:LLM_TOKEN | Should -BeNullOrEmpty
+            $env:DATABRICKS_TOKEN | Should -BeNullOrEmpty
+        } finally {
+            [Environment]::SetEnvironmentVariable('HALYARD_LAZARETTE_ITEM_Llm', $null, 'Process'); [Environment]::SetEnvironmentVariable('HALYARD_LAZARETTE_ITEM_Databricks', $null, 'Process')
+        }
+    }
+
     It 'unlocks once and exports mapped items to the process environment' {
-        foreach ($n in @('GITLAB_TOKEN', 'LLM_TOKEN', 'DATABRICKS_TOKEN', 'GITHUB_TOKEN')) { [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
-        $env:HALYARD_LAZARETTE_ITEM_GitLab = 'my-gitlab'; $env:HALYARD_LAZARETTE_ITEM_Llm = 'my-llm'; $env:HALYARD_LAZARETTE_ITEM_Databricks = 'my-databricks'
+        foreach ($n in @('GITLAB_TOKEN', 'GITHUB_TOKEN')) { [Environment]::SetEnvironmentVariable($n, $null, 'Process') }
+        $env:HALYARD_LAZARETTE_ITEM_GitLab = 'my-gitlab'; $env:HALYARD_LAZARETTE_ITEM_GitHub = 'my-github'
         $r = Connect-HalyardLazarette -LazaretteRoot $script:FakeLaz2
         $r.Unlocked | Should -BeTrue -Because ('result: ' + ($r | ConvertTo-Json -Compress))
         $r.Loaded | Should -Contain 'GITLAB_TOKEN'
-        $r.Loaded | Should -Contain 'LLM_TOKEN'
-        $r.Missing | Should -Contain 'my-databricks'
+        $r.Loaded | Should -Contain 'GITHUB_TOKEN'
+        $r.Missing | Should -BeNullOrEmpty
         $env:GITLAB_TOKEN | Should -Be 'glpat-fake-gitlab'
+        $env:GITHUB_TOKEN | Should -Be 'ghp-fake-github'
     }
 
     It 'does not reload Lazarette or prompt again once unlocked' {

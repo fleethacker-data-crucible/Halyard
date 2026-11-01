@@ -136,7 +136,7 @@ namespace Halyard.Core.Intelligence
         public static async Task<ProposalBatch> RunAsync(IReadOnlyList<WorkItem> items, ReviewReport report, SkillsTaxonomy taxonomy, ILlmClient llm, SkillTagOptions options, RepositoryRef target, IProgress<string> progress, CancellationToken cancellation)
         {
             options = options ?? new SkillTagOptions();
-            var batch = new ProposalBatch { Kind = ProposalKind.Skills, Target = target.Key, Source = "llm:" + LlmSettings.ProfileToken(llm.Profile) + "/" + llm.Model };
+            var batch = new ProposalBatch { Kind = ProposalKind.Skills, Target = target.Key, Source = "llm:" + llm.Name + "/" + llm.Model };
             var byKey = items.ToDictionary(i => i.Key, i => i, StringComparer.OrdinalIgnoreCase);
             var parents = new Dictionary<string, WorkItem>(StringComparer.OrdinalIgnoreCase);
             foreach (var r in report.Items) { WorkItem p = null; if (r.ResolvedParentKey != null) byKey.TryGetValue(r.ResolvedParentKey, out p); parents[r.Key] = p; }

@@ -83,7 +83,7 @@ namespace Halyard.Core.Intelligence
             options = options ?? new EstimateOptions();
             var kind = options.Kind;
             var wantType = kind == ProposalKind.FeatureEffort ? WorkItemType.Feature : WorkItemType.Story;
-            var batch = new ProposalBatch { Kind = kind, Target = target.Key, Source = "llm:" + LlmSettings.ProfileToken(llm.Profile) + "/" + llm.Model };
+            var batch = new ProposalBatch { Kind = kind, Target = target.Key, Source = "llm:" + llm.Name + "/" + llm.Model };
             var candidates = new List<WorkItem>();
             foreach (var item in items.Where(i => i.Type == wantType))
             {

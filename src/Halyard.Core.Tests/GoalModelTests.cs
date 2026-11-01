@@ -18,6 +18,7 @@ using Xunit;
 namespace Halyard.Core.Tests
 {
     /// <summary>The ready goal with a model: draft and size steps, run against a scripted chat endpoint (no network).</summary>
+    [Collection("CredentialReader")]
     public sealed class GoalModelTests : IDisposable
     {
         private readonly string _root = Path.Combine(Path.GetTempPath(), "halyard-goalmodel-" + Guid.NewGuid().ToString("N"));
@@ -26,6 +27,7 @@ namespace Halyard.Core.Tests
         private readonly HalyardHost _host;
         private readonly HostInfo _info;
         private int _chatCalls;
+        private readonly FakeCredentialStore _creds = new FakeCredentialStore("fl-halyard-client-key-0123456789");
 
         public GoalModelTests()
         {
@@ -34,10 +36,7 @@ namespace Halyard.Core.Tests
             settings.Provider.Kind = ProviderKind.GitHub;
             settings.Provider.SandboxRepository = "fleethacker-data-crucible/Halyard-Ballast";
             settings.Provider.SourceRepository = "fleethacker-data-crucible/Halyard-Ballast";
-            settings.Llm.Profile = LlmProfile.OpenAi;
-            settings.Llm.OpenAiUrl = "https://llm.example.test/v1/chat/completions";
-            settings.Llm.OpenAiToken = string.Concat("fake", "-", new string('k', 24));
-            _http.On("POST", "llm.example.test", call =>
+            _http.On("POST", "127.0.0.1:8776", call =>
             {
                 _chatCalls++;
                 var user = (string)JObject.Parse(call.JsonBody!)["messages"]![1]!["content"]!;
@@ -59,6 +58,7 @@ namespace Halyard.Core.Tests
         {
             _host.Stop();
             _client.Dispose();
+            _creds.Dispose();
             try { Directory.Delete(_root, true); } catch (IOException) { }
         }
 
@@ -119,7 +119,7 @@ namespace Halyard.Core.Tests
         {
             SnapshotWithUnsizedStories();
             _http.Rules.Clear();
-            _http.On("POST", "llm.example.test", 401, "{\"error\":{\"message\":\"bad key\"}}");
+            _http.On("POST", "127.0.0.1:8776", 401, "{\"error\":{\"message\":\"bad key\"}}");
             var run = await Run("{\"useModel\":true}");
             Assert.Equal(200, (int)run["httpStatus"]!);
             var failed = ((JArray)run["steps"]!).FirstOrDefault(s => (string)s["status"]! == "failed");
@@ -136,8 +136,7 @@ namespace Halyard.Core.Tests
         [Fact]
         public async Task UseModelWithoutAKeyIsABadGatewayStyleErrorNotACrash()
         {
-            var settings = _host.Settings;
-            settings.Llm.OpenAiToken = null;
+            CredentialReader.Reader = target => null;
             SnapshotWithUnsizedStories();
             var run = await Run("{\"useModel\":true}");
             Assert.NotEqual(500, (int)run["httpStatus"]!);

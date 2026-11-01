@@ -196,7 +196,7 @@ namespace Halyard.Core.Intelligence
         public static async Task<VisionDraft> DraftAsync(IReadOnlyList<WorkItem> items, DeliveryReport delivery, IReadOnlyDictionary<string, int> skillGaps, ILlmClient llm, string repository, CancellationToken cancellation)
         {
             var draft = Summarize(items, delivery, skillGaps, repository);
-            draft.Source = "llm:" + LlmSettings.ProfileToken(llm.Profile) + "/" + llm.Model;
+            draft.Source = "llm:" + llm.Name + "/" + llm.Model;
             LlmResponse response;
             try { response = await llm.ChatAsync(new[] { LlmMessage.System(SystemPrompt()), LlmMessage.User(UserPrompt(items, delivery, skillGaps)) }, cancellation).ConfigureAwait(false); }
             catch (Providers.ProviderHttpException ex)
