@@ -107,7 +107,7 @@ GITLAB_URL=https://gitlab.example.com
 HALYARD_SOURCE_REPO=1234            # read-only source backlog
 HALYARD_SANDBOX_REPO=5678           # the only writable project
 HALYARD_PROTECTED_REPOS=            # optional extra never-write list
-LAZARETTE_PATH=C:\path\to\Lazarette  # optional vault bridge (ARC_PATH also works)
+LAZARETTE_PATH=C:\path\to\Lazarette  # optional vault bridge
 HALYARD_LAZARETTE_ITEM_GitLab=<vault item>  # -> GITLAB_TOKEN
 HALYARD_LAZARETTE_ITEM_Llm=<vault item>     # -> LLM_TOKEN
 ```
@@ -194,29 +194,20 @@ latest code, builds (stopping any running engine first, and saying which), and l
 stop an engine because it was opened as administrator, it names the PID and asks you to close that window.
 `Update-Halyard.bat` is not in the release bundle.
 
-### Upgrading from the previous name
+### Upgrading from an older install
 
-Halyard was renamed from a previous name. What an installed copy needs on its first launch after the rename still works:
+Names from before the rename to Halyard no longer work: Halyard does not copy an old env file, read old
+environment variables, or keep old launch shortcuts and script parameters. Create `config\halyard.env` from
+`config\halyard.env.example` and use the `HALYARD_*` names.
 
-- Legacy launch and update aliases forward to `Launch-Halyard.bat` and
-  `Update-Halyard.bat`; existing shortcuts keep working. The release bundle includes the launch alias.
-- On the first launch, `config\cascade.env` is copied once to `config\halyard.env` with the variable names updated
-  (`CASCADE_*` to `HALYARD_*`, `CASCADE_ARC_ITEM_*` to `HALYARD_LAZARETTE_ITEM_*`, `CASCADE_USE_ARC` to
-  `HALYARD_USE_LAZARETTE`, and `sun-of-anton/cascade-sandbox` to `fleethacker-data-crucible/Halyard-Ballast`). The old file is
-  left untouched and is not read again.
-- `CASCADE_*` environment variables set outside the env file still work for this release when their
-  `HALYARD_*` name is not set. The fallback will be removed in the next release.
-- Settings the browser remembered (tree state, last view) are copied from the old `cascade.` keys to `halyard.`
-  once; the old keys are left in place.
 - Stop any engine started before the update first (End session in its tab, or close its console): the stop
   script and the build only look for Halyard engines.
 - Issue labels, the meta block and the mirror heading use the Halyard names (`halyard`, `halyard-synthetic`,
-  `halyard-run::*`, `halyard-intake`, `~~~halyard-meta`, `### Halyard`). Items created under the previous name are not
-  recognised; empty the sandbox with the previous build before upgrading, or delete those items by hand.
+  `halyard-run::*`, `halyard-intake`, `~~~halyard-meta`, `### Halyard`). Items created by an older build are not
+  recognised; empty the sandbox with that build before upgrading, or delete those items by hand.
 - Peer cards go in `config\shellback\`, and `team.json` names them with `shellbackCard`.
-- A weekly report task registered before the rename runs `scripts\Send-CascadeReport.ps1`, which no longer exists.
-  Re-register it with `Register-HalyardReportSchedule.ps1` and remove the old task with
-  `Register-HalyardReportSchedule.ps1 -Remove -TaskName 'Cascade leadership report'`.
+- A weekly report task registered by an older build points at a script that no longer exists. Register it again
+  with `Register-HalyardReportSchedule.ps1`.
 
 ## Stopping Halyard
 

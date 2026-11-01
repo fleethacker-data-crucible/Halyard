@@ -18,8 +18,8 @@ param(
     [int]$Port = 0,
     [switch]$NoBrowser,
     [switch]$KeepConsole,
-    [Alias('NoArc')][switch]$NoLazarette,   # -NoArc / -Arc: former names, accepted for one release
-    [Alias('Arc')][switch]$Lazarette,
+    [switch]$NoLazarette,
+    [switch]$Lazarette,
     [switch]$Stay,
     [switch]$Replace,
     [string]$WebRoot,
@@ -29,8 +29,8 @@ $ErrorActionPreference = 'Stop'
 foreach ($a in @($Rest)) {
     switch -Regex ($a) {
         '^--?console$' { $KeepConsole = $true }
-        '^--?no-(lazarette|arc)$' { $NoLazarette = $true }   # --no-arc / --arc: former flags (old shortcuts), one release
-        '^--?(lazarette|arc)$' { $Lazarette = $true }
+        '^--?no-lazarette$' { $NoLazarette = $true }
+        '^--?lazarette$' { $Lazarette = $true }
         '^--?no-browser$' { $NoBrowser = $true }
         '^--?stay$' { $Stay = $true }
         '^--?replace$' { $Replace = $true }

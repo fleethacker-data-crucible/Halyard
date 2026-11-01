@@ -112,8 +112,7 @@ namespace Halyard.Core.Config
                 var v = lookup(name);
                 return string.IsNullOrWhiteSpace(v) ? null : v.Trim();
             };
-            // HALYARD_* first. The former CASCADE_* names are read as a fallback for one release after the rename, then removed.
-            Func<string, string> app = suffix => env("HALYARD_" + suffix) ?? env("CASCADE_" + suffix);
+            Func<string, string> app = suffix => env("HALYARD_" + suffix);
 
             s.ShellbackExportPath = app("SHELLBACK_EXPORT");
             s.ShellbackUrl = app("SHELLBACK_URL");
@@ -138,7 +137,7 @@ namespace Halyard.Core.Config
                 s.Provider.SandboxRepository = app("SANDBOX_REPO") ?? string.Empty;
                 s.Provider.Token = env("GITHUB_TOKEN") ?? env("GH_TOKEN");
             }
-            // A config that still names the sandbox by its former name is pointed at the renamed repository (see RenamedRepositories).
+            // A config that names the sandbox by its former address is pointed at the moved repository (see RenamedRepositories).
             s.Provider.SourceRepository = RenamedRepositories.CanonicalList(s.Provider.Kind, s.Provider.SourceRepository);
             s.Provider.SandboxRepository = RenamedRepositories.Canonical(s.Provider.Kind, s.Provider.SandboxRepository);
             int delay;
@@ -280,8 +279,6 @@ namespace Halyard.Core.Config
         public string EnvFilePath { get { return Path.Combine(ConfigDirectory, EnvFileName); } }
 
         public const string EnvFileName = "halyard.env";
-        /// <summary>The env file name before the rename. Read only by <see cref="MigrateLegacyEnvFile"/>.</summary>
-        public const string LegacyEnvFileName = "cascade.env";
 
         public HalyardSettings()
         {
@@ -294,42 +291,6 @@ namespace Halyard.Core.Config
             AutoStop = true;
             MaxSyncItems = 2000;
             ProtectedRepositories = new List<string>();
-        }
-
-        /// <summary>
-        /// First launch after the rename: when <c>config/halyard.env</c> does not exist and <c>config/cascade.env</c> does,
-        /// writes a copy as <c>halyard.env</c> with the variable names updated (CASCADE_ARC_ITEM_* to HALYARD_LAZARETTE_ITEM_*,
-        /// CASCADE_USE_ARC to HALYARD_USE_LAZARETTE, other CASCADE_* to HALYARD_*). The original file is left untouched, and
-        /// nothing happens once <c>halyard.env</c> exists, so this runs once and is safe to call on every launch.
-        /// Returns true when a copy was written.
-        /// </summary>
-        public static bool MigrateLegacyEnvFile(string configDirectory)
-        {
-            var current = Path.Combine(configDirectory, EnvFileName);
-            var legacy = Path.Combine(configDirectory, LegacyEnvFileName);
-            if (File.Exists(current) || !File.Exists(legacy)) return false;
-            var lines = File.ReadAllLines(legacy).Select(RenameLegacyEnvLine).ToList();
-            lines.Insert(0, "# Copied from config/cascade.env on the first launch after the rename to Halyard; that file was left unchanged.");
-            var temp = current + ".tmp";
-            File.WriteAllLines(temp, lines);
-            try { File.Move(temp, current); }
-            catch (IOException) { if (File.Exists(temp)) File.Delete(temp); if (!File.Exists(current)) throw; return false; }
-            return true;
-        }
-
-        /// <summary>Renames the variable on one KEY=VALUE line from its former CASCADE_* name; comments and other lines are unchanged.</summary>
-        public static string RenameLegacyEnvLine(string line)
-        {
-            var m = Regex.Match(line, @"^(\s*(?:export\s+)?)CASCADE_([A-Za-z0-9_]*)(\s*=.*)$");
-            if (!m.Success) return line;
-            var suffix = m.Groups[2].Value;
-            string name;
-            if (suffix.StartsWith("ARC_ITEM_", StringComparison.Ordinal)) name = "HALYARD_LAZARETTE_ITEM_" + suffix.Substring("ARC_ITEM_".Length);
-            else if (suffix == "USE_ARC") name = "HALYARD_USE_LAZARETTE";
-            else name = "HALYARD_" + suffix;
-            var rest = m.Groups[3].Value;
-            foreach (var renamed in RenamedRepositories.GitHubRenames) rest = Regex.Replace(rest, Regex.Escape(renamed.Key), renamed.Value, RegexOptions.IgnoreCase);
-            return m.Groups[1].Value + name + rest;
         }
 
         /// <summary>True when the custom endpoint's token is stored DPAPI-protected in the env file.</summary>

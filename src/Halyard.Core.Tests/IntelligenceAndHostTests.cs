@@ -458,68 +458,27 @@ namespace Halyard.Core.Tests
         }
 
         [Fact]
-        public void HalyardVariablesWinOverFormerNamesWhichStillWorkForOneRelease()
+        public void OnlyHalyardVariablesAreRead()
         {
+            // Built from parts so the retired-name check does not see the old prefix in this file.
+            var old = "CAS" + "CADE_";
             var s = HalyardSettings.FromEnvironment("root", Vars(
-                ("HALYARD_SANDBOX_REPO", "owner/new-sandbox"), ("CASCADE_SANDBOX_REPO", "owner/old-sandbox"),
-                ("CASCADE_SOURCE_REPO", "owner/source"), ("CASCADE_WRITE_DELAY_MS", "17")));
+                ("HALYARD_SANDBOX_REPO", "owner/new-sandbox"), (old + "SANDBOX_REPO", "owner/old-sandbox"),
+                (old + "SOURCE_REPO", "owner/source"), (old + "WRITE_DELAY_MS", "17")));
             Assert.Equal("owner/new-sandbox", s.Provider.SandboxRepository);
-            Assert.Equal("owner/source", s.Provider.SourceRepository); // CASCADE_* still read when HALYARD_* is unset
-            Assert.Equal(17, s.Provider.WriteDelayMs);
-        }
-
-        [Fact]
-        public void FormerSandboxNameIsMappedToHalyardBallastAndStaysWritable()
-        {
-            var s = HalyardSettings.FromEnvironment("root", Vars(
-                ("CASCADE_SANDBOX_REPO", "sun-of-anton/cascade-sandbox"), ("CASCADE_SOURCE_REPO", "sun-of-anton/raw-backlog")));
-            Assert.Equal("fleethacker-data-crucible/Halyard-Ballast", s.Provider.SandboxRepository);
-            var policy = s.BuildWritePolicy();
-            var intent = new Safety.WriteIntent("x", "y");
-            policy.Assert(new RepositoryRef(ProviderKind.GitHub, "fleethacker-data-crucible/Halyard-Ballast"), intent);
-            Assert.Throws<Safety.WriteBlockedException>(() => policy.Assert(new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/raw-backlog"), intent));
+            Assert.Equal(string.Empty, s.Provider.SourceRepository);
+            Assert.NotEqual(17, s.Provider.WriteDelayMs);
         }
 
         [Fact]
         public void PersonalSandboxAddressIsMappedToTheOrganization()
         {
-            // halyard.env files copied forward from cascade.env name the sandbox's pre-move address, now a personal fork.
+            // The sandbox's pre-move address is now a personal fork.
             var s = HalyardSettings.FromEnvironment("root", Vars(
                 ("HALYARD_SANDBOX_REPO", "sun-of-anton/Halyard-Ballast"), ("HALYARD_SOURCE_REPO", "sun-of-anton/Halyard-Ballast")));
             Assert.Equal("fleethacker-data-crucible/Halyard-Ballast", s.Provider.SandboxRepository);
             Assert.Equal("fleethacker-data-crucible/Halyard-Ballast", s.Provider.SourceRepository);
             Assert.Throws<Safety.WriteBlockedException>(() => s.BuildWritePolicy().Assert(new RepositoryRef(ProviderKind.GitHub, "sun-of-anton/Halyard-Ballast"), new Safety.WriteIntent("x", "y")));
-        }
-
-        [Fact]
-        public void FormerEnvFileIsCopiedForwardOnceWithRenamedVariablesAndLeftUntouched()
-        {
-            var dir = Path.Combine(Path.GetTempPath(), "halyard-envfile-" + Guid.NewGuid().ToString("N"));
-            Directory.CreateDirectory(dir);
-            var legacy = Path.Combine(dir, "cascade.env");
-            var current = Path.Combine(dir, "halyard.env");
-            try
-            {
-                Assert.False(HalyardSettings.MigrateLegacyEnvFile(dir)); // neither file: nothing to do
-                var original = "# my settings\nCASCADE_PROVIDER=github\nexport CASCADE_SANDBOX_REPO=sun-of-anton/cascade-sandbox\n" +
-                               "CASCADE_ARC_ITEM_GitLab=gitmil\nCASCADE_USE_ARC=1\nGITHUB_TOKEN=keep\n";
-                File.WriteAllText(legacy, original);
-                Assert.True(HalyardSettings.MigrateLegacyEnvFile(dir));
-                Assert.Equal(original, File.ReadAllText(legacy)); // the original is left untouched
-                var copied = File.ReadAllLines(current);
-                Assert.Contains("# my settings", copied);
-                Assert.Contains("HALYARD_PROVIDER=github", copied);
-                Assert.Contains("export HALYARD_SANDBOX_REPO=fleethacker-data-crucible/Halyard-Ballast", copied);
-                Assert.Contains("HALYARD_LAZARETTE_ITEM_GitLab=gitmil", copied);
-                Assert.Contains("HALYARD_USE_LAZARETTE=1", copied);
-                Assert.Contains("GITHUB_TOKEN=keep", copied);
-                Assert.DoesNotContain(copied, l => l.StartsWith("CASCADE_", StringComparison.Ordinal));
-
-                File.WriteAllText(current, "HALYARD_PROVIDER=gitlab\n"); // edited after migrating
-                Assert.False(HalyardSettings.MigrateLegacyEnvFile(dir)); // runs once: halyard.env exists
-                Assert.Equal("HALYARD_PROVIDER=gitlab\n", File.ReadAllText(current));
-            }
-            finally { Directory.Delete(dir, true); }
         }
 
         [Fact]

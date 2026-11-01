@@ -17,7 +17,7 @@ param(
     [ValidateRange(0.0, 0.5)][double]$DefectRate = 0.2,
     [switch]$NoNativeLinks,
     [string]$CatalogPath,
-    [Alias('NoArc')][switch]$NoLazarette   # -NoArc: former name, accepted for one release
+    [switch]$NoLazarette
 )
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '..\module\Halyard\Halyard.psd1') -Force

@@ -23,12 +23,6 @@ namespace Halyard.Core
     {
         public static string Version { get { return HalyardHost.Version; } }
 
-        /// <summary>Copies config/cascade.env forward to config/halyard.env once (see <see cref="HalyardSettings.MigrateLegacyEnvFile"/>).</summary>
-        public static bool MigrateLegacyEnvFile(string rootDirectory)
-        {
-            return HalyardSettings.MigrateLegacyEnvFile(Path.Combine(rootDirectory, "config"));
-        }
-
         public static int LoadEnvFile(string path)
         {
             return HalyardSettings.LoadEnvFile(path);

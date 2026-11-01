@@ -9,7 +9,6 @@ logs/
 
 # Local secrets and environment (NEVER commit real values)
 config/halyard.env
-config/cascade.env
 .env
 .env.*
 !**/*.env.example

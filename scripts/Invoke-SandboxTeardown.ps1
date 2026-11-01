@@ -16,7 +16,7 @@ param(
     [Parameter(Mandatory, ParameterSetName = 'Everything')][switch]$Everything,
     [Parameter(ParameterSetName = 'Everything')][string]$ConfirmText,
     [switch]$DryRun,
-    [Alias('NoArc')][switch]$NoLazarette   # -NoArc: former name, accepted for one release
+    [switch]$NoLazarette
 )
 $ErrorActionPreference = 'Stop'
 Import-Module (Join-Path $PSScriptRoot '..\module\Halyard\Halyard.psd1') -Force

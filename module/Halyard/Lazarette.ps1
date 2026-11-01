@@ -3,55 +3,37 @@
 # it once, asks it to unlock in the visible console, and reads named items into process environment variables.
 # Secret values are never logged, written to disk or passed to the browser. ASCII only for Windows PowerShell 5.1.
 #
-# Contract (Lazarette docs/INTEGRATION.md): find the install by lib\Lazarette.ps1 or lib\Arc.ps1, load it once,
-# unlock with Unlock-LazaretteVaultInteractive (else Unlock-ArcVaultInteractive) and read items with
-# Get-LazaretteSecret -Service (else Get-ArcSecret -Service). The Arc-named file and functions are what Lazarette
-# exports today; the Lazarette-named ones are preferred as soon as it ships them.
+# Contract (Lazarette docs/INTEGRATION.md): find the install (the folder with lib\Lazarette.ps1), load it once, unlock
+# with Unlock-LazaretteVaultInteractive and read items with Get-LazaretteSecret -Service.
 #
-# Result codes (ARC_NOT_FOUND, ARC_IMPORT_FAILED, ARC_AUTH_CANCELLED, ARC_AUTH_EXCEPTION, ARC_STATE_NOT_UNLOCKED)
-# follow Lazarette's own ARC_* codes, which are its wire format; the launcher passes them to the UI as launcher state.
-# ARC_PATH / ARC_ROOT / ARC_HOME, lib\Arc.ps1 and the *-Arc* functions are likewise what Lazarette documents and
-# exports today (docs/INTEGRATION.md); the Lazarette-named equivalents are tried first.
+# Result codes (LAZARETTE_NOT_FOUND, LAZARETTE_IMPORT_FAILED, LAZARETTE_AUTH_CANCELLED, LAZARETTE_AUTH_EXCEPTION,
+# LAZARETTE_STATE_NOT_UNLOCKED) are passed to the UI as launcher state.
 
 $script:HalyardLazaretteModule = $null
 $script:HalyardLazaretteRoot = $null
 
 function Get-HalyardLazaretteEntry {
-    <# The loader file in a Lazarette install folder: lib\Lazarette.ps1, else lib\Arc.ps1. #>
+    <# The loader file in a Lazarette install folder: lib\Lazarette.ps1. #>
     param([string]$Root)
     if (-not $Root) { return $null }
-    foreach ($rel in @('lib\Lazarette.ps1', 'lib\Arc.ps1')) {
-        $p = Join-Path $Root $rel
-        if (Test-Path -LiteralPath $p -PathType Leaf) { return $p }
-    }
+    $p = Join-Path $Root 'lib\Lazarette.ps1'
+    if (Test-Path -LiteralPath $p -PathType Leaf) { return $p }
     return $null
 }
 
 function Find-HalyardLazaretteRoot {
     <#
     .SYNOPSIS
-      Finds the Lazarette install. Order: LAZARETTE_PATH / LAZARETTE_ROOT / LAZARETTE_HOME, then the former
-      ARC_PATH / ARC_ROOT / ARC_HOME, then a sibling folder (Lazarette, then arc), then
-      %USERPROFILE%\Projects\Lazarette, %USERPROFILE%\Projects\arc, %LOCALAPPDATA%\Lazarette, %LOCALAPPDATA%\ARC.
-      A folder qualifies when it has lib\Lazarette.ps1 or lib\Arc.ps1; the first qualifying folder wins, so an
-      explicit variable always beats a guessed location.
+      Finds the Lazarette install. Order: LAZARETTE_PATH, then a Lazarette folder next to Halyard, then
+      %USERPROFILE%\Projects\Lazarette. A folder qualifies when it has lib\Lazarette.ps1; the first qualifying folder
+      wins, so an explicit variable always beats a guessed location.
     #>
     [CmdletBinding()]
     param([string]$HalyardRoot)
     $candidates = New-Object System.Collections.Generic.List[string]
-    foreach ($p in @($env:LAZARETTE_PATH, $env:LAZARETTE_ROOT, $env:LAZARETTE_HOME, $env:ARC_PATH, $env:ARC_ROOT, $env:ARC_HOME)) {
-        if (-not [string]::IsNullOrWhiteSpace($p)) { [void]$candidates.Add($p.Trim().Trim('"').Trim("'")) }
-    }
-    if ($HalyardRoot) {
-        $parent = Split-Path $HalyardRoot -Parent
-        foreach ($name in @('Lazarette', 'lazarette', 'arc', 'Arc', 'ARC')) { [void]$candidates.Add((Join-Path $parent $name)) }
-    }
-    if ($env:USERPROFILE) {
-        foreach ($rel in @('Projects\Lazarette', 'Projects\arc', 'Lazarette', 'arc')) { [void]$candidates.Add((Join-Path $env:USERPROFILE $rel)) }
-    }
-    if ($env:LOCALAPPDATA) {
-        foreach ($name in @('Lazarette', 'ARC')) { [void]$candidates.Add((Join-Path $env:LOCALAPPDATA $name)) }
-    }
+    if (-not [string]::IsNullOrWhiteSpace($env:LAZARETTE_PATH)) { [void]$candidates.Add($env:LAZARETTE_PATH.Trim().Trim('"').Trim("'")) }
+    if ($HalyardRoot) { [void]$candidates.Add((Join-Path (Split-Path $HalyardRoot -Parent) 'Lazarette')) }
+    if ($env:USERPROFILE) { [void]$candidates.Add((Join-Path $env:USERPROFILE 'Projects\Lazarette')) }
     $seen = @{}
     foreach ($c in $candidates) {
         try {
@@ -66,7 +48,7 @@ function Find-HalyardLazaretteRoot {
 }
 
 function Get-HalyardLazaretteCommand {
-    <# The first defined command of the given names (Lazarette name first, then the ARC name). #>
+    <# The first defined command of the given names. #>
     param([string[]]$Names)
     foreach ($n in $Names) {
         $cmd = Get-Command $n -ErrorAction SilentlyContinue
@@ -76,8 +58,8 @@ function Get-HalyardLazaretteCommand {
 }
 
 function Test-HalyardLazaretteLibAvailable {
-    $unlock = Get-HalyardLazaretteCommand @('Unlock-LazaretteVaultInteractive', 'Unlock-ArcVaultInteractive')
-    $secret = Get-HalyardLazaretteCommand @('Get-LazaretteSecret', 'Get-ArcSecret')
+    $unlock = Get-HalyardLazaretteCommand @('Unlock-LazaretteVaultInteractive')
+    $secret = Get-HalyardLazaretteCommand @('Get-LazaretteSecret')
     return [bool]($unlock -and $secret)
 }
 
@@ -107,13 +89,13 @@ function Import-HalyardLazaretteSession {
 }
 
 function Test-HalyardLazaretteVaultUnlocked {
-    $test = Get-HalyardLazaretteCommand @('Test-LazaretteVaultUnlocked', 'Test-ArcVaultUnlocked')
+    $test = Get-HalyardLazaretteCommand @('Test-LazaretteVaultUnlocked')
     if (-not $test) { return $false }
     try { return [bool](& $test) } catch { return $false }
 }
 
 function Invoke-HalyardLazaretteUnlock {
-    $unlock = Get-HalyardLazaretteCommand @('Unlock-LazaretteVaultInteractive', 'Unlock-ArcVaultInteractive')
+    $unlock = Get-HalyardLazaretteCommand @('Unlock-LazaretteVaultInteractive')
     if (-not $unlock) { return $false }
     return [bool](& $unlock)
 }
@@ -121,7 +103,7 @@ function Invoke-HalyardLazaretteUnlock {
 function Get-HalyardLazaretteSecret {
     [CmdletBinding()]
     param([Parameter(Mandatory)][string]$Name)
-    $get = Get-HalyardLazaretteCommand @('Get-LazaretteSecret', 'Get-ArcSecret')
+    $get = Get-HalyardLazaretteCommand @('Get-LazaretteSecret')
     if (-not $get) { return $null }
     # Exactly one item or it throws (locked, missing, ambiguous); a throw is reported as a missing item.
     try {
@@ -132,12 +114,10 @@ function Get-HalyardLazaretteSecret {
 }
 
 function Get-HalyardLazaretteItemName {
-    <# Vault item name for one purpose: HALYARD_LAZARETTE_ITEM_<Purpose>, else the former CASCADE_ARC_ITEM_<Purpose> (one release). #>
+    <# Vault item name for one purpose: HALYARD_LAZARETTE_ITEM_<Purpose>. #>
     param([Parameter(Mandatory)][string]$Purpose)
-    foreach ($n in @(('HALYARD_LAZARETTE_ITEM_' + $Purpose), ('CASCADE_ARC_ITEM_' + $Purpose))) {
-        $v = [Environment]::GetEnvironmentVariable($n, 'Process')
-        if (-not [string]::IsNullOrWhiteSpace($v)) { return $v.Trim() }
-    }
+    $v = [Environment]::GetEnvironmentVariable(('HALYARD_LAZARETTE_ITEM_' + $Purpose), 'Process')
+    if (-not [string]::IsNullOrWhiteSpace($v)) { return $v.Trim() }
     return ''
 }
 
@@ -147,9 +127,9 @@ function Connect-HalyardLazarette {
       Loads Lazarette once, completes the unlock (smart card PIN or passphrase, then TOTP) in this console, and copies
       named vault items into process environment variables (GITLAB_TOKEN, LLM_TOKEN, DATABRICKS_TOKEN,
       GITHUB_TOKEN). The item names come from HALYARD_LAZARETTE_ITEM_GitLab / _Llm / _Databricks / _GitHub in
-      config\halyard.env (the former CASCADE_ARC_ITEM_* names are still read); unset = skipped.
+      config\halyard.env; unset = skipped.
     .OUTPUTS
-      A summary object with Unlocked, LazaretteRoot, Loaded, Missing and Error (Lazarette's ARC_* result codes).
+      A summary object with Unlocked, LazaretteRoot, Loaded, Missing and Error (the LAZARETTE_* result codes above).
     #>
     [CmdletBinding()]
     param(
@@ -159,13 +139,13 @@ function Connect-HalyardLazarette {
     $result = [pscustomobject]@{ Unlocked = $false; LazaretteRoot = $null; Loaded = @(); Missing = @(); Error = $null }
     if (-not $LazaretteRoot) { $LazaretteRoot = Find-HalyardLazaretteRoot -HalyardRoot $HalyardRoot }
     if (-not $LazaretteRoot) {
-        $result.Error = 'ARC_NOT_FOUND'
+        $result.Error = 'LAZARETTE_NOT_FOUND'
         Write-Warning 'Lazarette was not found. Set LAZARETTE_PATH in config\halyard.env to the Lazarette folder (the one containing lib\).'
         return $result
     }
     $result.LazaretteRoot = $LazaretteRoot
     if (-not (Import-HalyardLazaretteSession -LazaretteRoot $LazaretteRoot)) {
-        $result.Error = 'ARC_IMPORT_FAILED'
+        $result.Error = 'LAZARETTE_IMPORT_FAILED'
         return $result
     }
     try {
@@ -173,18 +153,18 @@ function Connect-HalyardLazarette {
             Write-Host ''
             Write-Host 'Halyard: unlock Lazarette in this window (smart card PIN or passphrase, then the authenticator code).' -ForegroundColor Cyan
             if (-not (Invoke-HalyardLazaretteUnlock)) {
-                $result.Error = 'ARC_AUTH_CANCELLED'
+                $result.Error = 'LAZARETTE_AUTH_CANCELLED'
                 Write-Warning 'Lazarette was not unlocked. Halyard will open without vault credentials.'
                 return $result
             }
         }
     } catch {
-        $result.Error = 'ARC_AUTH_EXCEPTION'
+        $result.Error = 'LAZARETTE_AUTH_EXCEPTION'
         Write-Warning ('Lazarette unlock failed: ' + $_.Exception.GetType().Name)
         return $result
     }
     $result.Unlocked = [bool](Test-HalyardLazaretteVaultUnlocked)
-    if (-not $result.Unlocked) { $result.Error = 'ARC_STATE_NOT_UNLOCKED'; return $result }
+    if (-not $result.Unlocked) { $result.Error = 'LAZARETTE_STATE_NOT_UNLOCKED'; return $result }
 
     $map = @(
         @{ Env = 'GITLAB_TOKEN';     Item = (Get-HalyardLazaretteItemName 'GitLab') },
