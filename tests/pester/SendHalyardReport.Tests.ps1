@@ -97,10 +97,10 @@ Describe 'Send-HalyardReportMessage' {
 }
 
 Describe 'Send-HalyardReport.ps1' {
-    It 'accepts only Outlook, Smtp or File and keeps the -NoArc alias for one release' {
+    It 'accepts only Outlook, Smtp, File or Webhook and keeps the -NoArc alias for one release' {
         $cmd = Get-Command $script:Script
         $set = $cmd.Parameters['Via'].Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
-        $set.ValidValues | Should -Be @('Outlook', 'Smtp', 'File')
+        $set.ValidValues | Should -Be @('Outlook', 'Smtp', 'File', 'Webhook')
         $cmd.Parameters['NoLazarette'].Aliases | Should -Contain 'NoArc'
         $cmd.Parameters['To'].ParameterType.Name | Should -Be 'String[]'
     }
@@ -151,6 +151,12 @@ Describe 'Send-HalyardReport.ps1' {
             $result = & $script:Script -Via File -NoLazarette 6>$null
             $result | Should -BeLike (Join-Path $script:Temp 'output\reports\leadership-*.html')
             Test-Path -LiteralPath $result | Should -BeTrue
+        }
+        It 'stops with the setting name when Via is Webhook and none is configured' {
+            $saved = $env:HALYARD_REPORT_WEBHOOK
+            $env:HALYARD_REPORT_WEBHOOK = $null
+            try { { & $script:Script -Via Webhook -OutFile (Join-Path $script:Temp 'w.html') -NoLazarette 6>$null } | Should -Throw -ExpectedMessage '*HALYARD_REPORT_WEBHOOK*' }
+            finally { $env:HALYARD_REPORT_WEBHOOK = $saved }
         }
         It 'stops before sending when Outlook or SMTP delivery lacks its settings' {
             { & $script:Script -Via Outlook -OutFile (Join-Path $script:Temp 'a.html') -NoLazarette 6>$null } | Should -Throw -ExpectedMessage '*Specify -To*'

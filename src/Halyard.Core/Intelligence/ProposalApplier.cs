@@ -123,6 +123,16 @@ namespace Halyard.Core.Intelligence
                 cancellation.ThrowIfCancellationRequested();
                 done++;
                 if (progress != null) progress.Report("Applying " + done + "/" + approved.Count + ": " + proposal.ItemCanonicalId);
+                // Someone may have rejected or reset this proposal since the apply started; the file on disk is the decision of record.
+                var onDisk = store.Load(batch.Id);
+                var live = onDisk == null ? null : onDisk.Proposals.FirstOrDefault(x => x.Id == proposal.Id);
+                if (live != null && live.Decision != ProposalDecision.Approved)
+                {
+                    proposal.Decision = live.Decision;
+                    result.Skipped++;
+                    result.Messages.Add(proposal.ItemCanonicalId + ": no longer approved; skipped");
+                    continue;
+                }
                 try
                 {
                     var item = await reader.GetWorkItemAsync(proposal.ItemNumber, cancellation).ConfigureAwait(false);
@@ -176,7 +186,8 @@ namespace Halyard.Core.Intelligence
                 }
                 finally
                 {
-                    store.Save(batch);
+                    // Only this proposal: decisions someone made on the others while the apply ran must survive.
+                    store.SaveProposal(batch.Id, proposal);
                 }
             }
             return result;

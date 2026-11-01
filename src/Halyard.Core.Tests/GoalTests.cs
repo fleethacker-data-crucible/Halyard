@@ -67,12 +67,13 @@ namespace Halyard.Core.Tests
             Snapshot(defects: true);
             var run = await Run();
             var steps = ((JArray)run["steps"]!).Select(s => (id: (string)s["id"]!, status: (string)s["status"]!, batch: (string?)s["batchId"])).ToList();
-            Assert.Equal(new[] { "metadata", "parents", "skills", "size", "plan", "report" }, steps.Select(s => s.id).ToArray());
+            Assert.Equal(new[] { "metadata", "parents", "draft", "size", "skills", "plan", "report" }, steps.Select(s => s.id).ToArray());
             var firstProposed = steps.FindIndex(s => s.status == "proposed");
             Assert.True(firstProposed >= 0, "the defect catalogue gives something to propose");
             Assert.All(steps.Take(firstProposed), s => Assert.Equal("clean", s.status));
-            Assert.All(steps.Skip(firstProposed + 1).Where(s => s.id != "size" && s.id != "report"), s => Assert.Equal("waiting", s.status));
+            Assert.All(steps.Skip(firstProposed + 1).Where(s => s.id != "draft" && s.id != "size" && s.id != "report"), s => Assert.Equal("waiting", s.status));
             Assert.Equal("skipped", steps.Single(s => s.id == "size").status);
+            Assert.Equal("skipped", steps.Single(s => s.id == "draft").status);
             Assert.Equal("done", steps.Single(s => s.id == "report").status);
 
             var batch = _host.Proposals.Load(steps[firstProposed].batch!)!;
@@ -101,7 +102,7 @@ namespace Halyard.Core.Tests
             Assert.True(File.Exists(Path.Combine(_host.GoalsDirectory, "goal-" + (string)run["id"]! + ".json")));
             var list = JArray.Parse(await _client.GetStringAsync(_info.Url + "api/goals"));
             Assert.Equal((string)run["id"]!, (string)list[0]["id"]!);
-            Assert.Equal(6, ((JArray)list[0]["steps"]!).Count);
+            Assert.Equal(7, ((JArray)list[0]["steps"]!).Count);
         }
 
         [Fact]
@@ -112,7 +113,7 @@ namespace Halyard.Core.Tests
             var steps = ((JArray)run["steps"]!).ToList();
             if (steps.All(s => (string)s["status"]! != "proposed"))
             {
-                Assert.Contains("Every automatic step is clean", (string)run["next"]!);
+                Assert.Contains("Every step is clean", (string)run["next"]!);
                 Assert.Contains("Features:", (string)steps.Single(s => (string)s["id"]! == "report")["note"]!);
             }
             else Assert.Contains("run this goal again", (string)run["next"]!);

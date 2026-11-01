@@ -163,15 +163,16 @@ namespace Halyard.Core.Intelligence
             entry.RolledBackAt = DateTimeOffset.UtcNow;
             entry.RollbackNote = note;
             if (store == null) return;
-            var batch = store.Load(entry.BatchId);
-            if (batch == null) return;
-            var proposal = batch.Proposals.FirstOrDefault(p => p.Id == entry.ProposalId);
-            if (proposal == null || proposal.Decision != ProposalDecision.Applied) return;
-            proposal.Decision = ProposalDecision.Pending;
-            proposal.AppliedAt = null;
-            proposal.DecisionNote = "Rolled back " + entry.RolledBackAt.Value.ToString("u");
-            proposal.Error = null;
-            store.Save(batch);
+            store.Update(entry.BatchId, batch =>
+            {
+                var proposal = batch.Proposals.FirstOrDefault(p => p.Id == entry.ProposalId);
+                if (proposal == null || proposal.Decision != ProposalDecision.Applied) return false;
+                proposal.Decision = ProposalDecision.Pending;
+                proposal.AppliedAt = null;
+                proposal.DecisionNote = "Rolled back " + entry.RolledBackAt.Value.ToString("u");
+                proposal.Error = null;
+                return true;
+            });
         }
     }
 }

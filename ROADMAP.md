@@ -21,22 +21,29 @@ provider-agnostic. Last updated 2026-10-31.
 | Proposals | Eight kinds behind one projection for preview and apply; diff per row; approve, reject, apply, apply all, delete batch |
 | Tests | xUnit, Pester and UI unit tests, an offline end-to-end loop over every flow above, CI on the Windows runner. GitLab is covered against a stateful fake project and report delivery with mocked Outlook/SMTP (draft PR); nothing has run against a real GitLab, Outlook or mail server |
 
-## Status of the open work
+## Status of the Next and Later items
 
-Built and tested against fakes, in draft pull requests (not on `main` until merged). "Live" parts need a real model, real tickets, a real
-GitLab, Teams/Slack or Shellback and are listed for the owner rather than faked.
+Everything below is on `main`, built and tested against fakes (a fake GitHub, a stateful fake GitLab project, a scripted model, mocked Outlook/SMTP,
+temp folders). "Live check" is what only a real model, real tickets, a real GitLab, Teams/Slack or Shellback can prove; those are listed for the owner
+and have not been faked or run.
 
-| Item | State | Pull request | Still needs a live check |
+| Item | State | Built | Live check still needed |
 |---|---|---|---|
-| GitLab provider and report-script tests | built | #32 | a run against the real GitLab (Next 3) |
-| 4 Live Shellback export | export file/folder and endpoint reader, consent-only cache, refresh route; no UI button | #36 | a real Shellback export or endpoint |
-| 5 Sprint review loop | planned vs delivered per sprint, recommended commitment, slipped stories first, Plan page panel | #35 | a few real sprints of history |
-| 6 Rollback of the last apply | journal, preview, conflict-safe restore, API and Applied-changes panel | #34 | a rollback in the real sandbox |
-| 8 Webhook delivery | Teams/Slack summary, dry run | #38 | a real webhook URL |
-| 10 Shared proposal state | write lease only; concurrent batch edits are not merged | #39 | two machines on a share |
-| 11 Production promote | gated preview and confirmed run, no UI | #37 | never run against a real production repository |
-| 7 Multi-step goals, 9 GitLab native links | not started | | |
-| 1, 2, 3 | not started: need a real model key, real tickets, the locked-down GitLab workstation | | |
+| 1 Review with a real model key | not started | | a real key and a judge of the drafts |
+| 2 Tune prompts on real tickets | not started | | real tickets |
+| 3 Run on the workstation against GitLab | not started | GitLab provider is tested against a fake; native links read when the version is set | the locked-down workstation, vault unlock, paging |
+| 4 Live Shellback export | built | export file/folder or endpoint reader, consent-only cache, withdrawn consent removed, Refresh button | a real Shellback export or endpoint |
+| 5 Sprint review loop | built | planned vs delivered per sprint, recommended commitment, slipped stories first, Plan page panel | a few real sprints of history |
+| 6 Rollback of the last apply | built | journal, preview, conflict-safe restore, forced override, Applied-changes panel | a rollback in the real sandbox |
+| 7 Multi-step goals | built | ordered gated steps (repair, parents, draft, size, skills, plan, summary); model steps with `useModel`; a failing model stops the step with the reason | a real model for draft/size; intake stays a separate explicit action |
+| 8 Report delivery beyond email | built | Teams/Slack summary from the browser and from `Send-HalyardReport.ps1 -Via Webhook`, dry run, https only, address never shown | a real webhook |
+| 9 GitLab native links | partly | issue links read when `HALYARD_GITLAB_VERSION` is set (13.4+) | epics / work-item hierarchy (needs the newer API and a confirmed server) |
+| 10 Shared proposal state | built | write lease for write jobs; batch edits are read-modify-write under a cross-process lock; an apply keeps decisions made meanwhile and honours a rejection | two machines on a network share |
+| 11 Production promote | built | preview with diff basis, typed confirmation, full production gate, stale-item refusal, screen | never run against a real production repository |
+
+Also on `main`: Fairlead as the default model endpoint, command registry with `commands --json` and a parity test, Semaphore CSV export, hand-offs from
+PacketRat/Eight Bells (`fleet-handoff` v1, no exporter on their side yet), read-aloud and dictation with local speech only, accessible tab and dialog names,
+`docs/CLI.md`, `docs/HANDOFF.md`, `docs/SEMAPHORE-EXPORT.md`, `docs/DEMO-WALKTHROUGH.md`.
 
 ## Next
 
