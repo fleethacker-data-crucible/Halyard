@@ -28,7 +28,7 @@ accepts **C# 5 only**, and the code may reference framework assemblies only.
 | JSON | Newtonsoft.Json 13 | `Halyard.Core.Serialization` (hand-written reader/writer + DOM, framework only) |
 | References | Newtonsoft.Json, System.Net.Http | framework only: System, System.Core, System.Net.Http |
 
-The browser UI, HTTP endpoints, JSON on the wire, `halyard.env` (CASCADE_* shims included), Lazarette
+The browser UI, HTTP endpoints, JSON on the wire, `halyard.env`, Lazarette
 integration and the write gateway rules do not change.
 
 ## Inventory

@@ -85,10 +85,7 @@ namespace Halyard.Core.Providers
     {
         private static readonly Dictionary<string, string> GitHub = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            // Kept for one release with the CASCADE_* fallback: an installed config/cascade.env, or a CASCADE_SANDBOX_REPO variable, can still name the old repository.
-            { "sun-of-anton/cascade-sandbox", "fleethacker-data-crucible/Halyard-Ballast" },
-            // The sandbox moved to the organization. The old address is now a personal fork with issues turned off, and
-            // config/halyard.env files copied forward from cascade.env name it.
+            // The sandbox moved to the organization. The old address is now a personal fork with issues turned off.
             { "sun-of-anton/Halyard-Ballast", "fleethacker-data-crucible/Halyard-Ballast" },
         };
 

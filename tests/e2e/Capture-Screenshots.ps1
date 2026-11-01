@@ -22,7 +22,7 @@ if (-not $WalkthroughDir) { $WalkthroughDir = Join-Path $root 'docs\assets\walkt
 $work = Join-Path ([IO.Path]::GetTempPath()) ('halyard-shots-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Force $work | Out-Null
 Copy-Item (Join-Path $root 'config') (Join-Path $work 'config') -Recurse   # demo team.json, skills.json, Shellback cards
-Remove-Item (Join-Path $work 'config\halyard.env'), (Join-Path $work 'config\cascade.env') -Force -ErrorAction SilentlyContinue
+Remove-Item (Join-Path $work 'config\halyard.env') -Force -ErrorAction SilentlyContinue
 $fake = Start-Process -FilePath $node.Source -ArgumentList @(('"' + (Join-Path $root 'tests\fakes\fake-github.mjs') + '"'), $FakePort) -PassThru -NoNewWindow
 $hostObj = $null
 try {

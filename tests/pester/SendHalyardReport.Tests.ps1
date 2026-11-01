@@ -97,11 +97,11 @@ Describe 'Send-HalyardReportMessage' {
 }
 
 Describe 'Send-HalyardReport.ps1' {
-    It 'accepts only Outlook, Smtp, File or Webhook and keeps the -NoArc alias for one release' {
+    It 'accepts only Outlook, Smtp, File or Webhook and has no alias for old parameter names' {
         $cmd = Get-Command $script:Script
         $set = $cmd.Parameters['Via'].Attributes | Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
         $set.ValidValues | Should -Be @('Outlook', 'Smtp', 'File', 'Webhook')
-        $cmd.Parameters['NoLazarette'].Aliases | Should -Contain 'NoArc'
+        $cmd.Parameters['NoLazarette'].Aliases | Should -BeNullOrEmpty
         $cmd.Parameters['To'].ParameterType.Name | Should -Be 'String[]'
     }
     It 'defaults to saving a file, never to sending' {

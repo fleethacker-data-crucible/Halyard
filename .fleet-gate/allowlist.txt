@@ -1,5 +1,3 @@
 # Halyard fleet-gate allowlist (same format as the org default; see comms ci/fleet-gate/README.md).
 # Synthetic credential at a reserved .test endpoint behind FakeTransport. Exact historical finding only; current test constructs an obvious fake value.
 fingerprint:c5bf7efedc2ce2ab94bb973333092ea5ee7277c7:src/Halyard.Core.Tests/GoalModelTests.cs:generic-api-key:39
-line:="c[a]scade\.",\w+=\w+\+"migrated-from-c[a]scade"   # built UI (web/dist): the one-time browser-storage migration from the previous name's key prefix (web/src/lib/storage-migrate.ts); requested by Anthony (owner)
-line:^foreach \(\$f in @\('Launch-Halyard\.bat', 'Launch-C[a]scade\.bat', 'README\.md'\)\) \{ Copy-Item \(Join-Path \$root \$f\) \$bundle \}$  # Exact packaging list for the compatibility launcher; no general retired-name exception.

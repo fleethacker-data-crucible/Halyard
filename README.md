@@ -24,7 +24,7 @@ installed on the machine and nothing in the browser talks to the internet except
 
 A halyard is the line that raises and lowers a ship's sails; Halyard works upward to leadership and
 downward to stories and tasks. Its sandbox, Halyard Ballast, is the sand carried in the hold to keep the
-ship steady. Formerly Cascade: see [Upgrading from Cascade](docs/OPERATIONS.md#upgrading-from-cascade).
+ship steady.
 
 | Night watch (dark) | Chart room (light) |
 | --- | --- |
