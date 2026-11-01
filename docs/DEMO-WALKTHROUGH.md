@@ -19,9 +19,7 @@ $env:GITHUB_TOKEN = 'fake'
 $env:HALYARD_SANDBOX_REPO = 'fleethacker-data-crucible/Halyard-Ballast'   # the name only; the fake never leaves this machine
 $env:HALYARD_SOURCE_REPO = 'sun-of-anton/raw-backlog'
 $env:HALYARD_WRITE_DELAY_MS = '0'
-$env:HALYARD_LLM_PROFILE = 'openai'
-$env:LLM_URL = 'http://127.0.0.1:8790/v1/chat/completions'
-$env:LLM_TOKEN = 'fake-token-0123456789'
+$env:HALYARD_FAIRLEAD_URL = 'http://127.0.0.1:8790/v1/chat/completions'   # the fake stands in for Fairlead; model calls also need a key, see tests/e2e/Run-E2E.ps1
 .\Launch-Halyard.bat --console
 ```
 

@@ -125,9 +125,9 @@ function Connect-HalyardLazarette {
     <#
     .SYNOPSIS
       Loads Lazarette once, completes the unlock (smart card PIN or passphrase, then TOTP) in this console, and copies
-      named vault items into process environment variables (GITLAB_TOKEN, LLM_TOKEN, DATABRICKS_TOKEN,
-      GITHUB_TOKEN). The item names come from HALYARD_LAZARETTE_ITEM_GitLab / _Llm / _Databricks / _GitHub in
-      config\halyard.env; unset = skipped.
+      named vault items into process environment variables (GITLAB_TOKEN, GITHUB_TOKEN). The item names come from
+      HALYARD_LAZARETTE_ITEM_GitLab / _GitHub in config\halyard.env; unset = skipped. Model calls do not use the vault:
+      they go to Fairlead with the key Fairlead installs in Credential Manager (Fairlead/Halyard).
     .OUTPUTS
       A summary object with Unlocked, LazaretteRoot, Loaded, Missing and Error (the LAZARETTE_* result codes above).
     #>
@@ -167,10 +167,8 @@ function Connect-HalyardLazarette {
     if (-not $result.Unlocked) { $result.Error = 'LAZARETTE_STATE_NOT_UNLOCKED'; return $result }
 
     $map = @(
-        @{ Env = 'GITLAB_TOKEN';     Item = (Get-HalyardLazaretteItemName 'GitLab') },
-        @{ Env = 'LLM_TOKEN';        Item = (Get-HalyardLazaretteItemName 'Llm') },
-        @{ Env = 'DATABRICKS_TOKEN'; Item = (Get-HalyardLazaretteItemName 'Databricks') },
-        @{ Env = 'GITHUB_TOKEN';     Item = (Get-HalyardLazaretteItemName 'GitHub') }
+        @{ Env = 'GITLAB_TOKEN'; Item = (Get-HalyardLazaretteItemName 'GitLab') },
+        @{ Env = 'GITHUB_TOKEN'; Item = (Get-HalyardLazaretteItemName 'GitHub') }
     )
     if (@($map | Where-Object { -not [string]::IsNullOrWhiteSpace($_.Item) }).Count -eq 0) {
         Write-Host '    No HALYARD_LAZARETTE_ITEM_* names are configured; nothing was read from the vault.' -ForegroundColor DarkYellow

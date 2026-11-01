@@ -11,48 +11,23 @@ using Halyard.Core.Serialization;
 
 namespace Halyard.Core.Llm
 {
-    public enum LlmProfile
-    {
-        Auto = 0,
-        /// <summary>Any OpenAI-compatible chat-completions endpoint: the Fairlead router (default), Azure OpenAI, an organisation gateway, a local server.</summary>
-        OpenAi = 1,
-        /// <summary>Databricks model-serving endpoint (<c>/serving-endpoints/{name}/invocations</c>; no <c>stream</c> flag).</summary>
-        Databricks = 2,
-        /// <summary>
-        /// An endpoint set from a pasted curl command (Settings, "Set from curl") or HALYARD_LLM_CUSTOM_*: the exact URL,
-        /// one of the <see cref="LlmWireFormat"/> body formats, and a token entered for it alone.
-        /// </summary>
-        Custom = 3,
-    }
-
-    /// <summary>The request/response body format of an endpoint.</summary>
-    public enum LlmWireFormat
-    {
-        /// <summary>OpenAI chat completions: <c>messages</c> in, <c>choices[0].message.content</c> out.</summary>
-        Chat = 0,
-        /// <summary>OpenAI Responses API: <c>input</c> in, <c>output[].content[]</c> items of type <c>output_text</c> out.</summary>
-        Responses = 1,
-        /// <summary>Databricks serving endpoint: chat completions without the <c>stream</c> flag, <c>max_tokens</c>.</summary>
-        Databricks = 2,
-    }
-
+    /// <summary>
+    /// Where Halyard sends model calls: the Fleet router (Fairlead) on this machine, nothing else. Fairlead decides which
+    /// engine answers and holds every upstream address and token. Halyard holds only its own Fairlead client key, which
+    /// lives in Windows Credential Manager (generic credential <c>Fairlead/Halyard</c>), is read when a call is made and is
+    /// never kept in settings, files or logs.
+    /// </summary>
     public sealed class LlmSettings
     {
-        public LlmProfile Profile { get; set; }
-        public string OpenAiUrl { get; set; }
-        public string OpenAiModel { get; set; }
-        public string OpenAiToken { get; set; }
-        public string DatabricksUrl { get; set; }
-        public string DatabricksModel { get; set; }
-        public string DatabricksToken { get; set; }
-        /// <summary>Custom profile: the exact endpoint URL (no path is added).</summary>
-        public string CustomUrl { get; set; }
-        public string CustomModel { get; set; }
-        public LlmWireFormat CustomFormat { get; set; }
-        /// <summary>Custom profile: the token entered with the endpoint. Only ever sent to <see cref="CustomUrl"/>.</summary>
-        public string CustomToken { get; set; }
-        /// <summary>Custom profile: extra non-secret headers taken from the curl command.</summary>
-        public Dictionary<string, string> CustomHeaders { get; set; }
+        public const string AppName = "Halyard";
+        /// <summary>Fairlead's OpenAI-compatible address on this PC. HALYARD_FAIRLEAD_URL may change the port or path; the host must be loopback.</summary>
+        public const string DefaultUrl = "http://127.0.0.1:8776/v1/chat/completions";
+        /// <summary>The route name Fairlead resolves (HALYARD_FAIRLEAD_MODEL or Settings can pick another, such as fast or smart).</summary>
+        public const string DefaultModel = "auto";
+        public const string MissingKeyMessage = "Open Fairlead and install a key for Halyard.";
+
+        public string FairleadUrl { get; set; }
+        public string Route { get; set; }
         public int MaxTokens { get; set; }
         public double Temperature { get; set; }
         public int TimeoutSeconds { get; set; }
@@ -61,159 +36,67 @@ namespace Halyard.Core.Llm
         /// <summary>HALYARD_LLM_PRIVACY=local sends <c>X-Fairlead-Privacy: local</c> so the router only uses local engines.</summary>
         public string Privacy { get; set; }
 
-        /// <summary>
-        /// The Fleet intelligence router (Fairlead) on this machine. No external endpoint is built in: a team that allows a provider sets
-        /// <c>LLM_URL</c>, and Fairlead decides which engine answers.
-        /// </summary>
-        public const string DefaultOpenAiUrl = "http://127.0.0.1:8776/v1/chat/completions";
-        public const string DefaultOpenAiModel = "gpt-4o-mini";
-
-        public static readonly LlmProfile[] Concrete = { LlmProfile.OpenAi, LlmProfile.Databricks, LlmProfile.Custom };
-
         public LlmSettings()
         {
-            Profile = LlmProfile.Auto;
             MaxTokens = 4000;
             Temperature = 0.2;
             TimeoutSeconds = 300;
-            CustomFormat = LlmWireFormat.Chat;
-            CustomHeaders = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         }
 
-        public static LlmProfile? ParseProfile(string text)
+        /// <summary>Accepts a full chat-completions URL or a base such as <c>http://127.0.0.1:8776/v1</c> and returns the chat-completions URL.</summary>
+        public static string NormalizeUrl(string url)
         {
-            switch ((text ?? string.Empty).Trim().ToLowerInvariant())
-            {
-                case "": case "auto": return LlmProfile.Auto;
-                case "openai": case "openai-compatible": case "gateway": return LlmProfile.OpenAi;
-                case "databricks": return LlmProfile.Databricks;
-                case "custom": case "curl": return LlmProfile.Custom;
-                default: return null;
-            }
-        }
-
-        public static string ProfileToken(LlmProfile profile)
-        {
-            return profile.ToString().ToLowerInvariant();
-        }
-
-        public static LlmWireFormat? ParseFormat(string text)
-        {
-            switch ((text ?? string.Empty).Trim().ToLowerInvariant())
-            {
-                case "": case "chat": case "chat-completions": case "openai": return LlmWireFormat.Chat;
-                case "responses": case "openai-responses": return LlmWireFormat.Responses;
-                case "databricks": return LlmWireFormat.Databricks;
-                default: return null;
-            }
-        }
-
-        public static string FormatToken(LlmWireFormat format)
-        {
-            return format.ToString().ToLowerInvariant();
-        }
-
-        /// <summary>The body format a profile uses.</summary>
-        public LlmWireFormat Format(LlmProfile profile)
-        {
-            switch (profile)
-            {
-                case LlmProfile.Databricks: return LlmWireFormat.Databricks;
-                case LlmProfile.Custom: return CustomFormat;
-                default: return LlmWireFormat.Chat;
-            }
-        }
-
-        /// <summary>Resolves Auto to a concrete profile from whichever token is configured; OpenAI-compatible wins ties.</summary>
-        public LlmProfile Resolve()
-        {
-            if (Profile != LlmProfile.Auto) return Profile;
-            if (!string.IsNullOrWhiteSpace(OpenAiToken)) return LlmProfile.OpenAi;
-            if (!string.IsNullOrWhiteSpace(DatabricksToken)) return LlmProfile.Databricks;
-            if (IsConfigured(LlmProfile.Custom)) return LlmProfile.Custom;
-            return LlmProfile.OpenAi;
-        }
-
-        public string Url(LlmProfile profile)
-        {
-            switch (profile)
-            {
-                case LlmProfile.Databricks: return (DatabricksUrl ?? string.Empty).Trim().TrimEnd('/');
-                case LlmProfile.Custom: return (CustomUrl ?? string.Empty).Trim();
-                default: return NormalizeOpenAiUrl(OpenAiUrl);
-            }
-        }
-
-        /// <summary>
-        /// Accepts a full chat-completions URL or a base such as <c>https://gateway.example.com/v1</c> (the shape
-        /// OPENAI_BASE_URL uses) and returns the chat-completions URL.
-        /// </summary>
-        public static string NormalizeOpenAiUrl(string url)
-        {
-            if (string.IsNullOrWhiteSpace(url)) return DefaultOpenAiUrl;
+            if (string.IsNullOrWhiteSpace(url)) return DefaultUrl;
             var u = url.Trim().TrimEnd('/');
-            if (u.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase) || u.EndsWith("/invocations", StringComparison.OrdinalIgnoreCase)) return u;
-            if (u.EndsWith("/v1", StringComparison.OrdinalIgnoreCase) || u.EndsWith("/openai", StringComparison.OrdinalIgnoreCase)) return u + "/chat/completions";
+            if (u.EndsWith("/chat/completions", StringComparison.OrdinalIgnoreCase)) return u;
+            if (u.EndsWith("/v1", StringComparison.OrdinalIgnoreCase)) return u + "/chat/completions";
             return u + "/v1/chat/completions";
         }
 
-        public string Model(LlmProfile profile)
+        public string Url()
         {
-            switch (profile)
-            {
-                case LlmProfile.Databricks: return (DatabricksModel ?? string.Empty).Trim();
-                case LlmProfile.Custom: return (CustomModel ?? string.Empty).Trim();
-                default: return string.IsNullOrWhiteSpace(OpenAiModel) ? DefaultOpenAiModel : OpenAiModel.Trim();
-            }
+            return NormalizeUrl(FairleadUrl);
         }
 
-        public string Token(LlmProfile profile)
+        public string Model()
         {
-            switch (profile)
-            {
-                case LlmProfile.Databricks: return Clean(DatabricksToken);
-                case LlmProfile.Custom: return Clean(CustomToken);
-                default: return Clean(OpenAiToken);
-            }
+            return string.IsNullOrWhiteSpace(Route) ? DefaultModel : Route.Trim();
         }
 
-        public bool IsConfigured(LlmProfile profile)
+        /// <summary>Why the address cannot be used, or null. Only a loopback http(s) address is accepted: Fairlead runs on this PC.</summary>
+        public static string UrlProblem(string url)
         {
-            if (string.IsNullOrWhiteSpace(Token(profile))) return false;
-            if (profile == LlmProfile.Databricks) return !string.IsNullOrWhiteSpace(DatabricksUrl);
-            if (profile == LlmProfile.Custom) return MissingFor(profile) == null;
-            return true;
+            Uri uri;
+            if (string.IsNullOrWhiteSpace(url) || !Uri.TryCreate(url.Trim(), UriKind.Absolute, out uri)) return "HALYARD_FAIRLEAD_URL is not a web address.";
+            if (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps) return "HALYARD_FAIRLEAD_URL must start with http:// or https://.";
+            if (!string.IsNullOrEmpty(uri.UserInfo)) return "HALYARD_FAIRLEAD_URL must not contain a user name or password.";
+            if (!string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment)) return "HALYARD_FAIRLEAD_URL must not contain a query or fragment.";
+            var host = uri.Host;
+            var loopback = string.Equals(host, "localhost", StringComparison.OrdinalIgnoreCase) || host == "127.0.0.1" || host == "[::1]" || host == "::1";
+            return loopback ? null : "HALYARD_FAIRLEAD_URL must point at this PC (127.0.0.1, ::1 or localhost): Halyard talks to Fairlead only.";
         }
 
-        /// <summary>Why a profile is not usable, or null when it is.</summary>
-        public string MissingFor(LlmProfile profile)
+        /// <summary>The Credential Manager target Fairlead writes the key to.</summary>
+        public string KeyTarget { get { return CredentialReader.TargetFor(AppName); } }
+
+        /// <summary>The Fairlead client key from Credential Manager, or null when none is installed.</summary>
+        public string Key()
         {
-            if (profile == LlmProfile.Databricks)
-            {
-                if (string.IsNullOrWhiteSpace(DatabricksUrl)) return "DATABRICKS_URL is not set.";
-                if (string.IsNullOrWhiteSpace(Token(profile))) return "DATABRICKS_TOKEN is not set.";
-                return null;
-            }
-            if (profile == LlmProfile.Custom)
-            {
-                if (string.IsNullOrWhiteSpace(CustomUrl)) return "No endpoint: paste a curl command in Settings (Set from curl).";
-                var problem = CurlCommand.UrlProblem(CustomUrl);
-                if (problem != null) return problem;
-                if (CustomFormat != LlmWireFormat.Databricks && string.IsNullOrWhiteSpace(CustomModel)) return "No model: the curl body needs a model.";
-                if (string.IsNullOrWhiteSpace(Token(profile))) return "No token: enter it in the token field next to the curl command.";
-                return null;
-            }
-            return string.IsNullOrWhiteSpace(Token(profile)) ? "No API key: set LLM_TOKEN (or OPENAI_API_KEY) in config/halyard.env, or enter one in Settings." : null;
+            var key = CredentialReader.Read(KeyTarget);
+            return string.IsNullOrWhiteSpace(key) ? null : key.Trim();
         }
 
-        /// <summary>Strips quotes, a 'Bearer ' prefix and line breaks: the usual vault paste accidents.</summary>
-        public static string Clean(string token)
+        public bool IsConfigured()
         {
-            if (string.IsNullOrWhiteSpace(token)) return null;
-            var t = token.Trim().Trim('\'', '"');
-            var m = Regex.Match(t, @"^(?i)Bearer\s+(.+)$");
-            if (m.Success) t = m.Groups[1].Value.Trim();
-            return t.Replace("\r", string.Empty).Replace("\n", string.Empty).Trim();
+            return MissingFor() == null;
+        }
+
+        /// <summary>Why model calls cannot be made, or null when they can.</summary>
+        public string MissingFor()
+        {
+            var problem = UrlProblem(Url());
+            if (problem != null) return problem;
+            return Key() == null ? MissingKeyMessage : null;
         }
     }
 
@@ -235,7 +118,6 @@ namespace Halyard.Core.Llm
     public sealed class LlmResponse
     {
         public string Text { get; set; }
-        public string Profile { get; set; }
         public string Model { get; set; }
         public int? PromptTokens { get; set; }
         public int? CompletionTokens { get; set; }
@@ -245,115 +127,91 @@ namespace Halyard.Core.Llm
         public LlmResponse()
         {
             Text = string.Empty;
-            Profile = string.Empty;
             Model = string.Empty;
         }
     }
 
     public interface ILlmClient
     {
-        LlmProfile Profile { get; }
+        /// <summary>Where the answers come from, for proposal sources and logs: always "fairlead".</summary>
+        string Name { get; }
+        /// <summary>The Fairlead route the calls ask for (auto, fast, smart, ...).</summary>
         string Model { get; }
         Task<LlmResponse> ChatAsync(IReadOnlyList<LlmMessage> messages, CancellationToken cancellation);
         Task<LlmResponse> TestAsync(CancellationToken cancellation);
     }
 
     /// <summary>
-    /// One client for the OpenAI-shaped endpoints Halyard talks to. Body shape differs slightly
-    /// (Databricks has no <c>stream</c> flag); response parsing tolerates the variations gateways
-    /// return. Tokens live in memory and are never written to transcripts.
+    /// The one model client: OpenAI chat completions to Fairlead on this PC. The client key is read from Credential
+    /// Manager when a call is made and goes only in the Authorization header; transcripts redact token-shaped text.
     /// </summary>
     public sealed class LlmClient : ILlmClient
     {
-        private static readonly Regex TokenShaped = new Regex(@"\b(sk-[A-Za-z0-9_\-]{10,}|dapi[a-f0-9]{20,}|gh[pousr]_[A-Za-z0-9]{20,}|glpat-[A-Za-z0-9_\-]{15,}|eyJ[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,})\b", RegexOptions.Compiled);
+        private static readonly Regex TokenShaped = new Regex(@"\b(fl-[A-Za-z0-9_\-]{16,}|sk-[A-Za-z0-9_\-]{10,}|gh[pousr]_[A-Za-z0-9]{20,}|glpat-[A-Za-z0-9_\-]{15,}|eyJ[A-Za-z0-9_\-]{20,}\.[A-Za-z0-9_\-]{10,}\.[A-Za-z0-9_\-]{10,})\b", RegexOptions.Compiled);
         private readonly IHttpTransport _http;
         private readonly LlmSettings _settings;
 
-        public LlmClient(LlmSettings settings, IHttpTransport http = null, LlmProfile? profile = null)
+        public LlmClient(LlmSettings settings, IHttpTransport http = null)
         {
             if (settings == null) throw new ArgumentNullException("settings");
             _settings = settings;
             _http = http ?? new HttpClientTransport();
-            Profile = profile ?? settings.Resolve();
-            if (Profile == LlmProfile.Auto) Profile = LlmProfile.OpenAi;
         }
 
-        public LlmProfile Profile { get; private set; }
-        public string Model { get { return _settings.Model(Profile); } }
-        public string Url { get { return _settings.Url(Profile); } }
-        public LlmWireFormat Format { get { return _settings.Format(Profile); } }
+        public string Name { get { return "fairlead"; } }
+        public string Model { get { return _settings.Model(); } }
+        public string Url { get { return _settings.Url(); } }
 
         public async Task<LlmResponse> ChatAsync(IReadOnlyList<LlmMessage> messages, CancellationToken cancellation)
         {
             if (messages == null || messages.Count == 0) throw new ArgumentException("At least one message is required.", "messages");
-            var token = _settings.Token(Profile);
-            var missing = _settings.MissingFor(Profile);
-            if (missing != null) throw new InvalidOperationException("LLM profile " + LlmSettings.ProfileToken(Profile) + " is not usable: " + missing);
+            var missing = _settings.MissingFor();
+            if (missing != null) throw new InvalidOperationException("Model calls are not usable: " + missing);
+            var key = _settings.Key();
 
-            var format = Format;
-            JObject payload;
-            if (format == LlmWireFormat.Responses)
+            // Fairlead accepts max_tokens and turns it into whatever each upstream wants.
+            var payload = new JObject
             {
-                payload = ResponsesApi.BuildRequest(messages, Model, _settings.MaxTokens);
-            }
-            else
-            {
-                payload = new JObject
-                {
-                    { "messages", new JArray(messages.Select(m => new JObject { { "role", m.Role }, { "content", m.Content } })) },
-                    { "model", Model },
-                    { "temperature", _settings.Temperature },
-                };
-                // A custom Databricks endpoint may name the model in its URL only.
-                if (Profile == LlmProfile.Custom && string.IsNullOrWhiteSpace(Model)) payload.Remove("model");
-                // OpenAI's current chat models take max_completion_tokens; Databricks and older gateways take max_tokens.
-                payload[format == LlmWireFormat.Databricks ? "max_tokens" : "max_completion_tokens"] = _settings.MaxTokens;
-                if (format != LlmWireFormat.Databricks) payload["stream"] = false;
-            }
+                { "messages", new JArray(messages.Select(m => new JObject { { "role", m.Role }, { "content", m.Content } })) },
+                { "model", Model },
+                { "temperature", _settings.Temperature },
+                { "max_tokens", _settings.MaxTokens },
+                { "stream", false },
+            };
 
             var started = DateTimeOffset.UtcNow;
-            string transcript = null;
+            var call = new HttpCall("POST", Url) { JsonBody = payload.ToString(Formatting.None), Timeout = TimeSpan.FromSeconds(_settings.TimeoutSeconds) };
+            call.Headers["Authorization"] = "Bearer " + key;
+            call.Headers["X-Fairlead-Label"] = LlmSettings.AppName;
+            if (string.Equals(_settings.Privacy, "local", StringComparison.OrdinalIgnoreCase)) call.Headers["X-Fairlead-Privacy"] = "local";
+            call.Headers["Accept"] = "application/json";
+            call.Headers["User-Agent"] = "Halyard/1.0";
+            var transcript = BeginTranscript(payload);
             HttpReply reply;
-            // Endpoints disagree about which parameters they accept (max_tokens vs max_completion_tokens, temperature
-            // on reasoning models). When the endpoint names the parameter it rejected, drop or rename it and retry.
-            for (var attempt = 0; ; attempt++)
+            try
             {
-                var call = new HttpCall("POST", Url) { JsonBody = payload.ToString(Formatting.None), Timeout = TimeSpan.FromSeconds(_settings.TimeoutSeconds) };
-                if (Profile == LlmProfile.Custom && _settings.CustomHeaders != null)
-                {
-                    foreach (var h in _settings.CustomHeaders) call.Headers[h.Key] = h.Value;
-                }
-                call.Headers["Authorization"] = "Bearer " + token;
-                if (string.Equals(_settings.Privacy, "local", StringComparison.OrdinalIgnoreCase)) call.Headers["X-Fairlead-Privacy"] = "local";
-                call.Headers["Accept"] = "application/json";
-                call.Headers["User-Agent"] = "Halyard/1.0";
-                transcript = BeginTranscript(payload);
-                try
-                {
-                    reply = await _http.SendAsync(call, cancellation).ConfigureAwait(false);
-                }
-                catch (ProviderHttpException ex)
-                {
-                    EndTranscript(transcript, null, ex.Message);
-                    throw;
-                }
-                if (reply.IsSuccess) break;
+                reply = await _http.SendAsync(call, cancellation).ConfigureAwait(false);
+            }
+            catch (ProviderHttpException ex)
+            {
+                EndTranscript(transcript, null, ex.Message);
+                if (ex.Status == 0) throw new ProviderHttpException(0, "Fairlead did not answer at " + HttpClientTransport.SafeUrl(Url) + ". Start Fairlead and try again.", null);
+                throw;
+            }
+            if (!reply.IsSuccess)
+            {
                 EndTranscript(transcript, reply.Body, "HTTP " + reply.Status);
-                var rejected = attempt < 3 && reply.Status == 400 ? RejectedParameter(reply.Body, payload) : null;
-                if (rejected == null)
-                    throw new ProviderHttpException(reply.Status, "LLM endpoint " + HttpClientTransport.SafeUrl(Url) + " returned HTTP " + reply.Status + ": " + Summarize(reply.Body), reply.Body);
-                if (rejected == "max_completion_tokens") { payload.Remove("max_completion_tokens"); payload["max_tokens"] = _settings.MaxTokens; }
-                else if (rejected == "max_tokens") { payload.Remove("max_tokens"); payload["max_completion_tokens"] = _settings.MaxTokens; }
-                else payload.Remove(rejected);
+                if (reply.Status == 401 || reply.Status == 403)
+                    throw new ProviderHttpException(reply.Status, "Fairlead did not accept the Halyard key. Open Fairlead and install a new key for Halyard.", reply.Body);
+                throw new ProviderHttpException(reply.Status, "Fairlead returned HTTP " + reply.Status + ": " + Summarize(reply.Body), reply.Body);
             }
             var json = JToken.Parse(string.IsNullOrWhiteSpace(reply.Body) ? "{}" : reply.Body);
-            var text = format == LlmWireFormat.Responses ? (ResponsesApi.Text(json) ?? ExtractText(json)).Trim() : ExtractText(json);
+            var text = ExtractText(json);
             EndTranscript(transcript, reply.Body, null);
             var usage = json["usage"] as JObject;
             return new LlmResponse
             {
                 Text = text,
-                Profile = Profile.ToString(),
                 Model = Model,
                 PromptTokens = usage == null ? null : (int?)(usage["prompt_tokens"] ?? usage["input_tokens"]),
                 CompletionTokens = usage == null ? null : (int?)(usage["completion_tokens"] ?? usage["output_tokens"]),
@@ -362,46 +220,12 @@ namespace Halyard.Core.Llm
             };
         }
 
-        /// <summary>
-        /// The request parameter an OpenAI-style 400 complains about, when it is one we sent and can live without.
-        /// Reads the error's <c>param</c> field first, then the message text.
-        /// </summary>
-        public static string RejectedParameter(string body, JObject payload)
-        {
-            if (string.IsNullOrWhiteSpace(body)) return null;
-            var candidates = new[] { "max_tokens", "max_completion_tokens", "max_output_tokens", "temperature", "stream" };
-            string param = null;
-            string message = body;
-            try
-            {
-                var err = JObject.Parse(body)["error"];
-                if (err != null)
-                {
-                    param = (string)err["param"];
-                    message = (string)err["message"] ?? body;
-                }
-            }
-            catch (JsonException) { }
-            if (param != null && Array.IndexOf(candidates, param) >= 0 && payload[param] != null) return param;
-            if (!Regex.IsMatch(message, @"(?i)unsupported|not supported|does not support|unknown parameter|unrecognized")) return null;
-            foreach (var c in candidates)
-                if (payload[c] != null && Regex.IsMatch(message, @"\b" + Regex.Escape(c) + @"\b")) return c;
-            return null;
-        }
-
         public Task<LlmResponse> TestAsync(CancellationToken cancellation)
         {
             return ChatAsync(new[] { LlmMessage.System("You are a connectivity probe. Reply with exactly: OK"), LlmMessage.User("Reply with OK.") }, cancellation);
         }
 
-        /// <summary>Finds the assistant text in the response shapes seen across gateways.</summary>
-        /// <summary><c>candidates[0].text</c>, or null when either level is missing.</summary>
-        private static string CandidateText(JToken candidates)
-        {
-            var first = candidates == null ? null : candidates[0];
-            return first == null ? null : (string)first["text"];
-        }
-
+        /// <summary>Finds the assistant text in a chat-completions answer.</summary>
         public static string ExtractText(JToken response)
         {
             if (response == null) return string.Empty;
@@ -437,18 +261,6 @@ namespace Halyard.Core.Llm
                 var plain = (string)choices[0]["text"];
                 if (!string.IsNullOrWhiteSpace(plain)) return plain.Trim();
             }
-            // Databricks / generic shapes
-            foreach (var alt in new[] { "output_text", "text", "content", "result", "prediction" })
-            {
-                var s = response[alt];
-                if (s != null && s.Type == JTokenType.String && !string.IsNullOrWhiteSpace((string)s)) return ((string)s).Trim();
-            }
-            var predictions = response["predictions"] as JArray;
-            if (predictions != null && predictions.Count > 0)
-            {
-                var s = predictions[0].Type == JTokenType.String ? (string)predictions[0] : CandidateText(predictions[0]["candidates"]);
-                if (!string.IsNullOrWhiteSpace(s)) return s.Trim();
-            }
             return string.Empty;
         }
 
@@ -460,7 +272,7 @@ namespace Halyard.Core.Llm
             {
                 Directory.CreateDirectory(dir);
                 var stamp = DateTimeOffset.UtcNow.ToString("yyyyMMdd_HHmmss_fff");
-                var basePath = Path.Combine(dir, stamp + "_" + Profile.ToString().ToLowerInvariant());
+                var basePath = Path.Combine(dir, stamp + "_fairlead");
                 var redacted = Redact(request.ToString(Formatting.Indented));
                 File.WriteAllText(basePath + "_request.json", redacted, new UTF8Encoding(false));
                 return basePath;

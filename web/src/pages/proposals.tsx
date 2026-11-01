@@ -140,7 +140,6 @@ function NewAnalysis({ status, onBatch }: { status: Status | undefined; onBatch:
   const [requireDefinition, setRequireDefinition] = useState(true);
   const [maxItems, setMaxItems] = useState(40);
   const [refineMax, setRefineMax] = useState(10);
-  const [profile, setProfile] = useState('auto');
   const toast = useToast();
   const onModelJob = (what: string) => (j: Job) => {
     if (j.state === 'succeeded') {
@@ -185,17 +184,14 @@ function NewAnalysis({ status, onBatch }: { status: Status | undefined; onBatch:
         </div>
         <div className="px-4 py-3">
           <h3 className="mb-1 flex items-center gap-1.5"><LuSparkles size={14} className="text-ink-3" />With the model</h3>
-          {!hasModel ? <Notice tone="warn" className="mb-2">No model key is loaded. <a href="#/settings" className="underline">Add an API key in Settings</a>.</Notice> : null}
-          <Field label="Model profile" className="mb-3"><Select value={profile} onChange={(e) => setProfile(e.target.value)}>
-            <option value="auto">Auto ({status?.config.llmResolvedProfile ?? '…'} · {status?.config.llmModel})</option>
-            {status?.config.llmProfiles.map((p) => <option key={p.profile} value={p.profile} disabled={!p.configured}>{p.profile} · {p.model || '(no model)'}{p.configured ? '' : ' (not configured)'}</option>)}
-          </Select></Field>
+          {!hasModel ? <Notice tone="warn" className="mb-2">{status?.config.llmMissing ?? 'Model calls are not ready.'} <a href="#/settings" className="underline">See Settings</a>.</Notice> : null}
+          <p className="mb-3 text-[12.5px] text-ink-2">Answers come from Fairlead, route <Mono>{status?.config.llmModel}</Mono>.</p>
           <div className="rounded-ctl border border-line-2 p-3">
             <div className="mb-1 font-medium">Draft missing sections</div>
             <p className="mb-2 text-[12.5px] text-ink-2">Acceptance criteria, user need, tasks, done-when, outcome, success picture, scope. Existing text is kept; every draft is re-checked against the definition of ready.</p>
             <div className="flex items-end gap-3">
               <Field label="At most" className="w-32"><Select value={String(refineMax)} onChange={(e) => setRefineMax(Number(e.target.value))}>{[5, 10, 20, 40].map((n) => <option key={n} value={n}>{n} items</option>)}</Select></Field>
-              <Button variant="primary" busy={refineJob.running} disabled={noSnapshot || !hasModel} onClick={() => void refineJob.start('/api/intelligence/refine', { maxItems: refineMax, profile })}><LuSparkles size={14} />Draft</Button>
+              <Button variant="primary" busy={refineJob.running} disabled={noSnapshot || !hasModel} onClick={() => void refineJob.start('/api/intelligence/refine', { maxItems: refineMax })}><LuSparkles size={14} />Draft</Button>
             </div>
             {refineJob.job ? <div className="mt-3"><Progress done={refineJob.job.progressDone} total={refineJob.job.progressTotal} label={refineJob.job.message ?? refineJob.job.state} />{refineJob.job.error ? <p className="mt-1 text-err">{refineJob.job.error}</p> : null}</div> : null}
             {refineJob.error ? <p className="mt-2 text-err">{refineJob.error}</p> : null}
@@ -203,7 +199,7 @@ function NewAnalysis({ status, onBatch }: { status: Status | undefined; onBatch:
           <div className="mt-3 rounded-ctl border border-line-2 p-3">
             <div className="mb-1 font-medium">Tag skills</div>
             <p className="mb-2 text-[12.5px] text-ink-2">The model picks 1–3 skills per story or feature from the shared taxonomy (the ids Shellback uses); answers outside it are dropped.</p>
-            <Button variant="primary" busy={skillsJob.running} disabled={noSnapshot || !hasModel} onClick={() => void skillsJob.start('/api/intelligence/skills', { useModel: true, maxItems: 60, profile })}><LuSparkles size={14} />Tag with the model</Button>
+            <Button variant="primary" busy={skillsJob.running} disabled={noSnapshot || !hasModel} onClick={() => void skillsJob.start('/api/intelligence/skills', { useModel: true, maxItems: 60 })}><LuSparkles size={14} />Tag with the model</Button>
             {skillsJob.job ? <div className="mt-3"><Progress done={skillsJob.job.progressDone} total={skillsJob.job.progressTotal} label={skillsJob.job.message ?? skillsJob.job.state} />{skillsJob.job.error ? <p className="mt-1 text-err">{skillsJob.job.error}</p> : null}</div> : null}
             {skillsJob.error ? <p className="mt-2 text-err">{skillsJob.error}</p> : null}
           </div>
@@ -219,7 +215,7 @@ function NewAnalysis({ status, onBatch }: { status: Status | undefined; onBatch:
               </div>
             </div>
             <div className="mt-3 flex items-center gap-3">
-              <Button variant="primary" busy={sizeJob.running} disabled={noSnapshot || !hasModel} onClick={() => void sizeJob.start('/api/intelligence/estimate', { kind, onlyUnsized, requireDefinition, maxItems, profile })}><LuSparkles size={14} />Propose sizes</Button>
+              <Button variant="primary" busy={sizeJob.running} disabled={noSnapshot || !hasModel} onClick={() => void sizeJob.start('/api/intelligence/estimate', { kind, onlyUnsized, requireDefinition, maxItems })}><LuSparkles size={14} />Propose sizes</Button>
             </div>
             {sizeJob.job ? <div className="mt-3"><Progress done={sizeJob.job.progressDone} total={sizeJob.job.progressTotal} label={sizeJob.job.message ?? sizeJob.job.state} />{sizeJob.job.error ? <p className="mt-1 text-err">{sizeJob.job.error}</p> : null}</div> : null}
             {sizeJob.error ? <p className="mt-2 text-err">{sizeJob.error}</p> : null}

@@ -97,7 +97,6 @@ namespace Halyard.Core.Host
             });
             Router.Get("/api/writes", r => Task.FromResult(Json.Ok(new { policy = PolicyPayload(), entries = Gateway.Audit.Reverse().Take(500) })));
             Router.Post("/api/llm/test", TestLlm);
-            Router.Post("/api/llm/curl", SetLlmFromCurl);
             RegisterPromoteRoutes();
             Router.Post("/api/heartbeat", r =>
             {
@@ -193,34 +192,16 @@ namespace Halyard.Core.Host
                     throw new BadRequestException(locked + " can only be set in config/halyard.env (then relaunch). The browser cannot change where Halyard reads, writes or sends tokens.");
             }
             if (body["labelFilter"] != null) { var lf = Json.Read<string>(body, "labelFilter"); Settings.LabelFilter = string.IsNullOrWhiteSpace(lf) ? null : lf.Trim(); changed.Add("labelFilter"); }
-            var llmProfile = Json.Read<string>(body, "llmProfile");
-            if (llmProfile != null)
-            {
-                var parsed = Llm.LlmSettings.ParseProfile(llmProfile);
-                if (parsed == null) throw new BadRequestException("llmProfile must be auto, openai, databricks or custom.");
-                Settings.Llm.Profile = parsed.Value;
-                changed.Add("llmProfile");
-            }
-            // The OpenAI-compatible API key and model may be entered in the browser. The key stays in memory;
-            // the endpoint URL is deliberately not settable here, so the key can only ever go where
-            // config/halyard.env points. "remember" writes both into the git-ignored env file on this machine.
+            // The model route (auto, fast, smart, ...) may be picked here. It only names a Fairlead route; the address and
+            // the key are not settable from the browser. "remember" writes it into the git-ignored env file on this machine.
             var persist = new Dictionary<string, string>();
-            if (body["llmToken"] != null)
-            {
-                var token = Llm.LlmSettings.Clean(Json.Read<string>(body, "llmToken"));
-                if (token != null && (token.Length < 8 || token.Length > 4096)) throw new BadRequestException("llmToken does not look like an API key.");
-                Settings.Llm.OpenAiToken = token;
-                changed.Add(token == null ? "llmToken (cleared)" : "llmToken");
-                persist["LLM_TOKEN"] = token;
-                if (token == null) persist["OPENAI_API_KEY"] = null;
-            }
             if (body["llmModel"] != null)
             {
                 var model = (Json.Read<string>(body, "llmModel") ?? string.Empty).Trim();
-                if (model.Length > 200 || model.IndexOfAny(new[] { '\r', '\n', '"' }) >= 0) throw new BadRequestException("llmModel is not a valid model name.");
-                Settings.Llm.OpenAiModel = model.Length == 0 ? null : model;
+                if (model.Length > 200 || model.IndexOfAny(new[] { '\r', '\n', '"' }) >= 0) throw new BadRequestException("llmModel is not a valid route name.");
+                Settings.Llm.Route = model.Length == 0 ? null : model;
                 changed.Add("llmModel");
-                persist["LLM_MODEL"] = model.Length == 0 ? null : model;
+                persist["HALYARD_FAIRLEAD_MODEL"] = model.Length == 0 ? null : model;
             }
             var remembered = false;
             if (Json.Read<bool?>(body, "remember") == true && persist.Count > 0)
@@ -608,7 +589,7 @@ namespace Halyard.Core.Host
             };
             options.OnlyNumbers = ReadNumbers(body);
             var label = Json.Read<string>(body, "label") ?? Settings.LabelFilter;
-            var llm = CreateLlm(Json.Read<string>(body, "profile"));
+            var llm = CreateLlm();
             var snap = Snapshots.Current;
             if (snap == null) throw new BadRequestException("Synchronize a repository first; proposals are made from the current snapshot.");
             List<WorkItem> all;
@@ -623,7 +604,7 @@ namespace Halyard.Core.Host
                 ctx.Report(batch.Proposals.Count, batch.Proposals.Count, batch.Proposals.Count + " proposals saved in batch " + batch.Id);
                 return (object)BatchSummary(batch);
             });
-            return Task.FromResult(Json.Accepted(new { job, profile = llm.Profile, model = llm.Model, candidates = items.Count }));
+            return Task.FromResult(Json.Accepted(new { job, source = llm.Name, model = llm.Model, candidates = items.Count }));
         }
 
         private Task<HttpResponse> ParentProposals(HttpRequest r)
@@ -674,7 +655,7 @@ namespace Halyard.Core.Host
                 OnlyNumbers = ReadNumbers(body),
             };
             var label = Json.Read<string>(body, "label") ?? Settings.LabelFilter;
-            var llm = CreateLlm(Json.Read<string>(body, "profile"));
+            var llm = CreateLlm();
             var snap = Snapshots.Current;
             if (snap == null) throw new BadRequestException("Synchronize a repository first; proposals are made from the current snapshot.");
             List<WorkItem> all;
@@ -692,7 +673,7 @@ namespace Halyard.Core.Host
                 ctx.Report(batch.Proposals.Count, batch.Proposals.Count, batch.Proposals.Count + " refinement proposals saved in batch " + batch.Id);
                 return (object)BatchSummary(batch);
             });
-            return Task.FromResult(Json.Accepted(new { job, profile = llm.Profile, model = llm.Model, candidates, sending = Math.Min(candidates, options.MaxItems) }));
+            return Task.FromResult(Json.Accepted(new { job, source = llm.Name, model = llm.Model, candidates, sending = Math.Min(candidates, options.MaxItems) }));
         }
 
         private Task<HttpResponse> MetadataProposals(HttpRequest r)
@@ -747,7 +728,7 @@ namespace Halyard.Core.Host
             var sandbox = SandboxOrThrow();
             var drafts = Intake.Prepare(snap.Items, sandbox, options, Taxonomy);
             if (drafts.Count == 0) throw new BadRequestException("None of the selected keys are source items in the snapshot.");
-            ILlmClient llm = useModel ? CreateLlm(Json.Read<string>(body, "profile")) : null;
+            ILlmClient llm = useModel ? CreateLlm() : null;
             if (!run && llm == null) return Task.FromResult(Json.Ok(new { drafts, count = drafts.Count, alreadyCopied = drafts.Count(d => d.ExistingKey != null) }));
             IWorkItemProvider provider = run ? GetProvider() : null;
             if (run) Gateway.Policy.Assert(sandbox, new WriteIntent("intake", "preflight", null));
@@ -792,7 +773,7 @@ namespace Halyard.Core.Host
             var sandbox = Settings.Provider.Sandbox;
             var sandboxKeys = sandbox == null ? new HashSet<string>(StringComparer.OrdinalIgnoreCase) : new HashSet<string>(visible.Where(i => i.Repository.Equals(sandbox)).Select(i => i.Key), StringComparer.OrdinalIgnoreCase);
             var repository = snap.Repository;
-            ILlmClient llm = useModel ? CreateLlm(Json.Read<string>(body, "profile")) : null;
+            ILlmClient llm = useModel ? CreateLlm() : null;
             var job = Jobs.Start("vision", async ctx =>
             {
                 ctx.Report(0, 0, llm == null ? "Summarizing the backlog" : "Asking " + llm.Model + " for a portfolio vision");
@@ -869,7 +850,7 @@ namespace Halyard.Core.Host
                 Proposals.Save(batch);
                 return Task.FromResult(Json.Ok(batch));
             }
-            var llm = CreateLlm(Json.Read<string>(body, "profile"));
+            var llm = CreateLlm();
             var job = Jobs.Start("skills", async ctx =>
             {
                 var progress = new Progress<string>(m => ctx.Report(0, 0, m));
@@ -878,7 +859,7 @@ namespace Halyard.Core.Host
                 ctx.Report(batch.Proposals.Count, batch.Proposals.Count, batch.Proposals.Count + " skill proposals saved in batch " + batch.Id);
                 return (object)BatchSummary(batch);
             });
-            return Task.FromResult(Json.Accepted(new { job, profile = llm.Profile, model = llm.Model, candidates = SkillTagger.Candidates(visible, options).Count }));
+            return Task.FromResult(Json.Accepted(new { job, source = llm.Name, model = llm.Model, candidates = SkillTagger.Candidates(visible, options).Count }));
         }
 
         private Task<HttpResponse> ManualProposal(HttpRequest r)
@@ -1036,94 +1017,20 @@ namespace Halyard.Core.Host
             return Task.FromResult(Json.Accepted(new { job, batches = batches.Count, approved }));
         }
 
-        /// <summary>
-        /// Sets the custom model endpoint from a pasted curl command plus a token typed in its own field (owner request,
-        /// for testing gateway endpoints). The URL, model, format and non-secret headers come from the curl text; the token
-        /// only from <c>token</c>, never from the curl. A token is never sent to a new origin unless it was entered with
-        /// it. Neither the curl text nor the token is logged or returned. "remember" writes the endpoint to
-        /// config/halyard.env and the token DPAPI-protected for this Windows account.
-        /// </summary>
-        private Task<HttpResponse> SetLlmFromCurl(HttpRequest r)
-        {
-            var body = Json.Body(r);
-            var curl = Json.Read<string>(body, "curl");
-            var token = LlmSettings.Clean(Json.Read<string>(body, "token"));
-            var remember = Json.Read<bool?>(body, "remember") == true;
-            if (token != null && (token.Length < 8 || token.Length > 8192)) throw new BadRequestException("The token does not look like an API token.");
-            if (token != null && token.IndexOfAny(new[] { ' ', '\t' }) >= 0) throw new BadRequestException("The token field holds more than one word. Paste only the token (without \"Bearer\").");
-            if (token != null && CurlCommand.UrlProblem(token) == null) throw new BadRequestException("The token field holds a URL. Paste the curl command in the curl box and the token in the token field.");
-            CurlEndpoint parsed;
-            try { parsed = CurlCommand.Parse(curl); }
-            catch (CurlParseException ex)
-            {
-                Log.Warn("LLM_CURL_REJECTED", ex.Message);
-                throw new BadRequestException(ex.Message);
-            }
-            var llm = Settings.Llm;
-            var sameOrigin = CurlCommand.Origin(parsed.Url) == CurlCommand.Origin(llm.CustomUrl);
-            if (token == null && parsed.HadLiteralToken) throw new BadRequestException(CurlCommand.LiteralTokenWarning);
-            if (token == null && !(sameOrigin && !string.IsNullOrWhiteSpace(llm.CustomToken)))
-                throw new BadRequestException("Enter the token in the token field. Halyard never takes it from the curl command, and a token is only sent to the endpoint it was entered for.");
-
-            llm.CustomUrl = parsed.Url;
-            llm.CustomModel = parsed.Model.Length == 0 ? null : parsed.Model;
-            llm.CustomFormat = parsed.Format;
-            llm.CustomHeaders = new Dictionary<string, string>(parsed.Headers, StringComparer.OrdinalIgnoreCase);
-            if (token != null) llm.CustomToken = token;
-            llm.Profile = LlmProfile.Custom;
-
-            var remembered = false;
-            var tokenRemembered = false;
-            var notes = new List<string>(parsed.Warnings);
-            if (remember)
-            {
-                string protectedToken = null;
-                if (token != null)
-                {
-                    if (Config.SecretProtector.IsAvailable) { protectedToken = Config.SecretProtector.Protect(token); tokenRemembered = true; }
-                    else notes.Add("Windows DPAPI is not available here, so the token is kept for this session only; enter it again after a relaunch.");
-                }
-                else tokenRemembered = Settings.CustomTokenRemembered;
-                var values = Config.HalyardSettings.CustomEndpointEnv(llm, protectedToken);
-                // A new origin without a remembered token must not inherit the old stored one.
-                if (token != null && protectedToken == null) values[Config.HalyardSettings.CustomTokenKey] = null;
-                Config.HalyardSettings.UpsertEnvFile(Settings.EnvFilePath, values);
-                Settings.CustomTokenRemembered = tokenRemembered;
-                remembered = true;
-                Log.Info("CONFIG_PERSISTED", string.Join(", ", values.Keys.Where(k => values[k] != null)) + " written to " + Settings.EnvFilePath);
-            }
-            Log.Info("LLM_CURL_SET", LlmSettings.FormatToken(parsed.Format) + " " + HttpClientTransport.SafeUrl(parsed.Url) + " model=" + (parsed.Model.Length == 0 ? "(none)" : parsed.Model) + " headers=" + parsed.Headers.Count + (token != null ? " token=entered" : " token=kept") + (remembered ? " remembered" : string.Empty));
-            return Task.FromResult(Json.Ok(new
-            {
-                profile = LlmSettings.ProfileToken(LlmProfile.Custom),
-                url = parsed.Url,
-                model = parsed.Model,
-                format = LlmSettings.FormatToken(parsed.Format),
-                headers = parsed.Headers.Keys.ToList(),
-                ignoredHeaders = parsed.IgnoredHeaders,
-                literalTokenIgnored = parsed.HadLiteralToken,
-                tokenSet = !string.IsNullOrWhiteSpace(llm.Token(LlmProfile.Custom)),
-                remembered,
-                tokenRemembered,
-                warnings = notes,
-                config = Settings.ToPublicDictionary(),
-            }));
-        }
-
         private async Task<HttpResponse> TestLlm(HttpRequest r)
         {
             var body = Json.Body(r);
-            var llm = CreateLlm(Json.Read<string>(body, "profile"));
+            var llm = CreateLlm();
             try
             {
                 var response = await llm.TestAsync(System.Threading.CancellationToken.None).ConfigureAwait(false);
-                Log.Info("LLM_TEST_OK", llm.Profile + " " + llm.Model + " " + response.Elapsed.TotalMilliseconds + "ms");
-                return Json.Ok(new { ok = true, profile = llm.Profile, model = llm.Model, text = response.Text, elapsedMs = (int)response.Elapsed.TotalMilliseconds, response.PromptTokens, response.CompletionTokens });
+                Log.Info("LLM_TEST_OK", llm.Name + " " + llm.Model + " " + response.Elapsed.TotalMilliseconds + "ms");
+                return Json.Ok(new { ok = true, source = llm.Name, model = llm.Model, text = response.Text, elapsedMs = (int)response.Elapsed.TotalMilliseconds, response.PromptTokens, response.CompletionTokens });
             }
             catch (ProviderHttpException ex)
             {
                 Log.Warn("LLM_TEST_FAILED", ex.Code + " " + ex.Message);
-                return Json.Ok(new { ok = false, profile = llm.Profile, model = llm.Model, code = ex.Code, error = ex.Message });
+                return Json.Ok(new { ok = false, source = llm.Name, model = llm.Model, code = ex.Code, error = ex.Message });
             }
         }
     }

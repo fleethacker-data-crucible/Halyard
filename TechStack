@@ -14,7 +14,7 @@ Local web apps: PowerShell 5.1 serves a browser UI on `127.0.0.1` (Edge/Chrome).
 | Browser compute | Rust → WebAssembly |
 | Storage | IndexedDB (data), localStorage (settings) |
 | Offline | Service workers, Web Workers |
-| Encryption | Web Crypto (AES-GCM) in browser; DPAPI from PowerShell for secrets at rest |
+| Encryption | Web Crypto (AES-GCM) in browser; no secrets are kept at rest by Halyard itself |
 | Native Windows | C# ships as source and is compiled at start by Windows PowerShell 5.1 `Add-Type` (inbox .NET Framework compiler, C# 5 only); framework assemblies only; P/Invoke only into OS DLLs; WinForms/WPF from PowerShell if needed |
 
 ## Local server note
@@ -72,6 +72,6 @@ Direction (2026-10-26): Fleet tools stop hard-coding external endpoints and defa
 
 | Access | Today | Where | Settings |
 | --- | --- | --- | --- |
-| AI/LLM | OpenAI-compatible chat completions; hard-coded default `https://api.openai.com/v1/chat/completions` (model `gpt-4o-mini`); optional Databricks profile with no default URL; `custom` profile set from a pasted curl command in Settings (chat completions, OpenAI Responses API or Databricks; token DPAPI-encrypted at rest) | `src/Halyard.Core/Llm/LlmClient.cs:39`; settings `src/Halyard.Core/Config/HalyardSettings.cs:135-145` | `HALYARD_LLM_PROFILE`, `LLM_URL`/`OPENAI_BASE_URL`, `LLM_MODEL`/`OPENAI_MODEL`, `LLM_TOKEN`/`OPENAI_API_KEY`, `DATABRICKS_URL`/`_MODEL`/`_TOKEN`; vault items `HALYARD_LAZARETTE_ITEM_Llm`/`_Databricks` |
+| AI/LLM | OpenAI chat completions to the Fairlead router on this PC only (default `http://127.0.0.1:8776/v1/chat/completions`, route `auto`); the address must be loopback; the client key is read from Windows Credential Manager (`Fairlead/Halyard`), never from settings, files or the environment; requests carry `X-Fairlead-Label: Halyard` and, with the privacy setting, `X-Fairlead-Privacy: local` | `src/Halyard.Core/Llm/LlmClient.cs`; key `src/Halyard.Core/Llm/CredentialReader.cs`; settings `src/Halyard.Core/Config/HalyardSettings.cs` | `HALYARD_FAIRLEAD_URL`, `HALYARD_FAIRLEAD_MODEL`, `HALYARD_LLM_PRIVACY`, `HALYARD_LLM_TRANSCRIPTS` |
 | Git repositories | GitHub REST + GraphQL (hard-coded default `https://api.github.com`) or GitLab REST `/api/v4` (no default); issues/epics only, no clone | `src/Halyard.Core/Providers/ProviderSettings.cs:44`; settings `HalyardSettings.cs:99-116` | `HALYARD_PROVIDER`, `GITHUB_API_URL`, `GITHUB_TOKEN`/`GH_TOKEN`, `GITLAB_URL`, `GITLAB_TOKEN`, `HALYARD_SOURCE_REPO`, `HALYARD_SANDBOX_REPO`; vault items `HALYARD_LAZARETTE_ITEM_GitHub`/`_GitLab` |
 | Databases | none |  |  |

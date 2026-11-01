@@ -61,6 +61,7 @@ namespace Halyard.Core.Tests
         }
     }
 
+    [Collection("CredentialReader")]
     public class LlmClientTests
     {
         [Fact]
@@ -69,108 +70,62 @@ namespace Halyard.Core.Tests
             Assert.Equal("hi", LlmClient.ExtractText(JToken.Parse("{\"choices\":[{\"message\":{\"content\":\"hi\"}}]}")));
             Assert.Equal("ab", LlmClient.ExtractText(JToken.Parse("{\"choices\":[{\"message\":{\"content\":[{\"type\":\"text\",\"text\":\"a\"},{\"text\":\"b\"}]}}]}")));
             Assert.Equal("r", LlmClient.ExtractText(JToken.Parse("{\"choices\":[{\"message\":{\"content\":null,\"reasoning_content\":\"r\"}}]}")));
-            Assert.Equal("p", LlmClient.ExtractText(JToken.Parse("{\"predictions\":[\"p\"]}")));
             Assert.Equal(string.Empty, LlmClient.ExtractText(JToken.Parse("{}")));
         }
 
         [Fact]
-        public async Task SendsBearerTokenAndProfileShapedBody()
+        public async Task SendsTheKeyTheRouteAndAChatBody()
         {
-            var http = new FakeTransport().On("POST", "/chat/completions", 200, "{\"choices\":[{\"message\":{\"content\":\"[]\"}}],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":2}}");
-            var settings = new LlmSettings { Profile = LlmProfile.OpenAi, OpenAiToken = "'Bearer sk-abcdefghijklmnop'\n", OpenAiUrl = "https://example.test/v1/chat/completions", OpenAiModel = "m" };
-            var client = new LlmClient(settings, http);
-            var r = await client.ChatAsync(new[] { LlmMessage.User("x") }, CancellationToken.None);
-            var call = http.Calls.Single();
-            Assert.Equal("Bearer sk-abcdefghijklmnop", call.Headers["Authorization"]);
-            var body = JObject.Parse(call.JsonBody!);
-            Assert.Equal("m", (string)body["model"]!);
-            Assert.False((bool)body["stream"]!);
-            Assert.Equal(10, r.PromptTokens);
-        }
-
-        [Fact]
-        public async Task DatabricksProfileOmitsStreamFlag()
-        {
-            var http = new FakeTransport().On("POST", "invocations", 200, "{\"choices\":[{\"message\":{\"content\":\"OK\"}}]}");
-            var settings = new LlmSettings { Profile = LlmProfile.Databricks, DatabricksToken = "dapi0123456789abcdef0123456789", DatabricksUrl = "https://ws.example.test/serving-endpoints/m/invocations", DatabricksModel = "m" };
-            var client = new LlmClient(settings, http);
-            await client.TestAsync(CancellationToken.None);
-            Assert.Null(JObject.Parse(http.Calls.Single().JsonBody!)["stream"]);
-            Assert.StartsWith("https://ws.example.test/serving-endpoints/m/invocations", http.Calls.Single().Url);
-        }
-
-        [Fact]
-        public async Task RetriesWithTheParametersTheEndpointAccepts()
-        {
-            // A reasoning model rejects the temperature; an older gateway rejects max_completion_tokens. Both are
-            // answered by dropping or renaming the named parameter and retrying.
-            var http = new FakeTransport().On("POST", "chat/completions", call =>
+            using (new FakeCredentialStore("  Bearer-not-stripped-key-0123456789  "))
             {
+                var http = new FakeTransport().On("POST", "/chat/completions", 200, "{\"choices\":[{\"message\":{\"content\":\"[]\"}}],\"usage\":{\"prompt_tokens\":10,\"completion_tokens\":2}}");
+                var client = new LlmClient(new LlmSettings { Route = "fast" }, http);
+                var r = await client.ChatAsync(new[] { LlmMessage.User("x") }, CancellationToken.None);
+                var call = http.Calls.Single();
+                Assert.Equal("Bearer Bearer-not-stripped-key-0123456789", call.Headers["Authorization"]);
                 var body = JObject.Parse(call.JsonBody!);
-                if (body["temperature"] != null)
-                    return new HttpReply(400, "{\"error\":{\"message\":\"Unsupported value: 'temperature' does not support 0.2 with this model. Only the default (1) value is supported.\",\"type\":\"invalid_request_error\",\"param\":\"temperature\",\"code\":\"unsupported_value\"}}", new Dictionary<string, string>());
-                if (body["max_completion_tokens"] != null)
-                    return new HttpReply(400, "{\"error\":{\"message\":\"Unrecognized request argument supplied: max_completion_tokens\",\"type\":\"invalid_request_error\",\"param\":null}}", new Dictionary<string, string>());
-                return new HttpReply(200, "{\"choices\":[{\"message\":{\"content\":\"OK\"}}]}", new Dictionary<string, string>());
-            });
-            var client = new LlmClient(new LlmSettings { Profile = LlmProfile.OpenAi, OpenAiToken = "sk-test-0123456789abcdef", OpenAiModel = "gpt-5-mini" }, http);
-            var r = await client.TestAsync(CancellationToken.None);
-            Assert.Equal("OK", r.Text);
-            Assert.Equal(3, http.Calls.Count);
-            var last = JObject.Parse(http.Calls.Last().JsonBody!);
-            Assert.Null(last["temperature"]);
-            Assert.Null(last["max_completion_tokens"]);
-            Assert.Equal(4000, (int)last["max_tokens"]!);
-            // The first request already used max_completion_tokens, the current OpenAI name.
-            Assert.NotNull(JObject.Parse(http.Calls.First().JsonBody!)["max_completion_tokens"]);
+                Assert.Equal("fast", (string)body["model"]!);
+                Assert.False((bool)body["stream"]!);
+                Assert.Equal("x", (string)body["messages"]![0]!["content"]!);
+                Assert.Equal(10, r.PromptTokens);
+                Assert.Equal("fairlead", client.Name);
+                Assert.Equal("fast", r.Model);
+            }
         }
 
         [Fact]
-        public async Task GenuineBadRequestsAreNotRetried()
+        public async Task AnErrorFromFairleadIsReportedOnceAndNotRetriedWithOtherParameters()
         {
-            var http = new FakeTransport().On("POST", "chat/completions", 400, "{\"error\":{\"message\":\"The model `gpt-9` does not exist or you do not have access to it.\",\"param\":null,\"code\":\"model_not_found\"}}");
-            var client = new LlmClient(new LlmSettings { Profile = LlmProfile.OpenAi, OpenAiToken = "sk-test-0123456789abcdef", OpenAiModel = "gpt-9" }, http);
-            var ex = await Assert.ThrowsAsync<ProviderHttpException>(() => client.TestAsync(CancellationToken.None));
-            Assert.Contains("does not exist", ex.Message);
-            Assert.Single(http.Calls);
-        }
-
-        [Fact]
-        public void DatabricksWithoutUrlIsNotConfigured()
-        {
-            var s = new LlmSettings { DatabricksToken = "dapi0123456789abcdef0123456789" };
-            Assert.False(s.IsConfigured(LlmProfile.Databricks));
-            Assert.Contains("DATABRICKS_URL", s.MissingFor(LlmProfile.Databricks));
+            using (new FakeCredentialStore("fl-test-0123456789abcdef"))
+            {
+                var http = new FakeTransport().On("POST", "chat/completions", 400, "{\"error\":{\"message\":\"No route called nope.\",\"param\":null}}");
+                var client = new LlmClient(new LlmSettings { Route = "nope" }, http);
+                var ex = await Assert.ThrowsAsync<ProviderHttpException>(() => client.TestAsync(CancellationToken.None));
+                Assert.Contains("No route called nope", ex.Message);
+                Assert.Single(http.Calls);
+            }
         }
 
         [Theory]
         [InlineData(null, "http://127.0.0.1:8776/v1/chat/completions")]
-        [InlineData("https://api.openai.com/v1", "https://api.openai.com/v1/chat/completions")]
-        [InlineData("https://gateway.example.test/v1/chat/completions/", "https://gateway.example.test/v1/chat/completions")]
-        [InlineData("https://gateway.example.test", "https://gateway.example.test/v1/chat/completions")]
-        public void OpenAiUrlAcceptsBaseOrFullUrl(string? input, string expected)
+        [InlineData("http://127.0.0.1:8776/v1", "http://127.0.0.1:8776/v1/chat/completions")]
+        [InlineData("http://127.0.0.1:8776/v1/chat/completions/", "http://127.0.0.1:8776/v1/chat/completions")]
+        [InlineData("http://localhost:9000", "http://localhost:9000/v1/chat/completions")]
+        public void UrlAcceptsBaseOrFullUrl(string? input, string expected)
         {
-            Assert.Equal(expected, LlmSettings.NormalizeOpenAiUrl(input));
+            Assert.Equal(expected, LlmSettings.NormalizeUrl(input));
         }
 
         [Fact]
         public void RedactsTokenShapedStrings()
         {
-            var text = "key sk-abcdefghijklmnopqrstuvwxyz and ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456 and glpat-abcdefghijklmnopqrst";
+            var text = "key sk-abcdefghijklmnopqrstuvwxyz and ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456 and glpat" + "-abcdefghijklmnopqrst and fl-abcdefghijklmnopqrstuv";
             var red = LlmClient.Redact(text);
             Assert.DoesNotContain("sk-abc", red);
             Assert.DoesNotContain("ghp_", red);
             Assert.DoesNotContain("glpat-", red);
-            Assert.Equal(3, red.Split(new[] { "[REDACTED]" }, StringSplitOptions.None).Length - 1);
-        }
-
-        [Fact]
-        public void AutoProfileFollowsAvailableToken()
-        {
-            Assert.Equal(LlmProfile.Databricks, new LlmSettings { DatabricksToken = "x" }.Resolve());
-            Assert.Equal(LlmProfile.OpenAi, new LlmSettings().Resolve());
-            Assert.Equal(LlmProfile.OpenAi, new LlmSettings { OpenAiToken = "x", DatabricksToken = "y" }.Resolve());
-            Assert.Equal(LlmProfile.OpenAi, new LlmSettings { OpenAiToken = "x" }.Resolve());
+            Assert.DoesNotContain("fl-abc", red);
+            Assert.Equal(4, red.Split(new[] { "[REDACTED]" }, StringSplitOptions.None).Length - 1);
         }
     }
 
@@ -180,7 +135,7 @@ namespace Halyard.Core.Tests
         {
             private readonly Func<IReadOnlyList<LlmMessage>, string> _reply;
             public ScriptedLlm(Func<IReadOnlyList<LlmMessage>, string> reply) { _reply = reply; }
-            public LlmProfile Profile { get { return LlmProfile.OpenAi; } }
+            public string Name { get { return "fairlead"; } }
             public string Model { get { return "scripted"; } }
             public Task<LlmResponse> ChatAsync(IReadOnlyList<LlmMessage> messages, CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = _reply(messages) }); }
             public Task<LlmResponse> TestAsync(CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = "OK" }); }
@@ -237,7 +192,7 @@ namespace Halyard.Core.Tests
         {
             private readonly Func<IReadOnlyList<LlmMessage>, string> _reply;
             public ScriptedLlm(Func<IReadOnlyList<LlmMessage>, string> reply) { _reply = reply; }
-            public LlmProfile Profile { get { return LlmProfile.OpenAi; } }
+            public string Name { get { return "fairlead"; } }
             public string Model { get { return "scripted"; } }
             public Task<LlmResponse> ChatAsync(IReadOnlyList<LlmMessage> messages, CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = _reply(messages) }); }
             public Task<LlmResponse> TestAsync(CancellationToken cancellation) { return Task.FromResult(new LlmResponse { Text = "OK" }); }
@@ -427,6 +382,7 @@ namespace Halyard.Core.Tests
         }
     }
 
+    [Collection("CredentialReader")]
     public class SettingsTests
     {
         [Fact]
@@ -493,11 +449,15 @@ namespace Halyard.Core.Tests
         {
             var s = new HalyardSettings();
             s.Provider.Token = "ghp_SECRETSECRETSECRETSECRETSECRET";
-            s.Llm.OpenAiToken = "secret-token-value";
-            var json = Json.Serialize(s.ToPublicDictionary());
-            Assert.DoesNotContain("SECRET", json);
-            Assert.DoesNotContain("secret-token-value", json);
-            Assert.Contains("\"hasProviderToken\":true", json);
+            using (new FakeCredentialStore("secret-token-value"))
+            {
+                var json = Json.Serialize(s.ToPublicDictionary());
+                Assert.DoesNotContain("SECRET", json);
+                Assert.DoesNotContain("secret-token-value", json);
+                Assert.Contains("\"hasProviderToken\":true", json);
+                Assert.Contains("\"hasLlmToken\":true", json);
+                Assert.Contains("\"llmKeyTarget\":\"Fairlead/Halyard\"", json);
+            }
         }
 
         [Fact]
@@ -514,6 +474,7 @@ namespace Halyard.Core.Tests
         }
     }
 
+    [Collection("CredentialReader")]
     public class HostTests : IDisposable
     {
         private readonly string _root = Path.Combine(Path.GetTempPath(), "halyard-host-" + Guid.NewGuid().ToString("N"));
@@ -634,26 +595,29 @@ namespace Halyard.Core.Tests
         }
 
         [Fact]
-        public async Task ApiKeyCanBeEnteredInTheBrowserAndRememberedLocally()
+        public async Task OnlyTheModelRouteCanBePickedInTheBrowserAndRememberedLocally()
         {
-            var r = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"llmToken\":\"sk-test-0123456789abcdef\",\"llmModel\":\"gpt-4o-mini\",\"remember\":true}"));
-            Assert.Equal(200, (int)r.StatusCode);
-            var body = JObject.Parse(await r.Content.ReadAsStringAsync());
-            Assert.True((bool)body["remembered"]!);
-            Assert.True((bool)body["config"]!["hasLlmToken"]!);
-            Assert.DoesNotContain("sk-test", body.ToString());
-            Assert.Equal("sk-test-0123456789abcdef", _host.Settings.Llm.OpenAiToken);
-            var env = File.ReadAllText(_host.Settings.EnvFilePath);
-            Assert.Contains("LLM_TOKEN=sk-test-0123456789abcdef", env);
-            Assert.Contains("LLM_MODEL=gpt-4o-mini", env);
-            // The URL is never settable from the browser.
-            var locked = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"llmUrl\":\"https://evil.example\"}"));
-            Assert.Equal(200, (int)locked.StatusCode); // unknown keys are ignored, not applied
-            Assert.Equal(LlmSettings.DefaultOpenAiUrl, _host.Settings.Llm.Url(LlmProfile.OpenAi));
-            // Clearing removes it from memory and from the file.
-            await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"llmToken\":null,\"remember\":true}"));
-            Assert.Null(_host.Settings.Llm.OpenAiToken);
-            Assert.DoesNotContain("LLM_TOKEN=", File.ReadAllText(_host.Settings.EnvFilePath));
+            using (new FakeCredentialStore("fl-test-0123456789abcdef"))
+            {
+                var r = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"llmModel\":\"smart\",\"remember\":true}"));
+                Assert.Equal(200, (int)r.StatusCode);
+                var body = JObject.Parse(await r.Content.ReadAsStringAsync());
+                Assert.True((bool)body["remembered"]!);
+                Assert.True((bool)body["config"]!["hasLlmToken"]!);
+                Assert.Equal("smart", (string)body["config"]!["llmModel"]!);
+                Assert.DoesNotContain("fl-test", body.ToString());
+                Assert.Equal("smart", _host.Settings.Llm.Route);
+                Assert.Contains("HALYARD_FAIRLEAD_MODEL=smart", File.ReadAllText(_host.Settings.EnvFilePath));
+                // The address and the key are never settable from the browser.
+                var locked = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"llmUrl\":\"https://evil.example\",\"llmToken\":\"sk-test-0123456789abcdef\"}"));
+                Assert.Equal(200, (int)locked.StatusCode); // unknown keys are ignored, not applied
+                Assert.Equal(LlmSettings.DefaultUrl, _host.Settings.Llm.Url());
+                Assert.DoesNotContain("sk-test", File.ReadAllText(_host.Settings.EnvFilePath));
+                // Clearing the route goes back to auto and removes it from the file.
+                await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"llmModel\":\"\",\"remember\":true}"));
+                Assert.Equal("auto", _host.Settings.Llm.Model());
+                Assert.DoesNotContain("HALYARD_FAIRLEAD_MODEL=", File.ReadAllText(_host.Settings.EnvFilePath));
+            }
         }
 
         [Fact]

@@ -126,7 +126,7 @@ namespace Halyard.Core.Intelligence
             IProgress<string> progress, CancellationToken cancellation)
         {
             options = options ?? new RefineOptions();
-            var batch = new ProposalBatch { Kind = ProposalKind.Refinement, Target = target.Key, Source = "llm:" + LlmSettings.ProfileToken(llm.Profile) + "/" + llm.Model };
+            var batch = new ProposalBatch { Kind = ProposalKind.Refinement, Target = target.Key, Source = "llm:" + llm.Name + "/" + llm.Model };
             var byKey = items.ToDictionary(i => i.Key, i => i, StringComparer.OrdinalIgnoreCase);
             var candidates = Candidates(report, options);
             batch.Considered = candidates.Count;

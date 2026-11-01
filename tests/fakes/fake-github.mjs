@@ -5,7 +5,8 @@
 //   node tests/fakes/fake-github.mjs 8790
 //
 // Then point Halyard at it: GITHUB_API_URL=http://127.0.0.1:8790, GITHUB_TOKEN=fake,
-// LLM_URL=http://127.0.0.1:8790/v1/chat/completions, LLM_TOKEN=fake.
+// HALYARD_FAIRLEAD_URL=http://127.0.0.1:8790/v1/chat/completions (the Fairlead key comes from Credential Manager;
+// the e2e scripts supply a fake one).
 import { createServer } from 'node:http';
 import { writeFileSync, renameSync } from 'node:fs';
 

@@ -33,9 +33,9 @@ ship steady.
 The overview of a synthetic 100-item backlog seeded into an offline fake GitHub
 (`tests/e2e/Capture-Screenshots.ps1` regenerates both pictures with mock data only).
 
-## Quick start (GitHub + an OpenAI-compatible model)
+## Quick start (GitHub + Fairlead)
 
-> **Intelligence router:** the model endpoint now defaults to the Fleet intelligence router, [Fairlead](https://github.com/fleethacker-data-crucible/Fairlead), at `http://127.0.0.1:8776/v1/chat/completions`; no external model endpoint is built in. Set `LLM_URL` to use another gateway and `LLM_TOKEN` to Halyard's client key from Fairlead. The router recipe is tested against a fake only, not run against a live Fairlead. The GitHub API host (default `https://api.github.com`) is unchanged. See [TechStack](TechStack), "Intelligence router".
+> **Model calls:** every call goes to the Fleet intelligence router, [Fairlead](https://github.com/fleethacker-data-crucible/Fairlead), at `http://127.0.0.1:8776/v1/chat/completions` (`HALYARD_FAIRLEAD_URL` may change the port or path; the host must be this PC). Fairlead holds every provider address and key. Halyard's own key is read from Windows Credential Manager (credential `Fairlead/Halyard`): open Fairlead and install a key for Halyard. The recipe is tested against a fake only, not run against a live Fairlead. The GitHub API host (default `https://api.github.com`) is unchanged. See [TechStack](TechStack).
 
 On the workstation (no .NET SDK or Node.js needed):
 
@@ -90,7 +90,7 @@ read-only; only the sandbox project can be written.
 | Sandbox | Seed a deterministic synthetic hierarchy with a chosen share of gaps; delete it by run |
 | Connection | Test the token; take a snapshot of the source or sandbox |
 | Diagnostics | Engine log, every write attempt, background jobs |
-| Settings | Model API key and model name; profile; a model endpoint set from a pasted curl command plus token (for testing gateways); label filter; the configured repositories (read-only) |
+| Settings | The Fairlead route (auto, fast, smart, ...) and a model test; whether the Fairlead key is installed; label filter; the configured repositories (read-only) |
 
 PowerShell equivalents: `Invoke-SandboxSeed.ps1`, `Invoke-SandboxTeardown.ps1`, `Send-HalyardReport.ps1`
 (leadership dashboard by Outlook or SMTP), `Register-HalyardReportSchedule.ps1` (weekly task), and the
@@ -120,5 +120,4 @@ Writes default to the sandbox repository only. Production needs `HALYARD_WRITE_M
 Every proposal, including a hand edit, is previewed as a diff and goes through the same gateway.
 Deletes only touch items labelled `halyard-synthetic`, unless you type the wipe phrase. Every write is
 audited. Provider tokens stay in process memory and never reach the browser, logs or transcripts; the
-model key may be entered in the browser but only ever goes to the endpoint named in `config\halyard.env`;
-an endpoint set from a pasted curl command gets only the token typed in for it (DPAPI-encrypted if remembered).
+Fairlead key is read from Credential Manager when a call is made and goes only to the Fairlead address on this PC.
