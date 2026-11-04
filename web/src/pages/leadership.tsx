@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { LuDownload, LuExternalLink } from 'react-icons/lu';
+import { LuDownload, LuExternalLink, LuTable } from 'react-icons/lu';
 import { navigate } from '../app';
 import { WebhookPanel } from '../components/fleet-actions';
 import { ReadAloud } from '../components/voice';
 import { CapacityMeters, StatusOverTime, ThemeBars, VelocityChart } from '../components/delivery-charts';
 import { Button, Empty, Mono, Notice, Page, Pill, Section, Stat, cn, useToast } from '../components/ui';
-import { describeError, getText } from '../lib/api';
+import { describeError, getText, post } from '../lib/api';
 import { downloadText, relativeTime, shortDate } from '../lib/format';
 import { Leadership, type Status } from '../lib/schemas';
 import { useResource } from '../lib/useResource';
@@ -23,7 +23,21 @@ export function LeadershipPage({ status }: { status: Status | undefined }) {
   const data = useResource(status?.snapshot ? '/api/leadership' : null, Leadership);
   const toast = useToast();
   const [downloading, setDownloading] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const d = data.data;
+
+  // Writes the four CSV tables Semaphore loads as data sources (docs/SEMAPHORE-EXPORT.md).
+  const exportSemaphore = async () => {
+    setExporting(true);
+    try {
+      const r = await post<{ directory?: string; files?: Array<{ table: string; bytes: number }> }>('/api/export/semaphore');
+      toast.push('ok', `Saved ${r.files?.length ?? 0} CSV tables for Semaphore in ${r.directory ?? 'output\\exports\\semaphore'}. In Semaphore: Data, add CSV files.`);
+    } catch (e) {
+      toast.push('err', describeError(e));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const download = async () => {
     setDownloading(true);
@@ -49,7 +63,7 @@ export function LeadershipPage({ status }: { status: Status | undefined }) {
     <Page
       title="Leadership"
       lede={d ? <>Sprint <span className="font-medium text-ink">{d.currentSprint}</span> ({shortDate(d.sprintStart).split(',')[0]} – {shortDate(d.sprintEnd).split(',')[0]}) · snapshot of <Mono>{d.snapshot.repository}</Mono> {relativeTime(d.snapshot.takenAt)}. Feature progress • velocity • capacity • blockers.</> : 'Feature progress, velocity, capacity and blockers on one page.'}
-      actions={<span className="flex items-center gap-2"><ReadAloud data={d} /><Button onClick={() => void download()} busy={downloading} disabled={!d}><LuDownload size={14} />Download HTML report</Button></span>}
+      actions={<span className="flex items-center gap-2"><ReadAloud data={d} /><Button onClick={() => void download()} busy={downloading} disabled={!d}><LuDownload size={14} />Download HTML report</Button><Button onClick={() => void exportSemaphore()} busy={exporting} disabled={!d} title="Write health, items, features and velocity as CSV files for Semaphore"><LuTable size={14} />Export for Semaphore</Button></span>}
     >
       {data.error ? <Notice tone="err">{data.error}</Notice> : null}
       {d?.notes.map((n, i) => <Notice key={i} tone="info">{n}</Notice>)}
