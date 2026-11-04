@@ -179,7 +179,8 @@ namespace Halyard.Core.Intelligence
         public static Proposal Build(WorkItem item, IReadOnlyList<string> gaps, RefinementDraft draft, ProposalBatch batch)
         {
             var current = Descriptions.Narrative(item.Body);
-            var proposedNarrative = Descriptions.Narrative(draft.Narrative).Trim();
+            // Existing text is kept: a section the model left out (often Parent Feature or Sizing) is put back verbatim.
+            var proposedNarrative = KeepMissingSections(current, Descriptions.Narrative(draft.Narrative).Trim());
             var meta = item.Meta == null ? new HalyardMeta() : item.Meta.Clone();
             if (!meta.Has("type")) meta.Type = item.Type;
             foreach (var kv in draft.Meta)
@@ -211,6 +212,61 @@ namespace Halyard.Core.Intelligence
                 Reason = reason,
                 Source = batch.Source + " " + draft.Source,
             };
+        }
+
+        /// <summary>
+        /// Appends, in their original order and verbatim, every "## " section of the original narrative whose heading
+        /// the proposed narrative does not contain. Headings compare case-insensitively, ignoring surrounding spaces.
+        /// </summary>
+        public static string KeepMissingSections(string original, string proposed)
+        {
+            proposed = proposed ?? string.Empty;
+            var sections = Sections(original);
+            var preamble = Preamble(original);
+            if (sections.Count == 0 && preamble.Length == 0) return proposed;
+            var present = new HashSet<string>(Sections(proposed).Select(s => s.Key), StringComparer.OrdinalIgnoreCase);
+            var sb = new StringBuilder(proposed.TrimEnd());
+            // Text before the first heading goes back in front if the model dropped it.
+            if (preamble.Length > 0 && Lines(preamble).Any(l => !Lines(proposed).Contains(l)))
+            {
+                sb.Insert(0, preamble + (sb.Length > 0 ? "\n\n" : string.Empty));
+            }
+            foreach (var s in sections)
+            {
+                if (present.Contains(s.Key)) continue;
+                if (sb.Length > 0) sb.Append("\n\n");
+                sb.Append(s.Value.Trim());
+                present.Add(s.Key);
+            }
+            return sb.ToString();
+        }
+
+        /// <summary>The text before the first "## " heading, trimmed.</summary>
+        private static string Preamble(string text)
+        {
+            var t = (text ?? string.Empty).Replace("\r\n", "\n");
+            var at = t.StartsWith("## ") ? 0 : t.IndexOf("\n## ", StringComparison.Ordinal);
+            return (at < 0 ? t : t.Substring(0, at)).Trim();
+        }
+
+        /// <summary>The "## " sections of a narrative as (normalized heading, full section text) pairs, in order.</summary>
+        private static List<KeyValuePair<string, string>> Sections(string text)
+        {
+            var result = new List<KeyValuePair<string, string>>();
+            string heading = null;
+            var body = new StringBuilder();
+            foreach (var line in (text ?? string.Empty).Replace("\r\n", "\n").Split('\n'))
+            {
+                if (line.StartsWith("## "))
+                {
+                    if (heading != null) result.Add(new KeyValuePair<string, string>(heading, body.ToString()));
+                    heading = line.Substring(3).Trim();
+                    body.Clear();
+                }
+                if (heading != null) body.Append(line).Append('\n');
+            }
+            if (heading != null) result.Add(new KeyValuePair<string, string>(heading, body.ToString()));
+            return result;
         }
 
         /// <summary>Share of the original narrative's substantive lines that appear verbatim in the proposed one.</summary>
