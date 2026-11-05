@@ -15,6 +15,7 @@ concurrency:
 
 jobs:
   bundle:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 30
     outputs:
@@ -64,6 +65,7 @@ jobs:
 
   publish:
     needs: bundle
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 10
     permissions:
