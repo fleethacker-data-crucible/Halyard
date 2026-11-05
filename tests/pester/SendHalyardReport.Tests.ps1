@@ -17,6 +17,8 @@ Describe 'Send-HalyardReportMessage' {
     BeforeEach {
         $script:mail = [pscustomobject]@{ To = $null; Subject = $null; HTMLBody = $null; Sent = 0 }
         $script:mail | Add-Member -MemberType ScriptMethod -Name Send -Value { $this.Sent++ }
+        $script:mail | Add-Member -NotePropertyName Shown -NotePropertyValue 0
+        $script:mail | Add-Member -MemberType ScriptMethod -Name Display -Value { param($modal) $this.Shown++ }
         $script:outlook = [pscustomobject]@{ ItemType = $null }
         $script:outlook | Add-Member -MemberType ScriptMethod -Name CreateItem -Value { param($type) $this.ItemType = $type; return $script:mail }
         Mock New-Object -ModuleName Halyard -ParameterFilter { $ComObject -eq 'Outlook.Application' } -MockWith { $script:outlook }
@@ -39,6 +41,15 @@ Describe 'Send-HalyardReportMessage' {
             $r.Sent | Should -BeTrue
             $r.To | Should -Be @('a@example.org', 'b@example.org')
             Should -Invoke Send-MailMessage -ModuleName Halyard -Times 0 -Exactly
+        }
+        It 'with -Draft opens the message for review and sends nothing, even without recipients' {
+            $r = Send-HalyardReportMessage -Via Outlook -Html '<p>report</p>' -Subject 'Weekly' -Draft
+            $script:mail.HTMLBody | Should -Be '<p>report</p>'
+            $script:mail.Subject | Should -Be 'Weekly'
+            $script:mail.Shown | Should -Be 1
+            $script:mail.Sent | Should -Be 0
+            $r.Sent | Should -BeFalse
+            $r.Draft | Should -BeTrue
         }
         It 'refuses to send without recipients, and does not even start Outlook' {
             { Send-HalyardReportMessage -Via Outlook -Html 'x' -Subject 's' } | Should -Throw -ExpectedMessage '*Specify -To*Outlook*'
