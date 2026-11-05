@@ -123,6 +123,7 @@ function ApplyAll({ batches, status, onDone }: { batches: BatchSummary[] | undef
       const r = j.result as { applied?: number; failed?: number; skipped?: number; batches?: number } | null;
       toast.push(r?.failed ? 'err' : 'ok', `Applied ${r?.applied ?? 0}, skipped ${r?.skipped ?? 0}, failed ${r?.failed ?? 0} across ${r?.batches ?? 0} batches.`);
     } else if (j.state === 'failed') toast.push('err', j.error ?? 'Apply failed');
+    invalidate('/api/applies');
     onDone();
   });
   if (approved === 0 && !job.running) return null;
@@ -281,6 +282,8 @@ function BatchView({ batchId, status, onChanged, onDeleted }: { batchId: string;
       toast.push(r?.failed ? 'err' : 'ok', `Applied ${r?.applied ?? 0}, skipped ${r?.skipped ?? 0}, failed ${r?.failed ?? 0}.`);
       invalidate('/api/snapshot'); invalidate('/api/review'); invalidate('/api/hierarchy');
     } else if (j.state === 'failed') toast.push('err', j.error ?? 'Apply failed');
+    // A finished apply (even a partly failed one) is a new row in Applied changes, with its Undo.
+    invalidate('/api/applies');
     void batch.refetch();
     onChanged();
   });
