@@ -147,7 +147,7 @@ namespace Halyard.Core.Tests
             Directory.CreateDirectory(_root);
             var settings = new HalyardSettings { RootDirectory = _root };
             settings.Provider.Kind = ProviderKind.GitHub;
-            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = 0, WebRoot = null });
+            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = HostOptions.AnyPort, WebRoot = null });
             _info = _host.Start();
             _client.DefaultRequestHeaders.Add("X-Halyard-Session", _info.SessionToken);
         }

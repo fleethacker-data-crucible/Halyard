@@ -38,7 +38,7 @@ namespace Halyard.Core.Tests
             settings.TalkForgePath = Path.Combine(_root, "no-talkforge");
             // Not loopback, so model calls are never usable here, whatever key this machine has installed.
             settings.Llm.FairleadUrl = "http://fairlead.invalid/v1";
-            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = 0, WebRoot = null });
+            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = HostOptions.AnyPort, WebRoot = null });
             _info = _host.Start();
             _client.DefaultRequestHeaders.Add("X-Halyard-Session", _info.SessionToken);
         }

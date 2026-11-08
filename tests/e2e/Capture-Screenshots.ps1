@@ -11,7 +11,7 @@
   pwsh tests/e2e/Capture-Screenshots.ps1
 #>
 [CmdletBinding()]
-param([int]$FakePort = 8790, [int]$ProxyPort = 8791, [int]$Port = 8773, [string]$OutDir, [string]$WalkthroughDir)
+param([int]$FakePort = 8790, [int]$ProxyPort = 8791, [int]$Port = 8806, [string]$OutDir, [string]$WalkthroughDir)
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
 $node = Get-Command node -ErrorAction SilentlyContinue | Select-Object -First 1

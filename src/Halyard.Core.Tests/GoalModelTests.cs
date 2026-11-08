@@ -49,7 +49,7 @@ namespace Halyard.Core.Tests
                 else content = new JObject { ["narrative"] = "", ["note"] = "nothing to add" }.ToString();
                 return new HttpReply(200, new JObject { ["choices"] = new JArray(new JObject { ["message"] = new JObject { ["content"] = content } }) }.ToString(), new System.Collections.Generic.Dictionary<string, string>());
             });
-            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = 0, WebRoot = null, Transport = _http });
+            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = HostOptions.AnyPort, WebRoot = null, Transport = _http });
             _info = _host.Start();
             _client.DefaultRequestHeaders.Add("X-Halyard-Session", _info.SessionToken);
         }

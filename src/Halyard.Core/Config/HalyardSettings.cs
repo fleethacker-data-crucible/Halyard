@@ -28,6 +28,9 @@ namespace Halyard.Core.Config
         public bool AllowProduction { get; set; }
         public string LabelFilter { get; set; }
         public int PreferredPort { get; set; }
+        /// <summary>Halyard's port block (edge-ops PORTS.md, proposed): it starts at 8806 and walks no further than 8808.</summary>
+        public const int PortBlockStart = 8806;
+        public const int PortBlockEnd = 8808;
         /// <summary>Stop the engine when the browser tab is gone (HALYARD_AUTO_STOP=0 disables).</summary>
         public bool AutoStop { get; set; }
         public int MaxSyncItems { get; set; }
@@ -232,7 +235,7 @@ namespace Halyard.Core.Config
             Provider = new ProviderSettings();
             Llm = new LlmSettings();
             WriteMode = WriteMode.Sandbox;
-            PreferredPort = 8773;
+            PreferredPort = PortBlockStart;
             AutoStop = true;
             MaxSyncItems = 2000;
             ProtectedRepositories = new List<string>();

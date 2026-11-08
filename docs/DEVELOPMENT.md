@@ -54,7 +54,7 @@ node tests/fakes/fake-github.mjs 8790 &
 #   HALYARD_WRITE_DELAY_MS=0
 #   HALYARD_FAIRLEAD_URL=http://127.0.0.1:8790/v1/chat/completions   (model calls also need a Fairlead key; tests/e2e/Run-E2E.ps1 shows how the e2e run fakes one)
 .\Launch-Halyard.bat --console --no-browser
-node tests/e2e/sandbox-loop.mjs http://127.0.0.1:8773 <session token from the launch URL> 30 --fake http://127.0.0.1:8790
+node tests/e2e/sandbox-loop.mjs http://127.0.0.1:8806 <session token from the launch URL> 30 --fake http://127.0.0.1:8790
 ```
 
 The loop seeds with gaps, checks the audit raises every expected code, repairs metadata, drafts sections

@@ -7,17 +7,22 @@
 2. Copy `config\halyard.env.example` to `config\halyard.env` and set the provider and repositories.
 3. Double-click `Launch-Halyard.bat`.
 
-The launcher loads settings, unlocks the vault bridge (Lazarette) in its console when the provider is GitLab
-and it is configured, starts the engine
-on `127.0.0.1` (port 8773, or a free one if taken), opens the browser with a one-time session link and
-hides the console. **End session** in the sidebar stops everything.
+The launcher starts hidden, as Lazarette and Semaphore do. It loads settings, shows its console only for the vault
+bridge (Lazarette) unlock when the provider is GitLab and it is configured, starts the engine on `127.0.0.1` (port
+8806, or the next free one up to 8808; the block is proposed in edge-ops PORTS.md, and there is no fallback outside it),
+and opens Halyard in its own app window (Edge or Chrome `--app`; a normal tab when neither is installed or
+`HALYARD_APP_WINDOW=0`). A tray icon opens the window again or quits. Launching again while Halyard runs brings its
+window forward instead of starting a second copy. The first launch puts a Halyard shortcut on the desktop
+(`HALYARD_SHORTCUT=0` skips it; deleting it keeps it deleted). Startup errors appear in a message box. **End session**
+in the sidebar, or **Quit** on the tray icon, stops everything.
 
 | Option | Effect |
 |---|---|
 | `Launch-Halyard.bat --console` | Keep the console visible (diagnosing startup or Lazarette). |
 | `--no-lazarette` | Never load Lazarette; use tokens from `halyard.env` (local development only). |
 | `--lazarette` | Load Lazarette even for GitHub (reads `HALYARD_LAZARETTE_ITEM_GitHub`). |
-| `--no-browser` | Start the engine without opening a browser. |
+| `--no-browser` | Start the engine without opening a window. |
+| `--replace` | Stop a running Halyard and start afresh instead of bringing it forward. |
 
 If you close the browser tab, relaunch Halyard. The session link is opened once and not shown again, so
 nothing else on the machine can pick it up. With `--no-browser` the console prints it instead.

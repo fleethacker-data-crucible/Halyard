@@ -2,7 +2,8 @@
 <#
 .SYNOPSIS
   Starts Halyard: loads config\halyard.env, unlocks Lazarette in this console when the provider needs it,
-  starts the local engine on 127.0.0.1 and opens the browser. Launch-Halyard.bat calls this.
+  starts the local engine on 127.0.0.1 and opens it in its own app window with a tray icon. Launch-Halyard.bat
+  calls this hidden; a second launch brings the running copy's window forward instead of starting another.
 .PARAMETER KeepConsole
   Leave this window visible (useful for diagnosing Lazarette or startup problems). Also: Launch-Halyard.bat --console
 .PARAMETER NoLazarette
@@ -42,15 +43,13 @@ Import-Module (Join-Path $PSScriptRoot '..\module\Halyard\Halyard.psd1') -Force
 $root = Split-Path $PSScriptRoot -Parent
 $running = @(Get-HalyardProcesses -Root $root)
 if ($running.Count -gt 0) {
+    # Already running: bring its window forward (it opens a new one if the old one was closed). --replace starts afresh.
+    if (-not $Replace -and (Send-HalyardOpenSignal -Root $root)) { exit 0 }
     $where = ($running | ForEach-Object { if ($_.Url) { $_.Url + ' (PID ' + $_.Pid + ')' } else { 'PID ' + $_.Pid } }) -join ', '
-    Write-Host ('Halyard is already running: ' + $where) -ForegroundColor Yellow
-    $answer = if ($Replace) { 'y' } else { Read-Host 'Stop it and start a new session? [Y/n]' }
-    if ($answer -eq '' -or $answer -match '^[Yy]') {
+    $answer = if ($Replace) { 'Yes' } else { Show-HalyardMessage -Kind Question -Text ("Halyard is already running ($where), but it did not answer.`n`nStop it and start a new session?") }
+    if ($answer -eq 'Yes') {
         foreach ($p in Stop-HalyardProcesses -Root $root) { Write-Host ('  stopped PID ' + $p) -ForegroundColor DarkGray }
-    } else {
-        Write-Host 'Leaving the running engine alone. Use "End session" in its browser tab, or scripts\Stop-Halyard.ps1.' -ForegroundColor DarkGray
-        exit 0
-    }
+    } else { exit 0 }
 }
 $useVault = if ($NoLazarette) { 'Never' } elseif ($Lazarette) { 'Always' } else { 'Auto' }
 try {
@@ -58,9 +57,8 @@ try {
     if ($WebRoot) { $params['WebRoot'] = $WebRoot }
     Start-Halyard @params
 } catch {
-    Write-Host ''
+    # The launcher runs hidden, so the error goes to a message box (and to the console for --console runs).
     Write-Host ('Halyard could not start: ' + $_.Exception.Message) -ForegroundColor Red
-    Write-Host 'This window stays open so you can read the error. Press Enter to close.' -ForegroundColor DarkGray
-    [void](Read-Host)
+    [void](Show-HalyardMessage -Kind Error -Text ("Halyard could not start:`n`n" + $_.Exception.Message + "`n`nRun Launch-Halyard.bat --console to see the full startup log."))
     exit 1
 }

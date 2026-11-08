@@ -192,7 +192,7 @@ namespace Halyard.Core.Tests
             Directory.CreateDirectory(_root);
             var settings = new HalyardSettings { RootDirectory = _root };
             configure(settings);
-            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = 0, WebRoot = null, Transport = transport });
+            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = HostOptions.AnyPort, WebRoot = null, Transport = transport });
             _info = _host.Start();
             _client.DefaultRequestHeaders.Add("X-Halyard-Session", _info.SessionToken);
         }

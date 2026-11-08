@@ -22,7 +22,10 @@ namespace Halyard.Core.Host
         public HalyardSettings Settings { get; set; }
         /// <summary>Directory holding the built UI (index.html). When missing, the API still runs and / returns a notice.</summary>
         public string WebRoot { get; set; }
+        /// <summary>The port to start from: 0 uses the settings (default 8806, Halyard's block 8806-8808), <see cref="AnyPort"/> asks the OS for a free one (tests only).</summary>
         public int PreferredPort { get; set; }
+        /// <summary>Any free loopback port. For tests and fixtures only; the launcher stays inside Halyard's registered block.</summary>
+        public const int AnyPort = -1;
         /// <summary>Random per-session token the UI must send as X-Halyard-Session. Generated when null.</summary>
         public string SessionToken { get; set; }
         /// <summary>Free-form state from the PowerShell launcher (Lazarette vault unlocked, console hidden...).</summary>
@@ -46,7 +49,7 @@ namespace Halyard.Core.Host
         public HostOptions()
         {
             Settings = new HalyardSettings();
-            PreferredPort = 8773;
+            PreferredPort = 0;
             LauncherState = new Dictionary<string, object>();
             AutoStop = true;
             HeartbeatTimeout = TimeSpan.FromSeconds(20);
@@ -199,7 +202,7 @@ namespace Halyard.Core.Host
             if (_server != null) throw new InvalidOperationException("Host already started.");
             Directory.CreateDirectory(Settings.OutputDirectory);
             _server = new HttpServer(HandleAsync, Log);
-            var port = _server.Start(Options.PreferredPort > 0 ? Options.PreferredPort : Settings.PreferredPort);
+            var port = Options.PreferredPort == HostOptions.AnyPort ? _server.Start(0, 0) : StartInBlock(Options.PreferredPort > 0 ? Options.PreferredPort : Settings.PreferredPort);
             var info = new HostInfo
             {
                 Port = port,
@@ -213,6 +216,16 @@ namespace Halyard.Core.Host
             if (Options.AutoStop) _presenceTimer = new System.Threading.Timer(PresenceTick, null, 2000, 2000);
             Log.Info("HOST_READY", "Halyard " + Version + " provider=" + Settings.Provider.Kind + " " + Gateway.Policy.Describe());
             return info;
+        }
+
+        /// <summary>
+        /// edge-ops PORTS.md: a port inside Halyard's block (8806-8808) walks up to the end of the block, an explicit port outside it is
+        /// used exactly, and there is no random or OS-assigned fallback. A full block is a clear error.
+        /// </summary>
+        private int StartInBlock(int preferred)
+        {
+            var last = preferred >= HalyardSettings.PortBlockStart && preferred <= HalyardSettings.PortBlockEnd ? HalyardSettings.PortBlockEnd : preferred;
+            return _server.Start(preferred, last);
         }
 
         public void Stop()
@@ -398,6 +411,9 @@ namespace Halyard.Core.Host
             if (hostName != "127.0.0.1" && hostName != "localhost" && hostName != "[::1]")
                 return Json.Error(403, "BAD_HOST", "Loopback host names only.", request.RequestId);
 
+            var fleet = FleetEndpoint(request);
+            if (fleet != null) return fleet;
+
             if (request.Path.StartsWith("/api/", StringComparison.Ordinal) || request.Path == "/api")
             {
                 if (request.Path != "/api/health" && !TokenMatches(request) && !BeaconTokenMatches(request))
@@ -437,6 +453,31 @@ namespace Halyard.Core.Host
             if (request.Path == "/" || request.Path == "/index.html")
                 return HttpResponse.Text(200, "Halyard host is running on port " + Port + ", but no built UI was found" + (string.IsNullOrEmpty(webRoot) ? "." : " at " + webRoot + ".") + " Build it with build/Build-Halyard.ps1 and relaunch.", "text/html; charset=utf-8");
             return HttpResponse.Text(404, "Not found");
+        }
+
+        /// <summary>The launcher script, reported by /__fleethacker/id so another launcher can verify a pid before stopping it.</summary>
+        public string LauncherPath { get; set; }
+
+        /// <summary>
+        /// edge-ops PORTS.md self-detection: <c>GET /__fleethacker/id</c> says which tool holds the port, and <c>POST /__fleethacker/shutdown</c>
+        /// with <c>X-FleetHacker-Shutdown: 1</c> asks it to stop. No session token (nothing sensitive); loopback host already checked;
+        /// a cross-origin caller is refused.
+        /// </summary>
+        private HttpResponse FleetEndpoint(HttpRequest request)
+        {
+            if (!request.Path.StartsWith("/__fleethacker/", StringComparison.Ordinal)) return null;
+            var origin = request.Header("Origin");
+            if (origin != null && !IsOwnOrigin(origin)) return Json.Error(403, "BAD_ORIGIN", "Cross-origin requests are not accepted.", request.RequestId);
+            if (request.Path == "/__fleethacker/id" && request.Method == "GET")
+                return Json.Ok(new { tool = "halyard", version = Version, pid = System.Diagnostics.Process.GetCurrentProcess().Id, path = LauncherPath });
+            if (request.Path == "/__fleethacker/shutdown" && request.Method == "POST")
+            {
+                if (request.Header("X-FleetHacker-Shutdown") != "1") return Json.Error(403, "INTENT_REQUIRED", "Send X-FleetHacker-Shutdown: 1.", request.RequestId);
+                Log.Info("SESSION_STOP_REQUESTED", "Shutdown requested through /__fleethacker/shutdown.");
+                Task.Run(async () => { await Task.Delay(300).ConfigureAwait(false); Stop(); });
+                return Json.Ok(new { stopping = true });
+            }
+            return Json.Error(404, "NOT_FOUND", "Not found.", request.RequestId);
         }
 
         /// <summary>

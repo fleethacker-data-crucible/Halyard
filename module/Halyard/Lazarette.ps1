@@ -159,6 +159,8 @@ function Connect-HalyardLazarette {
     }
     try {
         if (-not (Test-HalyardLazaretteVaultUnlocked)) {
+            # The launcher runs hidden; the unlock is the one step that needs this console, so show it now (Start-Halyard hides it again).
+            try { [void][Halyard.Core.Facade]::SetConsoleVisible($true) } catch { }
             if (Get-HalyardLazaretteCommand @('Test-LazaretteVaultUnlocked')) {
                 Write-Host ''
                 Write-Host 'Halyard: unlock Lazarette in this window (smart card PIN or passphrase, then the authenticator code).' -ForegroundColor Cyan
