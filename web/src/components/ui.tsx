@@ -47,13 +47,15 @@ export function Button({ className, variant, size, busy, children, disabled, ...
 
 export function LevelChip({ type, className, compact }: { type: LevelToken | string; className?: string; compact?: boolean }) {
   const label = (LEVEL_LABEL as Record<string, string>)[type] ?? type;
+  // Tinted in the level's own hue with the full word, so the level reads without a legend. `compact` keeps
+  // the word but fixes the width, so titles line up in the tree.
   return (
     <span
-      className={cn('inline-flex items-center gap-1.5 rounded-ctl border border-line-2 bg-surface px-1.5 py-[1px] text-[11.5px] font-medium text-ink-2', className)}
-      style={{ ['--level' as string]: levelVar(type) }}
+      className={cn('level-tint level-ink inline-flex shrink-0 items-center gap-1.5 rounded-ctl border px-1.5 py-[1px] text-[11px] font-semibold uppercase tracking-[0.04em]', compact && 'min-w-[78px]', className)}
+      style={{ ['--level' as string]: levelVar(type), borderColor: 'color-mix(in srgb, var(--level) 35%, transparent)' }}
     >
-      <span className="inline-block h-2 w-2 rounded-[2px]" style={{ background: 'var(--level)' }} aria-hidden />
-      {compact ? label.slice(0, 2) : label}
+      <span className="inline-block h-2 w-2 shrink-0 rounded-[2px]" style={{ background: 'var(--level)' }} aria-hidden />
+      {label}
     </span>
   );
 }
@@ -124,8 +126,8 @@ export function Emblem({ size }: { size: number }) {
   // The full Halyard emblem (assets/brand/emblem-*.png with the backdrop made transparent), one per theme.
   return (
     <>
-      <img src="brand/emblem-light.png" alt="Halyard" width={size} height={size} className="only-light" />
-      <img src="brand/emblem-dark.png" alt="Halyard" width={size} height={size} className="only-dark" />
+      <img src="brand/emblem-light.png" alt="Halyard" width={size} height={size} className="only-light brand-emblem" />
+      <img src="brand/emblem-dark.png" alt="Halyard" width={size} height={size} className="only-dark brand-emblem" />
     </>
   );
 }

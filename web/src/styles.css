@@ -5,8 +5,9 @@
   Halyard design tokens, built on the shared Fleet tokens (vendor/fleet/fleet.css, docs/UNIFIED-UI.md):
   Night watch / Chart room follow the system unless <html data-theme> overrides it, and
   <html data-app="halyard"> sets the teal signature accent. The roles below only map Halyard's names
-  onto --fl-* values. The one decoration of Halyard's own is the hierarchy-level hue (--lv-*), dark at
-  the Theme end and light at the Task end.
+  onto --fl-* values. The one decoration of Halyard's own is the hierarchy-level hue (--lv-*): five
+  clearly different hues (brass, violet, blue, green, slate) so Theme, Epic, Feature, Story and Task are told
+  apart at a glance, never a ramp of one hue.
 */
 :root {
   --paper: var(--fl-background);
@@ -36,12 +37,12 @@
 
 /* Chart room: level hues and series colours for the light theme. */
 :root {
-  --lv-theme: #134e4a;
+  --lv-theme: #a15c07;
   --chart-1: #1f5fa3;
   --chart-done: #1e3a5f;
-  --lv-epic: #1e3a8a;
-  --lv-feature: #4338ca;
-  --lv-story: #0e7490;
+  --lv-epic: #7c3aed;
+  --lv-feature: #1d63d8;
+  --lv-story: #15803d;
   --lv-task: #64748b;
   --lv-bug: #9f1239;
   --lv-none: #8c8370;
@@ -51,12 +52,12 @@
 /* Night watch: the same roles, lightened to read on the ink-dark-blue field. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --lv-theme: #5eead4;
+    --lv-theme: #f5b84a;
     --chart-1: #6aa7e0;
     --chart-done: #9fb6d1;
-    --lv-epic: #93b4ff;
-    --lv-feature: #b4a7ff;
-    --lv-story: #67e8f9;
+    --lv-epic: #c4a8ff;
+    --lv-feature: #7fb2ff;
+    --lv-story: #6fd99a;
     --lv-task: #a7b4c2;
     --lv-bug: #fda4af;
     --lv-none: #5f8199;
@@ -64,12 +65,12 @@
   }
 }
 :root[data-theme="dark"] {
-  --lv-theme: #5eead4;
+  --lv-theme: #f5b84a;
   --chart-1: #6aa7e0;
   --chart-done: #9fb6d1;
-  --lv-epic: #93b4ff;
-  --lv-feature: #b4a7ff;
-  --lv-story: #67e8f9;
+  --lv-epic: #c4a8ff;
+  --lv-feature: #7fb2ff;
+  --lv-story: #6fd99a;
   --lv-task: #a7b4c2;
   --lv-bug: #fda4af;
   --lv-none: #5f8199;
@@ -112,8 +113,9 @@
   --font-mono: var(--fl-font-mono);
   --font-display: var(--fl-font-display);
 
-  --radius-ctl: 6px;
-  --radius-panel: 10px;
+  /* Corners follow the theme's shape (lib/theme.ts writes --fl-radius-*). */
+  --radius-ctl: var(--fl-radius-control, 6px);
+  --radius-panel: var(--fl-radius-card, 10px);
 }
 
 @layer base {
@@ -154,7 +156,51 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
   }
+  /* The same, when the person turned motion off in Settings (lib/motion.ts). */
+  :root[data-reduce-motion="true"] *, :root[data-reduce-motion="true"] *::before, :root[data-reduce-motion="true"] *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  /* Density tightens or loosens the base type a little, since --spacing already scales the layout. */
+  :root[data-density="compact"] { font-size: 13px; }
+  :root[data-density="spacious"] { font-size: 15px; }
+  :root[data-contrast="high"] :focus-visible { outline-width: 3px; }
 }
+
+/* Personal themes (lib/theme.ts writes the variables; these are the parts CSS owns), as in Lazarette and Semaphore. */
+:root[data-motion="calm"] *, :root[data-motion="calm"] *::before, :root[data-motion="calm"] *::after {
+  animation-duration: 90ms !important;
+  transition-duration: 90ms !important;
+  transition-timing-function: ease-out !important;
+}
+/* Background patterns: one fixed layer behind the app, drawn from the line colour so they follow the theme. */
+:root[data-pattern]:not([data-pattern="none"]) body { background-attachment: fixed; }
+:root[data-pattern="grid"] body {
+  background-image: linear-gradient(color-mix(in oklab, var(--line) 55%, transparent) 1px, transparent 1px), linear-gradient(90deg, color-mix(in oklab, var(--line) 55%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+:root[data-pattern="dots"] body {
+  background-image: radial-gradient(color-mix(in oklab, var(--fl-border-strong) 70%, transparent) 1px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+:root[data-pattern="waves"] body { background-image: repeating-radial-gradient(circle at 50% 120%, transparent 0 38px, color-mix(in oklab, var(--line) 45%, transparent) 38px 39px); }
+:root[data-pattern="rope"] body { background-image: repeating-linear-gradient(45deg, transparent 0 14px, color-mix(in oklab, var(--line) 40%, transparent) 14px 15px); }
+:root[data-pattern="stars"] body {
+  background-image:
+    radial-gradient(1px 1px at 20% 30%, color-mix(in oklab, var(--ink) 40%, transparent) 50%, transparent 51%),
+    radial-gradient(1px 1px at 70% 60%, color-mix(in oklab, var(--ink) 30%, transparent) 50%, transparent 51%),
+    radial-gradient(1.5px 1.5px at 40% 80%, color-mix(in oklab, var(--accent) 60%, transparent) 50%, transparent 51%),
+    radial-gradient(1px 1px at 85% 15%, color-mix(in oklab, var(--ink) 35%, transparent) 50%, transparent 51%);
+  background-size: 260px 260px, 340px 340px, 420px 420px, 300px 300px;
+}
+/* Glow: a soft accent halo behind primary buttons and the emblem. */
+:root[data-glow="true"] .bg-accent { box-shadow: 0 0 0 1px color-mix(in oklab, var(--accent) 40%, transparent), 0 8px 28px -8px color-mix(in oklab, var(--accent) 70%, transparent); }
+:root[data-glow="true"] .brand-emblem { filter: drop-shadow(0 0 14px color-mix(in oklab, var(--accent) 55%, transparent)); }
+/* The orb's caption shows on hover or focus only, as in Lazarette. */
+.binnacle .binnacle-cap { opacity: 0; transition: opacity 150ms ease-out; }
+.binnacle:hover .binnacle-cap, .binnacle:focus-within .binnacle-cap { opacity: 1; }
+/* A switch (Settings): a checkbox drawn as a pill with a knob. */
+.switch { appearance: none; -webkit-appearance: none; width: 36px; height: 20px; margin: 0; border-radius: 999px; border: 1px solid var(--line); background: var(--surface-2); position: relative; cursor: pointer; flex-shrink: 0; transition: background 150ms ease-out, border-color 150ms ease-out; }
+.switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: var(--ink-2); transition: transform 150ms ease-out, background 150ms ease-out; }
+.switch:checked { background: var(--accent); border-color: var(--accent); }
+.switch:checked::after { transform: translateX(16px); background: var(--accent-ink); }
 
 @layer components {
   .panel {
@@ -179,6 +225,12 @@
   .level-rail {
     border-left: 3px solid var(--level, var(--lv-none));
   }
+  /* A level's own tint, for chips and Theme/Epic row bands. */
+  .level-tint { background: color-mix(in srgb, var(--level, var(--lv-none)) 13%, var(--surface)); }
+  .level-ink { color: color-mix(in srgb, var(--level, var(--lv-none)) 78%, var(--ink)); }
+  /* Indent guides in the tree: one hairline per ancestor level. */
+  .tree-guide { width: 16px; align-self: stretch; flex-shrink: 0; position: relative; }
+  .tree-guide::before { content: ""; position: absolute; left: 9px; top: 0; bottom: 0; border-left: 1px solid var(--line-2); }
   .table-dense th, .table-dense td {
     padding: 6px 10px;
     border-bottom: 1px solid var(--line-2);

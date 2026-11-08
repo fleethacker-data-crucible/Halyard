@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { LuKeyRound, LuSave, LuSparkles } from 'react-icons/lu';
 import { Button, Checkbox, Field, Input, Mono, Notice, Page, Pill, Section, useToast } from '../components/ui';
+import { AppearanceSettings } from '../components/appearance-settings';
 import { VoiceSettings } from '../components/voice-settings';
 import { describeError, post } from '../lib/api';
 import { type Status } from '../lib/schemas';
@@ -59,7 +60,7 @@ export function SettingsPage({ status, refreshStatus }: { status: Status | undef
   };
 
   return (
-    <Page title="Settings" lede="Session settings for the local engine. The model route and label filter can change here; repositories, write mode, provider tokens and the Fairlead address come only from the launcher and config/halyard.env. Model calls use the key Fairlead installs for Halyard.">
+    <Page title="Settings" lede="Appearance and voice are yours and stay in this browser. Session settings for the local engine: the model route and label filter can change here; repositories, write mode, provider tokens and the Fairlead address come only from the launcher and config/halyard.env. Model calls use the key Fairlead installs for Halyard.">
       <div className="grid gap-5 xl:grid-cols-2">
         <div className="flex flex-col gap-5">
           <Section title="Model calls (Fairlead)" aside={c?.hasLlmToken ? <Pill tone="ok">ready</Pill> : <Pill tone="warn">not ready</Pill>}>
@@ -69,6 +70,7 @@ export function SettingsPage({ status, refreshStatus }: { status: Status | undef
           <VoiceSettings />
         </div>
         <div className="flex flex-col gap-5">
+          <AppearanceSettings />
           <Section title="Repositories">
             <div className="flex flex-col gap-3 px-4 py-3">
               <dl className="grid grid-cols-[150px_1fr] gap-y-1.5 text-[12.5px]">

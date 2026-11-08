@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
 import { LuChevronRight } from 'react-icons/lu';
-import { levelVar } from '../lib/levels';
+import { levelDepth, levelVar } from '../lib/levels';
 import type { HierarchyNode } from '../lib/schemas';
 import { readLocal, writeLocal } from '../lib/storage';
 import { cn, LevelChip } from './ui';
@@ -25,11 +25,22 @@ function subtreeMatches(node: HierarchyNode, q: string): boolean {
 
 type Row = { node: HierarchyNode; depth: number; parent: HierarchyNode | null };
 
+/** Each level reads differently, not only by colour: Themes are banded headings, Tasks are quiet. */
+const ROW_CLASS: Record<string, string> = {
+  THEME: 'level-tint mt-1 py-[6px] text-[13.5px] font-semibold border-t border-line-2 first:mt-0 first:border-t-0',
+  EPIC: 'py-[5px] text-[13px] font-semibold',
+  FEATURE: 'py-[4px] text-[13px] font-medium',
+  STORY: 'py-[3px] text-[13px]',
+  TASK: 'py-[2px] text-[12.5px] text-ink-2',
+  BUG: 'py-[3px] text-[13px]',
+  UNCLASSIFIED: 'py-[3px] text-[13px] text-ink-2',
+};
+
 /**
  * Keyboard-navigable tree (roving tabindex): ↑/↓ move, →/← expand/collapse or jump to parent, Home/End,
  * Enter/Space select, type-ahead by first letters. Collapsed state is remembered per repository.
  */
-export function Tree({ roots, selectedKey, onSelect, query, expandAllSignal, storageKey, showRepository }: { roots: HierarchyNode[]; selectedKey: string | null; onSelect: (n: HierarchyNode) => void; query: string; expandAllSignal?: { expanded: boolean; tick: number }; storageKey?: string; showRepository?: boolean }) {
+export function Tree({ roots, selectedKey, onSelect, query, expandAllSignal, storageKey, showRepository }: { roots: HierarchyNode[]; selectedKey: string | null; onSelect: (n: HierarchyNode) => void; query: string; expandAllSignal?: { expanded: boolean; tick: number; toDepth?: number }; storageKey?: string; showRepository?: boolean }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>(() => (storageKey ? readLocal<Record<string, boolean>>('tree.' + storageKey, {}) : {}));
   const [lastSignal, setLastSignal] = useState(0);
   const [focusKey, setFocusKey] = useState<string | null>(null);
@@ -42,7 +53,10 @@ export function Tree({ roots, selectedKey, onSelect, query, expandAllSignal, sto
   if (expandAllSignal && expandAllSignal.tick !== lastSignal) {
     setLastSignal(expandAllSignal.tick);
     const next: Record<string, boolean> = {};
-    if (!expandAllSignal.expanded) for (const n of all) if (n.children.length > 0) next[n.key] = true;
+    const to = expandAllSignal.toDepth;
+    // toDepth: show levels down to that one (0 = Theme ... 4 = Task); deeper levels stay folded.
+    if (to !== undefined) { for (const n of all) if (n.children.length > 0 && levelDepth(n.type) >= to) next[n.key] = true; }
+    else if (!expandAllSignal.expanded) for (const n of all) if (n.children.length > 0) next[n.key] = true;
     setCollapsed(next);
   }
   const toggle = useCallback((key: string) => setCollapsed((c) => ({ ...c, [key]: !c[key] })), []);
@@ -120,9 +134,14 @@ export function Tree({ roots, selectedKey, onSelect, query, expandAllSignal, sto
               tabIndex={n.key === active ? 0 : -1}
               onFocus={() => setFocusKey(n.key)}
               onClick={() => onSelect(n)}
-              className={cn('level-rail flex cursor-pointer items-center gap-1.5 py-[3px] pr-3 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus', selected && 'bg-surface-2')}
-              style={{ ['--level' as string]: levelVar(n.type), paddingLeft: 8 + r.depth * 16 }}
+              className={cn(
+                'level-rail flex cursor-pointer items-center gap-1.5 pr-3 outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus',
+                ROW_CLASS[n.type] ?? ROW_CLASS.STORY,
+                selected && '!bg-surface-2 ring-1 ring-inset ring-focus',
+              )}
+              style={{ ['--level' as string]: levelVar(n.type), paddingLeft: 6 }}
             >
+              {Array.from({ length: r.depth }, (_, i) => <span key={i} className="tree-guide" aria-hidden />)}
               <button
                 type="button"
                 tabIndex={-1}
@@ -134,12 +153,13 @@ export function Tree({ roots, selectedKey, onSelect, query, expandAllSignal, sto
               </button>
               <span className="flex min-w-0 flex-1 items-center gap-2 text-left">
                 <LevelChip type={n.type} compact />
-                <span className={cn('truncate', matches(n, query) && query ? 'font-medium' : '')}>{itemTitle(n.title)}</span>
-                {n.state === 'closed' ? <span className="text-[11px] text-ink-3">closed</span> : null}
-                <span className="mono ml-auto shrink-0 text-[11.5px] text-ink-3">{showRepository ? n.repository.split('/').pop() + ' ' : ''}#{n.number}</span>
-                {n.type === 'STORY' && n.points ? <span className="num w-6 shrink-0 text-right text-[11.5px] text-ink-2" title="Story points">{n.points}</span>
-                  : n.type === 'FEATURE' && n.effort ? <span className="w-6 shrink-0 text-right text-[11px] text-ink-2" title={`Effort ${n.effort}`}>{n.effort.slice(0, 1)}</span>
-                  : n.descendantCount > 0 && n.rolledUpPoints > 0 ? <span className="num w-6 shrink-0 text-right text-[11.5px] text-ink-3" title="Rolled-up story points">{n.rolledUpPoints}</span>
+                <span className={cn('truncate', matches(n, query) && query ? 'underline decoration-focus decoration-2 underline-offset-2' : '')}>{itemTitle(n.title)}</span>
+                {isCollapsed && hasChildren ? <span className="shrink-0 rounded-full bg-surface-2 px-1.5 text-[11px] font-normal text-ink-2" title={`${n.descendantCount} items folded`}>+{n.descendantCount}</span> : null}
+                {n.state === 'closed' ? <span className="text-[11px] font-normal text-ink-3">closed</span> : null}
+                <span className="mono ml-auto shrink-0 text-[11.5px] font-normal text-ink-3">{showRepository ? n.repository.split('/').pop() + ' ' : ''}#{n.number}</span>
+                {n.type === 'STORY' && n.points ? <span className="num w-6 shrink-0 text-right text-[11.5px] font-normal text-ink-2" title="Story points">{n.points}</span>
+                  : n.type === 'FEATURE' && n.effort ? <span className="w-6 shrink-0 text-right text-[11px] font-normal text-ink-2" title={`Effort ${n.effort}`}>{n.effort.slice(0, 1)}</span>
+                  : n.descendantCount > 0 && n.rolledUpPoints > 0 ? <span className="num w-6 shrink-0 text-right text-[11.5px] font-normal text-ink-3" title="Rolled-up story points">{n.rolledUpPoints}</span>
                   : <span className="w-6 shrink-0" />}
               </span>
             </div>
