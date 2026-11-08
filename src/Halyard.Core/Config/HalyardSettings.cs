@@ -28,6 +28,9 @@ namespace Halyard.Core.Config
         public bool AllowProduction { get; set; }
         public string LabelFilter { get; set; }
         public int PreferredPort { get; set; }
+        /// <summary>Halyard's port block (edge-ops PORTS.md, proposed): it starts at 8806 and walks no further than 8808.</summary>
+        public const int PortBlockStart = 8806;
+        public const int PortBlockEnd = 8808;
         /// <summary>Stop the engine when the browser tab is gone (HALYARD_AUTO_STOP=0 disables).</summary>
         public bool AutoStop { get; set; }
         public int MaxSyncItems { get; set; }
@@ -67,6 +70,15 @@ namespace Halyard.Core.Config
         public string IntakesDirectory { get { return Path.Combine(OutputDirectory, "intakes"); } }
         /// <summary>HALYARD_REPORT_WEBHOOK: an https Teams/Slack incoming webhook for the leadership summary. Holds a secret URL; never shown or logged.</summary>
         public string ReportWebhookUrl { get; set; }
+        /// <summary>HALYARD_TALKFORGE_PATH: the TalkForge folder whose speech-to-text files voice input uses. Empty: a TalkForge folder next to Halyard, then %USERPROFILE%\Projects\TalkForge.</summary>
+        public string TalkForgePath { get; set; }
+        /// <summary>HALYARD_TALKFORGE_PORT: the port of the TalkForge copy Halyard starts (default 25008, inside TalkForge's 25000-25009).</summary>
+        public int TalkForgePort { get; set; }
+        /// <summary>HALYARD_VOICE: the TalkForge (Piper) voice id when the page does not pick one; empty uses TalkForge's default.</summary>
+        public string VoiceName { get; set; }
+        /// <summary>HALYARD_VOICE_SPEED: 0.5 to 2.0.</summary>
+        public double VoiceSpeed { get; set; }
+        public string WatchDirectory { get { return SafePath.Under(OutputDirectory, "watch"); } }
         public string ProposalsDirectory { get { return Path.Combine(OutputDirectory, "proposals"); } }
         /// <summary>One file per apply run, with the body each written item had before (for rollback).</summary>
         public string ApplyJournalDirectory { get { return Path.Combine(OutputDirectory, "applied"); } }
@@ -161,6 +173,12 @@ namespace Halyard.Core.Config
             s.Llm.Route = app("FAIRLEAD_MODEL");
             s.Llm.Privacy = app("LLM_PRIVACY");
             s.Llm.TranscriptDirectory = app("LLM_TRANSCRIPTS") == "0" ? null : s.TranscriptsDirectory;
+            s.VoiceName = app("VOICE");
+            double speed;
+            if (double.TryParse(app("VOICE_SPEED"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out speed)) s.VoiceSpeed = Math.Min(2.0, Math.Max(0.5, speed));
+            s.TalkForgePath = app("TALKFORGE_PATH");
+            int tfPort;
+            if (int.TryParse(app("TALKFORGE_PORT"), out tfPort) && tfPort >= 1024 && tfPort <= 65535) s.TalkForgePort = tfPort;
             return s;
         }
 
@@ -224,7 +242,9 @@ namespace Halyard.Core.Config
             Provider = new ProviderSettings();
             Llm = new LlmSettings();
             WriteMode = WriteMode.Sandbox;
-            PreferredPort = 8773;
+            PreferredPort = PortBlockStart;
+            TalkForgePort = Halyard.Core.Llm.TalkForge.DefaultPort;
+            VoiceSpeed = 1.0;
             AutoStop = true;
             MaxSyncItems = 2000;
             ProtectedRepositories = new List<string>();

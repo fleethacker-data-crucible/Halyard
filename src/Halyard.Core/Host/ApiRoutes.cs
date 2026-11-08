@@ -69,6 +69,7 @@ namespace Halyard.Core.Host
             Router.Post("/api/plan/preview", r => PlanRoute(r, false));
             Router.Post("/api/plan/propose", r => PlanRoute(r, true));
             RegisterGoalRoutes();
+            RegisterCrewRoutes();
             RegisterSprintReviewRoutes();
             Router.Get("/api/proposals", r => Task.FromResult(Json.Ok(Proposals.LoadAll().Select(BatchSummary))));
             Router.Post("/api/proposals/manual", ManualProposal);

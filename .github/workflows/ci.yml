@@ -16,7 +16,7 @@ jobs:
     # runtime the bundle targets. Needs Git; the setup actions below install the .NET SDK and Node without admin rights.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: [self-hosted, Windows, X64]
-    timeout-minutes: 30
+    timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
 
@@ -56,6 +56,36 @@ jobs:
           npm run typecheck; if ($LASTEXITCODE) { exit $LASTEXITCODE }
           npm test; if ($LASTEXITCODE) { exit $LASTEXITCODE }
           npm run build; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          npm run size; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      # Browser tests (web/e2e) in the installed Edge against a real engine and the fake GitHub; nothing is downloaded.
+      - name: UI browser tests (Playwright in Edge)
+        shell: powershell
+        working-directory: web
+        env:
+          HALYARD_E2E_BROWSER_CHANNEL: msedge
+        run: |
+          npm run e2e; if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      # The fleet's PSScriptAnalyzer settings (from edge-ops). Errors fail the build; warnings are reported.
+      - name: PSScriptAnalyzer (Windows PowerShell 5.1)
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
+          if (-not (Get-Module -ListAvailable PSScriptAnalyzer)) {
+            Install-PackageProvider -Name NuGet -MinimumVersion 2.8.5.201 -Scope CurrentUser -Force | Out-Null
+            Install-Module PSScriptAnalyzer -RequiredVersion 1.24.0 -Scope CurrentUser -Force -SkipPublisherCheck
+          }
+          Import-Module PSScriptAnalyzer
+          $r = @(foreach ($d in 'module', 'scripts', 'build', 'tests', 'web/e2e') { Invoke-ScriptAnalyzer -Path $d -Recurse -Settings ./PSScriptAnalyzerSettings.psd1 })
+          foreach ($x in $r) {
+            $kind = if ($x.Severity -eq 'Error') { 'error' } else { 'warning' }
+            Write-Host ('::' + $kind + ' file=' + (Resolve-Path -Relative $x.ScriptPath) + ',line=' + $x.Line + ',title=' + $x.RuleName + '::' + ($x.Message -replace '\r?\n', ' '))
+          }
+          $errors = @($r | Where-Object Severity -eq 'Error').Count
+          Write-Host "::notice title=PSScriptAnalyzer::$errors errors, $(@($r).Count - $errors) warnings"
+          if ($errors -gt 0) { exit 1 }
 
       - name: Pester on Windows PowerShell 5.1
         shell: powershell
@@ -104,4 +134,5 @@ jobs:
           path: |
             dist/*.zip
             TestResults/
+            web/e2e/.output/results/
           if-no-files-found: warn

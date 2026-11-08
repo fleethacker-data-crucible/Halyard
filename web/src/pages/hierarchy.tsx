@@ -5,7 +5,7 @@ import { HierarchyGraph } from '../components/graph';
 import { Tree, flatten } from '../components/tree';
 import { Button, Empty, Field, Input, Kbd, LevelChip, Mono, Notice, Page, Pill, Section, Select, SeverityIcon, cn, severityTone, useToast } from '../components/ui';
 import { describeError, post } from '../lib/api';
-import { humanizeCode, shortDate } from '../lib/format';
+import { humanizeCode, shortDate, itemTitle } from '../lib/format';
 import { LEVEL_LABEL, expectedParent } from '../lib/levels';
 import { Batch, Hierarchy, ItemDetail, type HierarchyNode, type Status } from '../lib/schemas';
 import { useLocalState } from '../lib/storage';
@@ -117,7 +117,7 @@ function Detail({ node, byKey, all, onSelect, multiRepo }: { node: HierarchyNode
           <nav aria-label="Parent chain" className="flex flex-wrap items-center gap-1 text-[12px] text-ink-3">
             {chain.map((c) => (
               <span key={c.key} className="flex items-center gap-1">
-                <button type="button" onClick={() => onSelect(c.key)} className="hover:text-ink">{c.title}</button>
+                <button type="button" onClick={() => onSelect(c.key)} className="hover:text-ink">{itemTitle(c.title)}</button>
                 <span>/</span>
               </span>
             ))}
@@ -126,7 +126,7 @@ function Detail({ node, byKey, all, onSelect, multiRepo }: { node: HierarchyNode
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="flex items-center gap-2"><LevelChip type={node.type} /><Mono className="text-[11.5px]">{multiRepo ? `${node.repository} ` : ''}#{node.number}</Mono>{node.state === 'closed' ? <Pill tone="neutral">closed</Pill> : null}{d && !d.inSandbox ? <Pill tone="neutral" >source · read-only</Pill> : null}</div>
-            <h2 className="mt-1.5 text-[15px]">{node.title}</h2>
+            <h2 className="mt-1.5 text-[15px]">{itemTitle(node.title)}</h2>
             <Mono className="text-[11.5px]">{node.canonicalId}</Mono>
           </div>
           <div className="flex shrink-0 items-center gap-2">
@@ -174,7 +174,7 @@ function Detail({ node, byKey, all, onSelect, multiRepo }: { node: HierarchyNode
           <ul className="flex flex-col gap-0.5">
             {d.children.map((k) => {
               const c = byKey.get(k);
-              return <li key={k}><button type="button" onClick={() => onSelect(k)} className="flex items-center gap-2 hover:text-accent">{c ? <><LevelChip type={c.type} compact />{c.title}</> : <Mono>{k}</Mono>}</button></li>;
+              return <li key={k}><button type="button" onClick={() => onSelect(k)} className="flex items-center gap-2 hover:text-accent">{c ? <><LevelChip type={c.type} compact />{itemTitle(c.title)}</> : <Mono>{k}</Mono>}</button></li>;
             })}
           </ul>
         </div>
@@ -236,7 +236,7 @@ function EditPanel({ node, all, onDone }: { node: HierarchyNode; all: HierarchyN
             <Input placeholder={`Find a ${LEVEL_LABEL[expected].toLowerCase()}…`} value={parentFilter} onChange={(e) => setParentFilter(e.target.value)} className="w-48" aria-label="Filter parents" />
             <Select value={parent} onChange={(e) => setParent(e.target.value)} className="min-w-0 flex-1" aria-label="Parent">
               <option value="">(choose)</option>
-              {shown.map((p) => <option key={p.key} value={p.canonicalId}>{p.title} · #{p.number}</option>)}
+              {shown.map((p) => <option key={p.key} value={p.canonicalId}>{itemTitle(p.title)} · #{p.number}</option>)}
             </Select>
             <Button size="sm" variant="primary" disabled={!parent} busy={busy === 'parent'} onClick={() => void submit('parent', parent)}>Queue parent</Button>
           </div>

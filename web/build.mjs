@@ -76,34 +76,61 @@ async function run() {
   await mkdir(path.join(outDir, 'assets'), { recursive: true });
   const files = await listFiles(srcDir);
 
+  // ES modules with code splitting (as Semaphore builds): the shell loads first and each page arrives as its own chunk
+  // when it is opened (React.lazy in app.tsx). Names carry a content hash, so a cached chunk is never stale.
   const result = await build({
     entryPoints: [path.join(srcDir, 'main.tsx')],
     bundle: true,
+    splitting: true,
     minify: !watch,
     sourcemap: watch ? 'inline' : false,
-    format: 'iife',
+    format: 'esm',
     target: ['es2020', 'edge120', 'chrome120'],
     jsx: 'automatic',
     define: { 'process.env.NODE_ENV': JSON.stringify(watch ? 'development' : 'production') },
-    write: false,
-    outfile: 'app.js',
+    outdir: path.join(outDir, 'assets'),
+    entryNames: 'app.[hash]',
+    chunkNames: 'chunk.[hash]',
+    metafile: true,
+    write: true,
     legalComments: 'none',
     logLevel: 'warning',
   });
-  const js = result.outputFiles[0].text;
+  const outputs = Object.entries(result.metafile.outputs).filter(([f]) => f.endsWith('.js'));
+  const entry = outputs.find(([, o]) => o.entryPoint && /main\.tsx$/.test(o.entryPoint))?.[0];
+  if (!entry) throw new Error('esbuild produced no entry file');
+  const entryName = path.basename(entry);
+  const js = await readFile(path.join(outDir, 'assets', entryName), 'utf8');
+  // The speech-to-text worker is its own module file: it imports TalkForge's transformers.js from /stt/ at run time.
+  await build({
+    entryPoints: [path.join(srcDir, 'workers', 'stt.worker.ts')],
+    bundle: true,
+    minify: !watch,
+    format: 'esm',
+    target: ['es2020', 'edge120', 'chrome120'],
+    outfile: path.join(outDir, 'assets', 'stt.worker.js'),
+    legalComments: 'none',
+    logLevel: 'warning',
+  });
   const css = await buildCss(files);
   const hash = createHash('sha256').update(js).update(css).digest('hex').slice(0, 10);
-  await writeFile(path.join(outDir, 'assets', `app.${hash}.js`), js);
   await writeFile(path.join(outDir, 'assets', `app.${hash}.css`), css);
   const html = (await readFile(path.join(here, 'index.html'), 'utf8'))
-    .replace('%APP_JS%', `assets/app.${hash}.js`)
+    .replace('%APP_JS%', `assets/${entryName}`)
     .replace('%APP_CSS%', `assets/app.${hash}.css`);
   await writeFile(path.join(outDir, 'index.html'), html);
   // Static files (favicon, emblem art) are copied as they are, at the same relative paths.
   await cp(publicDir, outDir, { recursive: true });
-  await writeFile(path.join(outDir, 'build.json'), JSON.stringify({ hash, builtAt: new Date().toISOString(), watch }, null, 2));
-  const size = (await stat(path.join(outDir, 'assets', `app.${hash}.js`))).size;
-  console.log(`built dist/ (app.${hash}.js ${(size / 1024).toFixed(0)} KB, css ${(css.length / 1024).toFixed(0)} KB)`);
+  // Sizes for the budget check (size-check.mjs): the entry the shell needs first, and every chunk.
+  // What the first paint needs: the entry and the chunks it imports statically, followed transitively.
+  const first = new Set();
+  const visit = (f) => { if (first.has(f)) return; first.add(f); for (const i of result.metafile.outputs[f]?.imports ?? []) if (i.kind === 'import-statement') visit(i.path); };
+  visit(entry);
+  const entryBytes = (await Promise.all([...first].map(async (f) => (await stat(path.join(outDir, 'assets', path.basename(f)))).size))).reduce((a, b) => a + b, 0);
+  const chunks = await Promise.all(outputs.map(async ([f]) => ({ file: path.basename(f), bytes: (await stat(path.join(outDir, 'assets', path.basename(f)))).size })));
+  const totalBytes = chunks.reduce((n, c) => n + c.bytes, 0);
+  await writeFile(path.join(outDir, 'build.json'), JSON.stringify({ hash, entry: entryName, entryBytes, totalBytes, cssBytes: css.length, chunks: chunks.length, builtAt: new Date().toISOString(), watch }, null, 2));
+  console.log(`built dist/ (${entryName}: ${(entryBytes / 1024).toFixed(0)} KB on first load, ${chunks.length} files ${(totalBytes / 1024).toFixed(0)} KB in all, css ${(css.length / 1024).toFixed(0)} KB)`);
 }
 
 await run();

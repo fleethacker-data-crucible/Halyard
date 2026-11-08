@@ -5,6 +5,7 @@ import { describeError, post } from '../lib/api';
 import { useJob } from '../lib/jobs';
 import { invalidate, useResource } from '../lib/useResource';
 import { z } from 'zod';
+import { itemTitle } from '../lib/format';
 
 const PromoteStatus = z.object({ enabled: z.boolean(), mode: z.string(), allowProduction: z.boolean(), target: z.string().nullable().optional(), reason: z.string().nullable().optional() });
 const PromotePlan = z.object({
@@ -57,7 +58,7 @@ export function PromotePanel() {
           <>
             <p className="text-[12.5px] text-ink-2">{plan.creates ?? plan.rows.filter((r) => r.action === 'create').length} to create · {plan.updates ?? plan.rows.filter((r) => r.action === 'update').length} to update · {plan.rows.filter((r) => r.action === 'unchanged').length} unchanged</p>
             <ul className="scroll-y max-h-[30vh] text-[12.5px]">
-              {plan.rows.map((r) => <li key={r.sourceKey} className="flex gap-2 py-0.5"><Pill tone={r.action === 'create' ? 'ok' : r.action === 'update' ? 'warn' : 'neutral'}>{r.action}</Pill><Mono>{r.canonicalId}</Mono><span className="truncate">{r.title}</span></li>)}
+              {plan.rows.map((r) => <li key={r.sourceKey} className="flex gap-2 py-0.5"><Pill tone={r.action === 'create' ? 'ok' : r.action === 'update' ? 'warn' : 'neutral'}>{r.action}</Pill><Mono>{r.canonicalId}</Mono><span className="truncate">{itemTitle(r.title)}</span></li>)}
             </ul>
             {plan.warnings.length ? <Notice tone="warn">{plan.warnings.slice(0, 5).map((w, i) => <div key={i}>{w}</div>)}</Notice> : null}
             {todo > 0 ? (

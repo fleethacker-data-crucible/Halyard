@@ -23,6 +23,8 @@ namespace Halyard.Core.Providers
         public Dictionary<string, string> Headers { get; private set; }
         public string JsonBody { get; set; }
         public TimeSpan Timeout { get; set; }
+        /// <summary>Read the reply as bytes (audio) into <see cref="HttpReply.BodyBytes"/>; Body then holds text only for an error reply.</summary>
+        public bool BinaryResponse { get; set; }
     }
 
     public sealed class HttpReply
@@ -37,6 +39,8 @@ namespace Halyard.Core.Providers
         public int Status { get; private set; }
         public string Body { get; private set; }
         public Dictionary<string, string> Headers { get; private set; }
+        /// <summary>The raw reply when the call asked for <see cref="HttpCall.BinaryResponse"/>; null otherwise.</summary>
+        public byte[] BodyBytes { get; set; }
         public bool IsSuccess { get { return Status >= 200 && Status < 300; } }
 
         public string Header(string name)
@@ -130,14 +134,21 @@ namespace Halyard.Core.Providers
                     }
                     using (response)
                     {
-                        var body = response.Content == null ? string.Empty : await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+                        byte[] bytes = null;
+                        string body;
+                        if (call.BinaryResponse)
+                        {
+                            bytes = response.Content == null ? new byte[0] : await response.Content.ReadAsByteArrayAsync().ConfigureAwait(false);
+                            body = response.IsSuccessStatusCode ? string.Empty : Encoding.UTF8.GetString(bytes);
+                        }
+                        else body = response.Content == null ? string.Empty : await response.Content.ReadAsStringAsync().ConfigureAwait(false);
                         var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
                         foreach (var h in response.Headers) headers[h.Key] = string.Join(", ", h.Value);
                         if (response.Content != null)
                         {
                             foreach (var h in response.Content.Headers) headers[h.Key] = string.Join(", ", h.Value);
                         }
-                        return new HttpReply((int)response.StatusCode, body, headers);
+                        return new HttpReply((int)response.StatusCode, body, headers) { BodyBytes = bytes };
                     }
                 }
             }

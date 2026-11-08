@@ -33,8 +33,8 @@ The API binds to `127.0.0.1` only and needs the per-session token the launcher p
 
 ```powershell
 $h = @{ 'X-Halyard-Session' = $token }
-Invoke-RestMethod http://127.0.0.1:8773/api/applies -Headers $h                                   # halyard apply list
-Invoke-RestMethod http://127.0.0.1:8773/api/applies/rollback-last -Method Post -Headers $h `
+Invoke-RestMethod http://127.0.0.1:8806/api/applies -Headers $h                                   # halyard apply list
+Invoke-RestMethod http://127.0.0.1:8806/api/applies/rollback-last -Method Post -Headers $h `
   -Body '{"dryRun":true}' -ContentType application/json                                           # halyard apply rollback-last (preview)
 ```
 

@@ -2,7 +2,7 @@
 // test connection -> seed (80% complete, 20% with gaps) -> sync -> review (every injected gap found)
 // -> metadata repair -> refine drafts -> propose sizes -> manual edit -> approve -> apply -> re-sync -> teardown.
 //
-//   node tests/e2e/sandbox-loop.mjs http://127.0.0.1:8773 <session-token> [total]
+//   node tests/e2e/sandbox-loop.mjs http://127.0.0.1:8806 <session-token> [total]
 //
 // Point the host at tests/fakes/fake-github.mjs for an offline run, or at a real sandbox repo.
 const [base, token, totalArg, ...flags] = process.argv.slice(2);

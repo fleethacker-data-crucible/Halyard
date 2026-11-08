@@ -489,7 +489,7 @@ namespace Halyard.Core.Tests
             settings.Provider.Kind = ProviderKind.GitHub;
             settings.Provider.SandboxRepository = "fleethacker-data-crucible/Halyard-Ballast";
             settings.Provider.SourceRepository = "fleethacker-data-crucible/Halyard-Ballast";
-            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = 0, WebRoot = null });
+            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = HostOptions.AnyPort, WebRoot = null });
             var catalog = SyntheticCatalog.Generate(SyntheticOptions.ForTotal(30));
             _host.Snapshots.Save(Items.Repo, SyntheticCatalog.ToWorkItems(catalog, Items.Repo), null);
             _info = _host.Start();

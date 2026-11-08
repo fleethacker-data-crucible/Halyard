@@ -90,6 +90,7 @@ read-only; only the sandbox project can be written.
 | Sandbox | Seed a deterministic synthetic hierarchy with a chosen share of gaps; delete it by run |
 | Connection | Test the token; take a snapshot of the source or sandbox |
 | Diagnostics | Engine log, every write attempt, background jobs |
+| Crew (orb) | The agentic product owner and scrum master: click the orb and talk, or type. It reads the backlog through Halyard's own commands, makes proposals, runs standup, refinement, planning and retro prep, and speaks through TalkForge. It never approves or applies |
 | Settings | The Fairlead route (auto, fast, smart, ...) and a model test; whether the Fairlead key is installed; label filter; the configured repositories (read-only) |
 
 PowerShell equivalents: `Invoke-SandboxSeed.ps1`, `Invoke-SandboxTeardown.ps1`, `Send-HalyardReport.ps1`
@@ -111,6 +112,7 @@ skills and consent.
 - [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md): building, testing, the offline end-to-end loop, CI
 - [docs/WORK_ITEM_MODEL.md](docs/WORK_ITEM_MODEL.md): the hierarchy, halyard-meta, definition of ready, PfW/DWI
 - [docs/LOCAL_APP_LIFECYCLE.md](docs/LOCAL_APP_LIFECYCLE.md): the engine stops with its browser tab; the standard every local app in this family follows
+- [docs/AGENTIC-PO.md](docs/AGENTIC-PO.md): the crew (agentic PO and scrum master), the scrum brief, the weekly watch, voice
 - [ROADMAP.md](ROADMAP.md)
 
 ## Safety in one paragraph

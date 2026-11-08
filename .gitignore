@@ -49,3 +49,4 @@ Thumbs.db
 # Editor / IDE
 .vscode/
 .idea/
+web/e2e/.output/

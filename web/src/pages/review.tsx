@@ -3,7 +3,7 @@ import { LuDownload, LuSparkles, LuWrench, LuX } from 'react-icons/lu';
 import { navigate } from '../app';
 import { Button, Empty, Input, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, SeverityIcon, Tabs, cn, tabPanelProps, severityTone, useToast } from '../components/ui';
 import { describeError, post } from '../lib/api';
-import { downloadText, humanizeCode, toCsv } from '../lib/format';
+import { downloadText, humanizeCode, toCsv, itemTitle } from '../lib/format';
 import { useJob } from '../lib/jobs';
 import { LEVELS, LEVEL_LABEL } from '../lib/levels';
 import { Batch, Review, type LevelToken, type ReviewItem, type Status } from '../lib/schemas';
@@ -129,7 +129,7 @@ function ItemRow({ item: i, selected, onToggle, showRepo }: { item: ReviewItem; 
     <tr className={cn('cursor-pointer', selected && 'bg-surface-2')} onClick={() => navigate('hierarchy', { item: i.key })}>
       <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={selected} onChange={onToggle} aria-label={`Select #${i.number}`} /></td>
       <td><LevelChip type={i.type} /></td>
-      <td><div className="font-medium">{i.title}</div><div className="mono text-[11.5px] text-ink-3">{showRepo ? i.repository + ' ' : ''}#{i.number} · {i.canonicalId}</div></td>
+      <td><div className="font-medium">{itemTitle(i.title)}</div><div className="mono text-[11.5px] text-ink-3">{showRepo ? i.repository + ' ' : ''}#{i.number} · {i.canonicalId}</div></td>
       <td className="text-ink-2">{i.resolvedParentKey ? <span className="text-ok">resolved</span> : i.parentId ? <span className="text-warn" title={i.parentId}>declared, unresolved</span> : <span className="text-ink-3">none</span>}</td>
       <td className="num text-ink-2">{i.points ?? i.effort ?? <span className="text-ink-3">—</span>}</td>
       <td>
@@ -274,7 +274,7 @@ function FindingsTable({ review }: { review: Review }) {
                 <tr key={f.key + f.code + idx} className="cursor-pointer" onClick={() => navigate('hierarchy', { item: f.key })}>
                   <td><SeverityIcon severity={f.severity} /></td>
                   <td><LevelChip type={f.type} /></td>
-                  <td><span className="font-medium">{f.title}</span> <span className="mono text-ink-3">#{f.number}</span></td>
+                  <td><span className="font-medium">{itemTitle(f.title)}</span> <span className="mono text-ink-3">#{f.number}</span></td>
                   <td><Pill tone={severityTone(f.severity)}>{humanizeCode(f.code)}</Pill></td>
                   <td className="text-ink-2">{f.explanation}</td>
                 </tr>
@@ -297,7 +297,7 @@ function ParentsTable({ review }: { review: Review }) {
           {review.parentReviews.map((p) => (
             <tr key={p.key}>
               <td><LevelChip type={p.type} /></td>
-              <td><div className="font-medium">{p.title}</div><div className="mono text-[11.5px] text-ink-3">{p.canonicalId}{p.declaredParent ? ` · declared ${p.declaredParent}` : ''}</div></td>
+              <td><div className="font-medium">{itemTitle(p.title)}</div><div className="mono text-[11.5px] text-ink-3">{p.canonicalId}{p.declaredParent ? ` · declared ${p.declaredParent}` : ''}</div></td>
               <td>
                 {p.candidates.length === 0 ? <span className="text-ink-3">No candidate with evidence. Needs a human.</span> : (
                   <ol className="flex flex-col gap-1">
@@ -305,7 +305,7 @@ function ParentsTable({ review }: { review: Review }) {
                       <li key={c.key} className="flex flex-wrap items-baseline gap-x-2">
                         <span className="num w-9 shrink-0 text-ink-3">{(c.score).toFixed(1)}</span>
                         <LevelChip type={c.type} compact />
-                        <span className={i === 0 ? 'font-medium' : ''}>{c.title}</span>
+                        <span className={i === 0 ? 'font-medium' : ''}>{itemTitle(c.title)}</span>
                         <span className="text-[12px] text-ink-3">{c.evidence.join('; ')}</span>
                       </li>
                     ))}

@@ -25,9 +25,15 @@ namespace Halyard.Core.Tests
         [Fact]
         public void VersionMatchesTheProjectFile()
         {
-            var csproj = XDocument.Load(Path.Combine(Golden.RepoRoot(), "src", "Halyard.Core", "Halyard.Core.csproj"));
-            var version = csproj.Descendants("Version").Single().Value.Trim();
+            // One version everywhere: the root VERSION file, the engine, the project file (the release reads it) and the web package.
+            var root = Golden.RepoRoot();
+            var version = File.ReadAllText(Halyard.Core.Config.SafePath.Under(root, "VERSION")).Trim();
+            var csproj = XDocument.Load(Halyard.Core.Config.SafePath.Under(root, "src", "Halyard.Core", "Halyard.Core.csproj"));
+            Assert.Equal(version, csproj.Descendants("Version").Single().Value.Trim());
             Assert.Equal(HalyardHost.Version, version);
+            var web = System.Text.RegularExpressions.Regex.Match(File.ReadAllText(Halyard.Core.Config.SafePath.Under(root, "web", "package.json")), "\"version\"\\s*:\\s*\"([^\"]+)\"");
+            Assert.Equal(version, web.Groups[1].Value);
+            Assert.Contains("## " + version, File.ReadAllText(Halyard.Core.Config.SafePath.Under(root, "CHANGELOG.md")));
         }
 
         [Fact]

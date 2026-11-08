@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { LuDownload, LuSparkles, LuWrench } from 'react-icons/lu';
 import { navigate } from '../app';
 import { Button, Empty, Mono, Notice, Page, Pill, Progress, Section, cn, useToast } from '../components/ui';
-import { downloadText, relativeTime } from '../lib/format';
+import { downloadText, relativeTime, itemTitle } from '../lib/format';
 import { useJob } from '../lib/jobs';
 import { VisionDraft, VisionSummary, type Status } from '../lib/schemas';
 import { invalidate, useResource } from '../lib/useResource';
@@ -80,8 +80,8 @@ function DraftView({ id }: { id: string }) {
           <div className="px-5 py-4"><Markdownish text={d.markdown} /></div>
           <div className="flex flex-col gap-3 border-l border-line-2 px-4 py-4 text-[12.5px]">
             <div><div className="mb-1 text-ink-3">Source</div><Mono>{d.source}</Mono> · <Mono>{d.repository}</Mono></div>
-            <div><div className="mb-1 text-ink-3">Themes</div><ul className="flex flex-col gap-1">{d.themes.map((t) => <li key={t.id + t.title}><span className="font-medium">{t.title}</span>{t.isNew ? <Pill tone="info" className="ml-1">proposed</Pill> : null}<div className="text-ink-3">{t.epics.length} epics</div></li>)}</ul></div>
-            <div><div className="mb-1 text-ink-3">Priorities</div><ol className="flex flex-col gap-1 pl-4">{d.priorities.map((p) => <li key={p.epic}><span className="font-medium">{p.title}</span><div className="text-ink-2">{p.why}</div></li>)}</ol></div>
+            <div><div className="mb-1 text-ink-3">Themes</div><ul className="flex flex-col gap-1">{d.themes.map((t) => <li key={t.id + t.title}><span className="font-medium">{itemTitle(t.title)}</span>{t.isNew ? <Pill tone="info" className="ml-1">proposed</Pill> : null}<div className="text-ink-3">{t.epics.length} epics</div></li>)}</ul></div>
+            <div><div className="mb-1 text-ink-3">Priorities</div><ol className="flex flex-col gap-1 pl-4">{d.priorities.map((p) => <li key={p.epic}><span className="font-medium">{itemTitle(p.title)}</span><div className="text-ink-2">{p.why}</div></li>)}</ol></div>
             {d.warnings.length > 0 ? <div className="flex flex-col gap-1">{d.warnings.map((w, i) => <Notice key={i} tone="warn">{w}</Notice>)}</div> : null}
           </div>
         </div>

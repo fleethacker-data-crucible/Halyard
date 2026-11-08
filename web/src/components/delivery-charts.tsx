@@ -8,6 +8,7 @@
  */
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from './ui';
+import { itemTitle } from '../lib/format';
 
 /** Feature status palette: fixed, shared with the email renderer. */
 export const STATUS_SERIES = [
@@ -214,8 +215,8 @@ export function ThemeBars({ themes }: { themes: ThemeBar[] }) {
     <div className="flex flex-col gap-2.5 px-4 py-3">
       {sorted.map((t) => (
         <div key={t.key}>
-          <div className="mb-0.5 flex items-baseline justify-between gap-3 text-[12.5px]"><span className="truncate text-ink">{t.title}</span><span className="num shrink-0 text-ink-2">{t.pointsDone}/{t.points} pts · {t.percent}%</span></div>
-          <div className="relative h-[10px]" role="img" aria-label={`${t.title}: ${t.pointsDone} of ${t.points} points done`}>
+          <div className="mb-0.5 flex items-baseline justify-between gap-3 text-[12.5px]"><span className="truncate text-ink">{itemTitle(t.title)}</span><span className="num shrink-0 text-ink-2">{t.pointsDone}/{t.points} pts · {t.percent}%</span></div>
+          <div className="relative h-[10px]" role="img" aria-label={`${itemTitle(t.title)}: ${t.pointsDone} of ${t.points} points done`}>
             <div className="absolute inset-y-0 left-0 rounded-[3px]" style={{ width: `${(t.points / max) * 100}%`, background: SERIES_1, opacity: 0.3 }} title={`${t.points} pts in total`} />
             <div className="absolute inset-y-0 left-0 rounded-[3px]" style={{ width: `${(t.pointsDone / max) * 100}%`, background: SERIES_1 }} title={`${t.pointsDone} pts done`} />
           </div>

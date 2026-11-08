@@ -4,6 +4,7 @@ import { levelVar } from '../lib/levels';
 import type { HierarchyNode } from '../lib/schemas';
 import { readLocal, writeLocal } from '../lib/storage';
 import { cn, LevelChip } from './ui';
+import { itemTitle } from '../lib/format';
 
 export function flatten(nodes: HierarchyNode[]): HierarchyNode[] {
   const out: HierarchyNode[] = [];
@@ -133,7 +134,7 @@ export function Tree({ roots, selectedKey, onSelect, query, expandAllSignal, sto
               </button>
               <span className="flex min-w-0 flex-1 items-center gap-2 text-left">
                 <LevelChip type={n.type} compact />
-                <span className={cn('truncate', matches(n, query) && query ? 'font-medium' : '')}>{n.title}</span>
+                <span className={cn('truncate', matches(n, query) && query ? 'font-medium' : '')}>{itemTitle(n.title)}</span>
                 {n.state === 'closed' ? <span className="text-[11px] text-ink-3">closed</span> : null}
                 <span className="mono ml-auto shrink-0 text-[11.5px] text-ink-3">{showRepository ? n.repository.split('/').pop() + ' ' : ''}#{n.number}</span>
                 {n.type === 'STORY' && n.points ? <span className="num w-6 shrink-0 text-right text-[11.5px] text-ink-2" title="Story points">{n.points}</span>

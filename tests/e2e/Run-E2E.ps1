@@ -51,7 +51,7 @@ try {
     [E2eFairleadKey]::Key = 'fl-e2e-fake-key-0123456789'
     $settings = [Halyard.Core.Facade]::SettingsFromEnvironment($work)
     $settings.PreferredPort = $Port
-    $hostObj = [Halyard.Core.Facade]::CreateHost($settings, $null, $Port, $null)
+    $hostObj = [Halyard.Core.Facade]::CreateHost($settings, $null, $(if ($Port -gt 0) { $Port } else { [Halyard.Core.Host.HostOptions]::AnyPort }), $null)   # a test run takes any free port, never the launcher block
     $info = $hostObj.Start()
     & $node.Source (Join-Path $root 'tests\e2e\sandbox-loop.mjs') ('http://127.0.0.1:' + $info.Port) $info.SessionToken $Total '--fake' ("http://127.0.0.1:$FakePort")
     if ($LASTEXITCODE -ne 0) { throw "end-to-end loop failed ($LASTEXITCODE)" }
