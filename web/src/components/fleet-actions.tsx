@@ -45,6 +45,16 @@ export function PromotePanel() {
   const todo = plan ? plan.rows.filter((r) => r.action !== 'unchanged').length : 0;
   const expected = plan ? (plan.confirmPhrase ?? `PROMOTE ${todo} ITEMS TO ${plan.target}`) : '';
 
+  // Off is the normal state: one quiet line, with the reason one click away, instead of a full panel.
+  if (!s.enabled) {
+    return (
+      <details className="panel px-4 py-2 text-[12.5px] text-ink-3">
+        <summary className="cursor-pointer">Promote to production: <Pill tone="neutral">off</Pill> · how to turn it on</summary>
+        <p className="mt-2 text-ink-2">{s.reason}</p>
+      </details>
+    );
+  }
+
   return (
     <Section title="Promote to production" aside={<Pill tone={s.enabled ? 'warn' : 'neutral'}>{s.enabled ? 'production mode' : 'off'}</Pill>}>
       <div className="flex flex-col gap-3 px-4 py-3">

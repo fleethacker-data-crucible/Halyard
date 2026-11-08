@@ -373,20 +373,26 @@ function Send-HalyardReportMessage {
         [Parameter(Mandatory)][string]$Subject,
         [string[]]$To,
         [string]$SmtpServer,
-        [string]$From
+        [string]$From,
+        # Outlook only: open the message for a person to review and send, instead of sending it. -To may then be empty.
+        [switch]$Draft
     )
     $recipients = @($To | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
     switch ($Via) {
         'Outlook' {
-            if ($recipients.Count -eq 0) { throw 'Specify -To for Outlook delivery.' }
+            if ($recipients.Count -eq 0 -and -not $Draft) { throw 'Specify -To for Outlook delivery (or -Draft to open the message for review).' }
             $outlook = $null
             try { $outlook = New-Object -ComObject Outlook.Application } catch { throw 'Outlook is not available on this machine (COM automation failed). Use -Via Smtp or -Via File.' }
             $mail = $outlook.CreateItem(0)
-            $mail.To = ($recipients -join ';')
+            if ($recipients.Count -gt 0) { $mail.To = ($recipients -join ';') }
             $mail.Subject = $Subject
             $mail.HTMLBody = $Html
+            if ($Draft) {
+                $mail.Display($false)
+                return [pscustomobject]@{ Via = 'Outlook'; Sent = $false; Draft = $true; To = $recipients; Server = $null }
+            }
             $mail.Send()
-            return [pscustomobject]@{ Via = 'Outlook'; Sent = $true; To = $recipients; Server = $null }
+            return [pscustomobject]@{ Via = 'Outlook'; Sent = $true; Draft = $false; To = $recipients; Server = $null }
         }
         'Smtp' {
             if ($recipients.Count -eq 0) { throw 'Specify -To for SMTP delivery.' }

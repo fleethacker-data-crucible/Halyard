@@ -260,14 +260,49 @@ namespace Halyard.Core.Tests
         }
 
         [Fact]
-        public async Task DestructiveDraftsAreFlaggedLowConfidence()
+        public async Task SectionsAModelDropsArePutBackVerbatim()
         {
             var (items, report) = Defective();
             var llm = new ScriptedLlm(_ => "{\"narrative\": \"## Acceptance criteria\\n- [ ] something\", \"note\": \"rewrote\"}");
             var batch = await Refiner.RunAsync(items, report, llm, new RefineOptions { MaxItems = 3 }, Items.Repo, null, CancellationToken.None);
             Assert.NotEmpty(batch.Proposals);
-            Assert.All(batch.Proposals, p => Assert.Equal("low", p.Confidence));
-            Assert.All(batch.Proposals, p => Assert.Contains("survive", p.Reason));
+            Assert.All(batch.Proposals, p => Assert.Equal(1.0, Refiner.Preservation(p.CurrentValue, p.ProposedValue)));
+            Assert.All(batch.Proposals, p => Assert.DoesNotContain("survive", p.Reason));
+        }
+
+        [Fact]
+        public async Task DraftsThatGutAKeptSectionAreFlaggedLowConfidence()
+        {
+            var (items, report) = Defective();
+            // Keeps every heading but replaces what is under it.
+            var llm = new ScriptedLlm(messages =>
+            {
+                var user = messages[1].Content;
+                var current = user.Substring(user.IndexOf("Current narrative", StringComparison.Ordinal));
+                var headings = current.Split('\n').Where(l => l.StartsWith("## ")).ToList();
+                var narrative = string.Join("\n\n", headings.Select(h => h + "\nRewritten."));
+                return new JObject { ["narrative"] = narrative, ["note"] = "rewrote" }.ToString();
+            });
+            var batch = await Refiner.RunAsync(items, report, llm, new RefineOptions { MaxItems = 3 }, Items.Repo, null, CancellationToken.None);
+            var gutted = batch.Proposals.Where(p => Refiner.Preservation(p.CurrentValue, p.ProposedValue) < 0.7).ToList();
+            Assert.NotEmpty(gutted);
+            Assert.All(gutted, p => Assert.Contains("survive", p.Reason));
+            Assert.All(gutted, p => Assert.NotEqual("high", p.Confidence));
+        }
+
+        [Fact]
+        public void PutsBackSectionsTheModelLeftOut()
+        {
+            var original = "Intro line that is long enough.\n\n## User need\nAs a support engineer, I want x so that y.\n\n## Parent Feature\nFEATURE-secrets - Secrets\n\n## Sizing\nPoints: 3";
+            var proposed = "## User need\nAs a support engineer, I want x so that y.\n\n## Acceptance criteria\n- [ ] tokens are masked";
+            var merged = Refiner.KeepMissingSections(original, proposed);
+            Assert.Contains("## Acceptance criteria", merged);
+            Assert.Contains("## Parent Feature\nFEATURE-secrets - Secrets", merged);
+            Assert.Contains("## Sizing\nPoints: 3", merged);
+            Assert.StartsWith("Intro line that is long enough.", merged);
+            Assert.Equal(1.0, Refiner.Preservation(original, merged));
+            Assert.Equal(merged.IndexOf("## User need", StringComparison.Ordinal), merged.LastIndexOf("## User need", StringComparison.Ordinal));
+            Assert.Equal(proposed, Refiner.KeepMissingSections("", proposed));
         }
 
         [Fact]
