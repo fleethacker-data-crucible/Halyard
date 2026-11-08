@@ -15,7 +15,9 @@ jobs:
     # Self-hosted Windows workstation runner: exercises the exact Windows PowerShell 5.1 / .NET Framework 4.8
     # runtime the bundle targets. Needs Git; the setup actions below install the .NET SDK and Node without admin rights.
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: [self-hosted, Windows, X64]
+    # Pinned to TAICHI-RAPTOR-fleet-headless (the only runner labelled fleet-backup): win11vm-powershell took jobs and
+    # dropped them after 10 minutes (2026-11-08). Remove the label to use any Windows runner again.
+    runs-on: [self-hosted, Windows, X64, fleet-backup]
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
