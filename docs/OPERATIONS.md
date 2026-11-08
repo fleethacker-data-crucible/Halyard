@@ -79,6 +79,13 @@ credential is missing, Settings and the model buttons say *Open Fairlead and ins
 can also be picked on the **Settings** page; with *remember* ticked it is written to `config\halyard.env`
 (git-ignored). The address can only be set in the file, so a key never goes anywhere else.
 
+Before a model job starts, Halyard asks Fairlead's open `GET /v1/health` on the same host and port. If nothing answers,
+the job is refused at once with `FAIRLEAD_OFFLINE` (one message, not one per item) and the page shows a banner with
+**Start Fairlead**. That button, and the one in **Settings, Model calls**, runs Fairlead's own
+`scripts\Start-Fairlead.ps1 --no-browser` (its tray app, the same as double-clicking `Launch-Fairlead.bat`) from
+`HALYARD_FAIRLEAD_PATH`, else a `Fairlead` folder next to Halyard, else `%USERPROFILE%\Projects\Fairlead`. Halyard
+never stops Fairlead: other tools use it too. The crew still answers from the scrum brief while Fairlead is down.
+
 **Workstation, self-hosted GitLab**
 
 ```

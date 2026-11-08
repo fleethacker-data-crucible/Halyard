@@ -46,6 +46,13 @@ must match it (`EngineSourceTests.VersionMatchesTheProjectFile`).
   press-and-hold to talk, can be turned off (the Crew button stands in), caption on hover only. Settings, Voice adds voice
   input on/off and "Send when I stop talking".
 
+### Fairlead
+- **One clear failure when Fairlead is down.** Before a model job, Halyard checks Fairlead's `GET /v1/health`; if nothing
+  answers, the job is refused with `FAIRLEAD_OFFLINE` instead of failing once per item.
+- **Start Fairlead from Halyard**: a banner on any page when a model job was refused, and a status line with a Start button
+  in Settings, Model calls. It runs Fairlead's own tray launcher (`HALYARD_FAIRLEAD_PATH`, else next to Halyard, else
+  `%USERPROFILE%\Projects\Fairlead`) and waits for it to answer. `halyard fairlead status` and `halyard fairlead start`.
+
 ### Engineering
 - Code splitting: pages load on demand; the first load fell from 608 KB to about 375 KB. `npm run size` checks a budget in CI.
 - Playwright browser tests in Edge against a real engine and the fake GitHub (`npm run e2e`), with screenshots in both themes.

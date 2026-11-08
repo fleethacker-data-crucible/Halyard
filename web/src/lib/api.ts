@@ -56,6 +56,8 @@ export async function api<T = unknown>(path: string, init: RequestInit & { json?
   }
   if (!response.ok) {
     const err = (data ?? {}) as { error?: string; code?: string; requestId?: string };
+    // Fairlead down: the shell shows one banner with a Start button (lib/fairlead.ts); the page still gets the error.
+    if (err.code === 'FAIRLEAD_OFFLINE') void import('./fairlead').then((f) => f.reportFairleadOffline(err.error ?? 'Fairlead is not running.'));
     throw new ApiError(response.status, err.code ?? `HTTP_${response.status}`, err.error ?? `Request failed with HTTP ${response.status}`, err.requestId);
   }
   return data as T;

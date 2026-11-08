@@ -98,6 +98,8 @@ namespace Halyard.Core.Host
             });
             Router.Get("/api/writes", r => Task.FromResult(Json.Ok(new { policy = PolicyPayload(), entries = Gateway.Audit.Reverse().Take(500) })));
             Router.Post("/api/llm/test", TestLlm);
+            Router.Get("/api/fairlead", async r => Json.Ok(await FairleadLink().StatusAsync(System.Threading.CancellationToken.None).ConfigureAwait(false)));
+            Router.Post("/api/fairlead/start", async r => Json.Ok(await FairleadLink().StartAsync(System.Threading.CancellationToken.None).ConfigureAwait(false)));
             RegisterPromoteRoutes();
             Router.Post("/api/heartbeat", r =>
             {

@@ -293,6 +293,9 @@
   .mx-4 {
     margin-inline: calc(var(--spacing) * 4);
   }
+  .mx-6 {
+    margin-inline: calc(var(--spacing) * 6);
+  }
   .mx-auto {
     margin-inline: auto;
   }
@@ -815,6 +818,9 @@
   }
   .gap-y-1\.5 {
     row-gap: calc(var(--spacing) * 1.5);
+  }
+  .gap-y-2 {
+    row-gap: calc(var(--spacing) * 2);
   }
   :where(.divide-x > :not(:last-child)) {
     --tw-divide-x-reverse: 0;

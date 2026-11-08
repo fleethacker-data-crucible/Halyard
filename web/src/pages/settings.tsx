@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { LuKeyRound, LuSave, LuSparkles } from 'react-icons/lu';
 import { Button, Checkbox, Field, Input, Mono, Notice, Page, Pill, Section, useToast } from '../components/ui';
 import { AppearanceSettings } from '../components/appearance-settings';
+import { FairleadState, startFairlead } from '../lib/fairlead';
+import { useResource } from '../lib/useResource';
 import { VoiceSettings } from '../components/voice-settings';
 import { describeError, post } from '../lib/api';
 import { type Status } from '../lib/schemas';
@@ -118,6 +120,7 @@ function ModelForm({ config, saving, onApply, onTest, testing }: { config: Statu
       <p className="text-[12.5px] text-ink-2">Halyard sends every model call to Fairlead on this PC. Fairlead holds the provider addresses and keys; Halyard holds only its own Fairlead key, which lives in Windows Credential Manager as <Mono>{config?.llmKeyTarget ?? 'Fairlead/Halyard'}</Mono> and is never shown here.</p>
       <dl className="grid grid-cols-[120px_1fr] gap-y-1 text-[12.5px]">
         <dt className="text-ink-2">Fairlead</dt><dd><Mono>{config?.llmUrl || '(not set)'}</Mono> <span className="text-ink-3">· HALYARD_FAIRLEAD_URL in config/halyard.env</span></dd>
+        <dt className="text-ink-2">Running</dt><dd><FairleadRunning /></dd>
         <dt className="text-ink-2">Key</dt><dd>{config?.hasLlmToken ? <Pill tone="ok">installed</Pill> : <span className="text-warn">{config?.llmMissing ?? 'Open Fairlead and install a key for Halyard.'}</span>}</dd>
       </dl>
       <Field label="Route" hint="The Fairlead route to use: auto, or one of your own routes such as fast or smart.">
@@ -130,5 +133,32 @@ function ModelForm({ config, saving, onApply, onTest, testing }: { config: Statu
         <Button onClick={onTest} busy={testing} disabled={!config?.hasLlmToken}><LuSparkles size={14} />Test model</Button>
       </div>
     </div>
+  );
+}
+
+/** Whether Fairlead answers right now, with a Start button when it does not and Halyard found its folder. */
+function FairleadRunning() {
+  const toast = useToast();
+  const f = useResource('/api/fairlead', FairleadState);
+  const [starting, setStarting] = useState(false);
+  const start = async () => {
+    setStarting(true);
+    try {
+      const s = await startFairlead();
+      toast.push(s.state === 'ready' ? 'ok' : 'err', s.state === 'ready' ? 'Fairlead is running.' : s.message);
+    } catch (e) {
+      toast.push('err', describeError(e));
+    } finally {
+      setStarting(false);
+      void f.refetch();
+    }
+  };
+  if (!f.data) return <span className="text-ink-3">{f.error ?? 'checking…'}</span>;
+  if (f.data.state === 'ready') return <Pill tone="ok">answering</Pill>;
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <Pill tone="warn">not running</Pill>
+      {f.data.canStart ? <Button size="sm" onClick={() => void start()} busy={starting}>Start Fairlead</Button> : <span className="text-ink-3">Start it with Launch-Fairlead.bat, or set HALYARD_FAIRLEAD_PATH.</span>}
+    </span>
   );
 }

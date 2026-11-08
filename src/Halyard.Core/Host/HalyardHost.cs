@@ -386,11 +386,25 @@ namespace Halyard.Core.Host
             return sandbox;
         }
 
+        /// <summary>Fairlead as Halyard sees it: is it answering, and where to start it from.</summary>
+        public Fairlead FairleadLink()
+        {
+            return new Fairlead(Settings.Llm, Options.Transport, Fairlead.Find(Settings.FairleadPath, Settings.RootDirectory));
+        }
+
+        /// <summary>A model client, after checking that the key is installed and that Fairlead answers, so a run fails once, up front.</summary>
         public ILlmClient CreateLlm()
+        {
+            return CreateLlm(true);
+        }
+
+        /// <summary><paramref name="checkFairlead"/> false: for callers that answer without the model when Fairlead is down (the crew).</summary>
+        public ILlmClient CreateLlm(bool checkFairlead)
         {
             var client = new LlmClient(Settings.Llm, Options.Transport);
             var missing = Settings.Llm.MissingFor();
             if (missing != null) throw new ProviderNotReadyException("Model calls are not usable: " + missing);
+            if (checkFairlead) FairleadLink().EnsureUpAsync(CancellationToken.None).GetAwaiter().GetResult();
             return client;
         }
 
@@ -432,6 +446,7 @@ namespace Halyard.Core.Host
                 catch (BadRequestException ex) { return Json.Error(400, "BAD_REQUEST", ex.Message, request.RequestId); }
                 catch (NotFoundException ex) { return Json.Error(404, "NOT_FOUND", ex.Message, request.RequestId); }
                 catch (ProviderNotReadyException ex) { return Json.Error(409, "PROVIDER_NOT_READY", ex.Message, request.RequestId); }
+                catch (FairleadOfflineException ex) { return Json.Error(503, "FAIRLEAD_OFFLINE", ex.Message, request.RequestId); }
                 catch (WriteBlockedException ex) { return Json.Error(403, "WRITE_BLOCKED", ex.Message, request.RequestId); }
                 catch (ProviderHttpException ex)
                 {
