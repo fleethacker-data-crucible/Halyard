@@ -94,13 +94,14 @@ on a workstation yet, or its exact screen or output is not in the repo. Report t
    .\Launch-Halyard.bat --console --no-browser
    ```
    **Expected:** the console compiles the engine (a few seconds, it prints the source file count and time), prints a URL with a one-time
-   session token and says which port it chose (default 8773).
+   session token and says which port it chose (8806, or the next free one up to 8808).
 2. In a second PowerShell window:
    ```powershell
-   curl.exe -s http://127.0.0.1:8773/api/health
+   curl.exe -s http://127.0.0.1:8806/api/health
    ```
    **Expected:** `{"ok":true,"version":"..."}`. `/api/health` is the only route that needs no session token.
-3. Open the printed URL once in the browser. Do not share it.
+3. Open the printed URL once in the browser. Do not share it. (In normal use, double-clicking `Launch-Halyard.bat` starts hidden,
+   opens Halyard in its own app window and puts an icon in the tray; this test keeps the console to read its output.)
 4. **Connection** → **Test connection**. **Expected:** the sandbox repository is reported as reachable.
 5. **Settings** → **Test model**. **Expected:** a reply from the model route. **If it says** *Open Fairlead and install a key for Halyard.*,
    return to step D1.3.
