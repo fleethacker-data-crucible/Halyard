@@ -61,8 +61,9 @@ namespace Halyard.Core.Tests
 
         private async Task<(int status, JObject json)> Post(string path, string body)
         {
-            var reply = await _client.PostAsync(_info.Url + path, new StringContent(body, Encoding.UTF8, "application/json"));
-            return ((int)reply.StatusCode, JObject.Parse(await reply.Content.ReadAsStringAsync()));
+            using (var content = new StringContent(body, Encoding.UTF8, "application/json"))
+            using (var reply = await _client.PostAsync(_info.Url + path, content))
+                return ((int)reply.StatusCode, JObject.Parse(await reply.Content.ReadAsStringAsync()));
         }
 
         private sealed class ScriptedLlm : ILlmClient
@@ -256,13 +257,16 @@ namespace Halyard.Core.Tests
             Directory.CreateDirectory(tf);
             File.WriteAllText(Path.Combine(tf, "transformers.min.js"), "export const x = 1;");
             File.WriteAllText(Path.Combine(tf, "secret.txt"), "no");
-            var ok = await new HttpClient().GetAsync(_info.Url + "stt/transformers.min.js");
-            Assert.Equal(200, (int)ok.StatusCode);
-            Assert.StartsWith("text/javascript", ok.Content.Headers.ContentType!.ToString());
-            var refused = await new HttpClient().GetAsync(_info.Url + "stt/secret.txt");
-            Assert.Equal(404, (int)refused.StatusCode);
-            var traversal = await new HttpClient().GetAsync(_info.Url + "stt/..%2F..%2Fconfig%2Fhalyard.env");
-            Assert.Equal(404, (int)traversal.StatusCode);
+            using (var http = new HttpClient())   // no session header: a worker fetches these files
+            {
+                var ok = await http.GetAsync(_info.Url + "stt/transformers.min.js");
+                Assert.Equal(200, (int)ok.StatusCode);
+                Assert.StartsWith("text/javascript", ok.Content.Headers.ContentType!.ToString());
+                var refused = await http.GetAsync(_info.Url + "stt/secret.txt");
+                Assert.Equal(404, (int)refused.StatusCode);
+                var traversal = await http.GetAsync(_info.Url + "stt/..%2F..%2Fconfig%2Fhalyard.env");
+                Assert.Equal(404, (int)traversal.StatusCode);
+            }
         }
     }
 }

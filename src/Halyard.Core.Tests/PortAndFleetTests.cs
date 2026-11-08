@@ -78,16 +78,23 @@ namespace Halyard.Core.Tests
                     Assert.Equal(System.Diagnostics.Process.GetCurrentProcess().Id, (int)id["pid"]!);
                     Assert.Equal(@"C:\Halyard\scripts\Start-Halyard.ps1", (string)id["path"]);
 
-                    var noIntent = await c.PostAsync(info.Url + "__fleethacker/shutdown", new StringContent(""));
-                    Assert.Equal(403, (int)noIntent.StatusCode);
+                    using (var empty = new StringContent(""))
+                    {
+                        var noIntent = await c.PostAsync(info.Url + "__fleethacker/shutdown", empty);
+                        Assert.Equal(403, (int)noIntent.StatusCode);
+                    }
 
-                    var foreign = new HttpRequestMessage(HttpMethod.Get, info.Url + "__fleethacker/id");
-                    foreign.Headers.Add("Origin", "http://evil.example");
-                    Assert.Equal(403, (int)(await c.SendAsync(foreign)).StatusCode);
+                    using (var foreign = new HttpRequestMessage(HttpMethod.Get, info.Url + "__fleethacker/id"))
+                    {
+                        foreign.Headers.Add("Origin", "http://evil.example");
+                        Assert.Equal(403, (int)(await c.SendAsync(foreign)).StatusCode);
+                    }
 
-                    var stop = new HttpRequestMessage(HttpMethod.Post, info.Url + "__fleethacker/shutdown");
-                    stop.Headers.Add("X-FleetHacker-Shutdown", "1");
-                    Assert.Equal(200, (int)(await c.SendAsync(stop)).StatusCode);
+                    using (var stop = new HttpRequestMessage(HttpMethod.Post, info.Url + "__fleethacker/shutdown"))
+                    {
+                        stop.Headers.Add("X-FleetHacker-Shutdown", "1");
+                        Assert.Equal(200, (int)(await c.SendAsync(stop)).StatusCode);
+                    }
                     Assert.True(h.WaitForStop(5000), "the engine stops after a shutdown request");
                 }
             }

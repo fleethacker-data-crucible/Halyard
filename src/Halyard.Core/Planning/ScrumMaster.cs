@@ -148,8 +148,8 @@ namespace Halyard.Core.Planning
             }
 
             var blockedKeys = new HashSet<string>(delivery.Blockers.Select(b => b.Key), StringComparer.OrdinalIgnoreCase);
-            foreach (var s in sprintStories.Where(x => x.State == WorkItemState.Open && !blockedKeys.Contains(x.Key) && x.UpdatedAt != null)
-                .Select(x => new { Item = x, Age = (int)Math.Floor((now - x.UpdatedAt.Value).TotalDays) })
+            foreach (var s in sprintStories.Where(x => x.State == WorkItemState.Open && !blockedKeys.Contains(x.Key) && x.UpdatedAt.HasValue)
+                .Select(x => new { Item = x, Age = (int)Math.Floor((now - x.UpdatedAt.GetValueOrDefault()).TotalDays) })
                 .Where(x => x.Age >= StaleDays).OrderByDescending(x => x.Age).Take(MaxListed))
             {
                 brief.Stale.Add(Row(s.Item, "No change for " + s.Age + " days.", s.Age));
