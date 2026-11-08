@@ -50,7 +50,7 @@ export function VoiceSettings() {
           <Button onClick={() => (speaking ? speech.stop() : void speech.say(TEST_SENTENCE))} disabled={!voices?.found || voices.voices.length === 0} busy={preparing}>
             <LuVolume2 size={14} />{speaking ? 'Stop' : preparing ? 'Getting the voice ready' : 'Test voice'}
           </Button>
-          {status && state !== 'ready' && state !== 'starting' ? <span className="text-[12px] text-ink-3">{status.speech.message}</span> : null}
+          {status && state !== 'ready' && state !== 'starting' && !voices?.message ? <span className="text-[12px] text-ink-3">{status.speech.message}</span> : null}
         </div>
         {speechError ? <Notice tone="err">{speechError}</Notice> : null}
         {problem ? <Notice tone="err">{problem}</Notice> : null}

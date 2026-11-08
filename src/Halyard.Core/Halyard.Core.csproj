@@ -19,8 +19,8 @@
     <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
     <AssemblyName>Halyard.Core</AssemblyName>
     <RootNamespace>Halyard.Core</RootNamespace>
-    <!-- The release version. HalyardHost.Version must match (a test checks). -->
-    <Version>1.1.0</Version>
+    <!-- The release version: the root VERSION file. HalyardHost.Version and web/package.json must match (a test checks). -->
+    <Version>1.2.0</Version>
     <Deterministic>true</Deterministic>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>

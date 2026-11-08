@@ -84,7 +84,7 @@ namespace Halyard.Core.Host
     {
         public const string SessionHeader = "X-Halyard-Session";
         public const string IntentHeader = "X-Halyard-Intent";
-        public const string Version = "1.1.0";
+        public const string Version = "1.2.0";
         private readonly ManualResetEventSlim _stopped = new ManualResetEventSlim(false);
         private readonly object _providerLock = new object();
         private HttpServer _server;

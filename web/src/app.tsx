@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { LuCircleHelp, LuActivity, LuArrowRightToLine, LuBoxes, LuCalendarRange, LuClipboardCheck, LuCompass, LuGitBranch, LuLayoutDashboard, LuMonitor, LuMoon, LuPanelLeftClose, LuPanelLeftOpen, LuPlug, LuPower, LuPresentation, LuSettings2, LuSparkles, LuSun, LuTestTubeDiagonal } from 'react-icons/lu';
 import { post, sessionToken, startHeartbeat } from './lib/api';
 import { ageLabel } from './lib/format';
@@ -16,18 +16,20 @@ import type { Command } from './lib/commands';
 import { GO_KEYS } from './lib/shortcuts';
 import { useShortcuts } from './lib/use-shortcuts';
 import { describeError } from './lib/api';
-import { ConnectionPage } from './pages/connection';
-import { DiagnosticsPage } from './pages/diagnostics';
-import { HierarchyPage } from './pages/hierarchy';
-import { IntakePage } from './pages/intake';
-import { LeadershipPage } from './pages/leadership';
-import { OverviewPage } from './pages/overview';
-import { PlanPage } from './pages/plan';
-import { ProposalsPage } from './pages/proposals';
-import { ReviewPage } from './pages/review';
-import { SandboxPage } from './pages/sandbox';
-import { SettingsPage } from './pages/settings';
-import { VisionPage } from './pages/vision';
+
+// Each page is its own chunk, loaded when it is first opened (build.mjs splits the bundle).
+const ConnectionPage = lazy(() => import('./pages/connection').then((m) => ({ default: m.ConnectionPage })));
+const DiagnosticsPage = lazy(() => import('./pages/diagnostics').then((m) => ({ default: m.DiagnosticsPage })));
+const HierarchyPage = lazy(() => import('./pages/hierarchy').then((m) => ({ default: m.HierarchyPage })));
+const IntakePage = lazy(() => import('./pages/intake').then((m) => ({ default: m.IntakePage })));
+const LeadershipPage = lazy(() => import('./pages/leadership').then((m) => ({ default: m.LeadershipPage })));
+const OverviewPage = lazy(() => import('./pages/overview').then((m) => ({ default: m.OverviewPage })));
+const PlanPage = lazy(() => import('./pages/plan').then((m) => ({ default: m.PlanPage })));
+const ProposalsPage = lazy(() => import('./pages/proposals').then((m) => ({ default: m.ProposalsPage })));
+const ReviewPage = lazy(() => import('./pages/review').then((m) => ({ default: m.ReviewPage })));
+const SandboxPage = lazy(() => import('./pages/sandbox').then((m) => ({ default: m.SandboxPage })));
+const SettingsPage = lazy(() => import('./pages/settings').then((m) => ({ default: m.SettingsPage })));
+const VisionPage = lazy(() => import('./pages/vision').then((m) => ({ default: m.VisionPage })));
 
 export type Route = 'overview' | 'leadership' | 'vision' | 'intake' | 'hierarchy' | 'review' | 'proposals' | 'plan' | 'sandbox' | 'connection' | 'diagnostics' | 'settings';
 
@@ -214,7 +216,7 @@ function Shell() {
       </nav>
       <div className="flex min-h-0 min-w-0 flex-col">
         <StatusStrip status={s} error={status.error} />
-        <main className="scroll-y min-h-0 min-w-0 flex-1"><ErrorBoundary key={route} label={route}>{page}</ErrorBoundary></main>
+        <main className="scroll-y min-h-0 min-w-0 flex-1"><ErrorBoundary key={route} label={route}><Suspense fallback={<div className="px-6 py-5 text-ink-3" role="status">Loading…</div>}>{page}</Suspense></ErrorBoundary></main>
       </div>
       <StatusBar status={s} error={status.error} />
       <Crew />
