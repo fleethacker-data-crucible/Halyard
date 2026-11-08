@@ -78,7 +78,7 @@ namespace Halyard.Core.Config
         public string VoiceName { get; set; }
         /// <summary>HALYARD_VOICE_SPEED: 0.5 to 2.0.</summary>
         public double VoiceSpeed { get; set; }
-        public string WatchDirectory { get { return Path.Combine(OutputDirectory, "watch"); } }
+        public string WatchDirectory { get { return SafePath.Under(OutputDirectory, "watch"); } }
         public string ProposalsDirectory { get { return Path.Combine(OutputDirectory, "proposals"); } }
         /// <summary>One file per apply run, with the body each written item had before (for rollback).</summary>
         public string ApplyJournalDirectory { get { return Path.Combine(OutputDirectory, "applied"); } }

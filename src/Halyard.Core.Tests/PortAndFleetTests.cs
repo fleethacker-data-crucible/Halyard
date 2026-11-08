@@ -19,7 +19,7 @@ namespace Halyard.Core.Tests
 
         public PortAndFleetTests() { Directory.CreateDirectory(_root); }
 
-        public void Dispose() { try { Directory.Delete(_root, true); } catch (IOException) { } }
+        public void Dispose() { TestDirs.TryDelete(_root); }
 
         private HalyardHost NewHost(int port)
         {

@@ -35,7 +35,7 @@ namespace Halyard.Core.Tests
             File.WriteAllText(Path.Combine(models, "no-config.onnx"), "x");
         }
 
-        public void Dispose() { try { Directory.Delete(_root, true); } catch (IOException) { } }
+        public void Dispose() { TestDirs.TryDelete(_root); }
 
         private static FakeTransport Heartbeat(bool up)
         {

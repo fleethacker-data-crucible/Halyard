@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Halyard.Core.Analysis;
+using Halyard.Core.Config;
 using Halyard.Core.Intelligence;
 using Halyard.Core.Llm;
 using Halyard.Core.Model;
@@ -140,7 +141,7 @@ namespace Halyard.Core.Host
                 catch (InvalidOperationException ex) { Log.Warn("WATCH_NOTE", ex.Message); }
             }
             Directory.CreateDirectory(Settings.WatchDirectory);
-            var stem = Path.Combine(Settings.WatchDirectory, "watch-" + report.Id);
+            var stem = SafePath.Under(Settings.WatchDirectory, "watch-" + report.Id);
             report.MarkdownPath = stem + ".md";
             File.WriteAllText(report.MarkdownPath, WatchMarkdown(report), new UTF8Encoding(false));
             File.WriteAllText(stem + ".json", JsonConvert.SerializeObject(report, Formatting.Indented, JsonSettings.Api), new UTF8Encoding(false));
@@ -288,19 +289,18 @@ namespace Halyard.Core.Host
             else
             {
                 var parent = Path.GetDirectoryName(Path.GetFullPath(Settings.RootDirectory));
-                if (!string.IsNullOrEmpty(parent)) candidates.Add(Path.Combine(parent, "TalkForge"));
+                if (!string.IsNullOrEmpty(parent)) candidates.Add(SafePath.Under(parent, "TalkForge"));
                 var profile = Environment.GetEnvironmentVariable("USERPROFILE");
-                if (!string.IsNullOrEmpty(profile)) candidates.Add(Path.Combine(profile, "Projects", "TalkForge"));
+                if (!string.IsNullOrEmpty(profile)) candidates.Add(SafePath.Under(profile, "Projects", "TalkForge"));
             }
-            return candidates.FirstOrDefault(c => Directory.Exists(Path.Combine(c, "assets")));
+            return candidates.FirstOrDefault(c => Directory.Exists(SafePath.Under(c, "assets")));
         }
 
         private object SttStatus()
         {
             var dir = FindTalkForge();
             if (dir == null) return new { ready = false, missing = new string[0], message = "TalkForge was not found, so voice input uses the browser's on-device recogniser when it has one. Set HALYARD_TALKFORGE_PATH." };
-            var assets = Path.Combine(dir, "assets");
-            var missing = SttRequired.Where(k => !File.Exists(Path.Combine(assets, SttFiles[k]))).ToArray();
+            var missing = SttRequired.Where(k => !File.Exists(SafePath.Under(dir, "assets", SttFiles[k]))).ToArray();
             if (missing.Length > 0) return new { ready = false, missing = missing, message = "Voice input needs TalkForge's speech-to-text files (" + missing.Length + " missing). In the TalkForge folder run: populate-assets.ps1 -Only 'stt/*'" };
             return new { ready = true, missing = new string[0], message = "Voice input is ready (Whisper, in this browser tab)." };
         }
@@ -313,7 +313,7 @@ namespace Halyard.Core.Host
             string rel;
             if (!SttFiles.TryGetValue(name, out rel)) return HttpResponse.Text(404, "Not found");
             var dir = FindTalkForge();
-            var file = dir == null ? null : Path.Combine(Path.Combine(dir, "assets"), rel);
+            var file = dir == null ? null : SafePath.Under(dir, "assets", rel);
             if (file == null || !File.Exists(file)) return HttpResponse.Text(404, "Voice input needs TalkForge's speech-to-text files. In the TalkForge folder run: populate-assets.ps1 -Only 'stt/*'");
             var ext = Path.GetExtension(name).ToLowerInvariant();
             var type = ext == ".js" || ext == ".mjs" ? "text/javascript; charset=utf-8" : ext == ".json" ? "application/json; charset=utf-8" : ext == ".wasm" ? "application/wasm" : "application/octet-stream";

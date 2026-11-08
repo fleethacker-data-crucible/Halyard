@@ -30,7 +30,7 @@ namespace Halyard.Core.Tests
             var version = File.ReadAllText(Path.Combine(root, "VERSION")).Trim();
             var csproj = XDocument.Load(Path.Combine(root, "src", "Halyard.Core", "Halyard.Core.csproj"));
             Assert.Equal(version, csproj.Descendants("Version").Single().Value.Trim());
-            Assert.Equal(version, HalyardHost.Version);
+            Assert.Equal(HalyardHost.Version, version);
             var web = System.Text.RegularExpressions.Regex.Match(File.ReadAllText(Path.Combine(root, "web", "package.json")), "\"version\"\\s*:\\s*\"([^\"]+)\"");
             Assert.Equal(version, web.Groups[1].Value);
             Assert.Contains("## " + version, File.ReadAllText(Path.Combine(root, "CHANGELOG.md")));
