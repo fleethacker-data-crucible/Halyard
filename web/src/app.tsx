@@ -9,6 +9,7 @@ import { useResource } from './lib/useResource';
 import { invalidateSnapshotViews } from './lib/jobs';
 import { Button, ConfirmDialog, Emblem, Notice, Pill, ToastProvider, cn, useToast } from './components/ui';
 import { Crew } from './components/crew';
+import { FairleadBanner } from './components/fairlead-banner';
 import { Welcome } from './components/welcome';
 import { openCrew, showWelcomeOnLaunch } from './lib/welcome';
 import { CommandPalette, ErrorBoundary, HelpDialog } from './components/shell-dialogs';
@@ -231,6 +232,7 @@ function Shell() {
       </nav>
       <div className="flex min-h-0 min-w-0 flex-col">
         <StatusStrip status={s} error={status.error} />
+        <FairleadBanner />
         <main className="scroll-y min-h-0 min-w-0 flex-1"><ErrorBoundary key={route} label={route}><Suspense fallback={<div className="px-6 py-5 text-ink-3" role="status">Loading…</div>}>{page}</Suspense></ErrorBoundary></main>
       </div>
       <StatusBar status={s} error={status.error} />

@@ -120,6 +120,8 @@ namespace Halyard.Core.Host
             C("halyard job show", "GET", "/api/jobs/{id}", "One job with progress and result."),
             C("halyard job cancel", "POST", "/api/jobs/{id}/cancel", "Cancel a running job."),
             C("halyard llm test", "POST", "/api/llm/test", "Send a test prompt through Fairlead."),
+            C("halyard fairlead status", "GET", "/api/fairlead", "Is Fairlead answering, and can Halyard start it."),
+            C("halyard fairlead start", "POST", "/api/fairlead/start", "Start Fairlead (its tray app) when it is not running."),
         };
 
         public static string Json()

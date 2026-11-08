@@ -88,7 +88,8 @@ namespace Halyard.Core.Host
             ScrumBrief brief = null;
             try { brief = BuildBrief(label); }
             catch (BadRequestException) { brief = null; }   // no snapshot yet: the crew answers without the brief
-            ILlmClient llm = Settings.Llm.IsConfigured() ? CreateLlm() : null;
+            // No Fairlead check here: when Fairlead is down the crew still answers, from the brief (the catch below).
+            ILlmClient llm = Settings.Llm.IsConfigured() ? CreateLlm(false) : null;
             var crew = new CrewAgent(llm, DispatchAsync, CommandRegistry.All);
             var snap = Snapshots.Current;
             CrewTurn turn;
@@ -138,6 +139,7 @@ namespace Halyard.Core.Host
                     if (!string.IsNullOrWhiteSpace(reply.Text)) report.Note = reply.Text.Trim();
                 }
                 catch (Providers.ProviderHttpException ex) { Log.Warn("WATCH_NOTE", ex.Code + " " + ex.Message); }
+                catch (FairleadOfflineException ex) { Log.Warn("WATCH_NOTE", "FAIRLEAD_OFFLINE " + ex.Message); }
                 catch (InvalidOperationException ex) { Log.Warn("WATCH_NOTE", ex.Message); }
             }
             Directory.CreateDirectory(Settings.WatchDirectory);
