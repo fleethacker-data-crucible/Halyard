@@ -201,3 +201,10 @@
     to { transform: scaleX(1); opacity: 1; }
   }
 }
+
+/* The welcome page's emblem (components/welcome.tsx), as Semaphore sizes it: it grows with the window height up to
+   380 px and shrinks on a short window. */
+.welcome-emblem img { width: clamp(160px, min(40vh, 60vw), 380px); height: auto; }
+@media (max-height: 520px) {
+  .welcome-emblem img { width: clamp(96px, 30vh, 160px); }
+}

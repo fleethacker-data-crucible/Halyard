@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { LuActivity, LuArrowRightToLine, LuBoxes, LuCalendarRange, LuClipboardCheck, LuCompass, LuGitBranch, LuLayoutDashboard, LuMonitor, LuMoon, LuPanelLeftClose, LuPanelLeftOpen, LuPlug, LuPower, LuPresentation, LuSettings2, LuSparkles, LuSun, LuTestTubeDiagonal } from 'react-icons/lu';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { LuCircleHelp, LuActivity, LuArrowRightToLine, LuBoxes, LuCalendarRange, LuClipboardCheck, LuCompass, LuGitBranch, LuLayoutDashboard, LuMonitor, LuMoon, LuPanelLeftClose, LuPanelLeftOpen, LuPlug, LuPower, LuPresentation, LuSettings2, LuSparkles, LuSun, LuTestTubeDiagonal } from 'react-icons/lu';
 import { post, sessionToken, startHeartbeat } from './lib/api';
 import { ageLabel } from './lib/format';
 import { Status } from './lib/schemas';
@@ -7,18 +7,29 @@ import { useLocalState } from './lib/storage';
 import { useTheme, type ThemePref } from './lib/theme';
 import { useResource } from './lib/useResource';
 import { Button, ConfirmDialog, Emblem, Notice, Pill, ToastProvider, cn, useToast } from './components/ui';
-import { ConnectionPage } from './pages/connection';
-import { DiagnosticsPage } from './pages/diagnostics';
-import { HierarchyPage } from './pages/hierarchy';
-import { IntakePage } from './pages/intake';
-import { LeadershipPage } from './pages/leadership';
-import { OverviewPage } from './pages/overview';
-import { PlanPage } from './pages/plan';
-import { ProposalsPage } from './pages/proposals';
-import { ReviewPage } from './pages/review';
-import { SandboxPage } from './pages/sandbox';
-import { SettingsPage } from './pages/settings';
-import { VisionPage } from './pages/vision';
+import { Crew } from './components/crew';
+import { Welcome } from './components/welcome';
+import { openCrew, showWelcomeOnLaunch } from './lib/welcome';
+import { CommandPalette, ErrorBoundary, HelpDialog } from './components/shell-dialogs';
+import { CREW_PROMPTS } from './lib/crew';
+import type { Command } from './lib/commands';
+import { GO_KEYS } from './lib/shortcuts';
+import { useShortcuts } from './lib/use-shortcuts';
+import { describeError } from './lib/api';
+
+// Each page is its own chunk, loaded when it is first opened (build.mjs splits the bundle).
+const ConnectionPage = lazy(() => import('./pages/connection').then((m) => ({ default: m.ConnectionPage })));
+const DiagnosticsPage = lazy(() => import('./pages/diagnostics').then((m) => ({ default: m.DiagnosticsPage })));
+const HierarchyPage = lazy(() => import('./pages/hierarchy').then((m) => ({ default: m.HierarchyPage })));
+const IntakePage = lazy(() => import('./pages/intake').then((m) => ({ default: m.IntakePage })));
+const LeadershipPage = lazy(() => import('./pages/leadership').then((m) => ({ default: m.LeadershipPage })));
+const OverviewPage = lazy(() => import('./pages/overview').then((m) => ({ default: m.OverviewPage })));
+const PlanPage = lazy(() => import('./pages/plan').then((m) => ({ default: m.PlanPage })));
+const ProposalsPage = lazy(() => import('./pages/proposals').then((m) => ({ default: m.ProposalsPage })));
+const ReviewPage = lazy(() => import('./pages/review').then((m) => ({ default: m.ReviewPage })));
+const SandboxPage = lazy(() => import('./pages/sandbox').then((m) => ({ default: m.SandboxPage })));
+const SettingsPage = lazy(() => import('./pages/settings').then((m) => ({ default: m.SettingsPage })));
+const VisionPage = lazy(() => import('./pages/vision').then((m) => ({ default: m.VisionPage })));
 
 export type Route = 'overview' | 'leadership' | 'vision' | 'intake' | 'hierarchy' | 'review' | 'proposals' | 'plan' | 'sandbox' | 'connection' | 'diagnostics' | 'settings';
 
@@ -74,8 +85,46 @@ function Shell() {
   const [confirmStop, setConfirmStop] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [collapsed, setCollapsed] = useLocalState('sidebar-collapsed', false);
+  const [skipWelcome, setSkipWelcome] = useLocalState('skip-welcome', false);
+  // The welcome page shows on launch (not on a deep link) and comes back from the emblem in the sidebar.
+  const [welcome, setWelcome] = useState(() => showWelcomeOnLaunch(window.location.hash, skipWelcome));
+  useEffect(() => {
+    const leave = () => setWelcome(false);
+    window.addEventListener('hashchange', leave);
+    return () => window.removeEventListener('hashchange', leave);
+  }, []);
 
   useEffect(() => startHeartbeat(), []);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const go = useCallback((r: Route) => { setWelcome(false); navigate(r); }, []);
+  useShortcuts({ onPalette: () => setPaletteOpen(true), onHelp: () => setHelpOpen(true), onTalk: () => openCrew(undefined, true), onGo: go });
+
+  // The window title names the page: "Proposals · Halyard" (the launcher finds the window by it).
+  useEffect(() => {
+    const label = welcome ? null : NAV.find((n) => n.route === route)?.label;
+    document.title = label ? `${label} \u00b7 Halyard` : 'Halyard';
+  }, [route, welcome]);
+
+  const commands = useMemo<Command[]>(() => {
+    const goKey = (r: Route) => Object.entries(GO_KEYS).find(([, v]) => v === r)?.[0];
+    return [
+      { id: 'crew:talk', label: 'Talk to the crew', group: 'Crew', keys: ['.'], keywords: 'voice speak listen orb', run: () => openCrew(undefined, true) },
+      ...CREW_PROMPTS.map((p) => ({ id: `crew:${p}`, label: p, group: 'Crew' as const, keywords: 'crew scrum product owner', run: () => openCrew(p) })),
+      ...NAV.map((n) => { const k = goKey(n.route); return { id: `go:${n.route}`, label: n.label, group: 'Go to' as const, keys: k ? ['g', k] : undefined, run: () => go(n.route) }; }),
+      { id: 'backlog:sync', label: 'Synchronize the backlog', group: 'Backlog', keywords: 'sync pull refresh snapshot', run: () => { post('/api/sync', { repository: 'source' }).then(() => toast.push('info', 'Synchronizing. The snapshot updates when it finishes.')).catch((e) => toast.push('err', describeError(e))); } },
+      { id: 'view:welcome', label: 'Show the welcome page', group: 'View', keywords: 'home start', run: () => setWelcome(true) },
+      { id: 'view:sidebar', label: 'Collapse or expand the sidebar', group: 'View', run: () => setCollapsed((c) => !c) },
+      { id: 'view:help', label: 'Keyboard shortcuts and help', group: 'View', keys: ['?'], keywords: 'keys', run: () => setHelpOpen(true) },
+      { id: 'session:end', label: 'End session', group: 'Session', keywords: 'quit stop exit close', run: () => setConfirmStop(true) },
+    ];
+  }, [go, toast, setCollapsed]);
+  const dialogs = (
+    <>
+      <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} onPalette={() => setPaletteOpen(true)} onWelcome={() => setWelcome(true)} version={status.data?.version} />
+    </>
+  );
 
   const endSession = useCallback(async () => {
     try {
@@ -109,6 +158,15 @@ function Shell() {
   }
 
   const s = status.data;
+  if (welcome) {
+    return (
+      <div className="h-screen">
+        <Welcome status={s} skipNextTime={skipWelcome} onSkipNextTime={setSkipWelcome} onGo={go} />
+        <Crew />
+        {dialogs}
+      </div>
+    );
+  }
   const page = (() => {
     switch (route) {
       case 'leadership': return <LeadershipPage status={s} />;
@@ -133,17 +191,20 @@ function Shell() {
       <nav className="flex min-h-0 flex-col border-r border-line-2 bg-sidebar" aria-label="Halyard">
         {/* Expanded: the full emblem with its wordmark. Collapsed rail: the emblem's circle only. */}
         <div className={cn('flex-col items-center px-3 pt-3 pb-2', collapsed ? 'hidden' : 'flex max-lg:hidden')}>
-          <Emblem size={168} />
+          <button type="button" onClick={() => setWelcome(true)} title="Welcome page" className="rounded-panel"><Emblem size={168} /></button>
           <div className="text-[12px] text-ink-3">Delivery intelligence</div>
         </div>
         <div className={cn('justify-center py-4', collapsed ? 'flex' : 'hidden max-lg:flex')}>
-          <img src="brand/icon-256.png" alt="Halyard" width={40} height={40} />
+          <button type="button" onClick={() => setWelcome(true)} title="Welcome page" className="rounded-panel"><img src="brand/icon-256.png" alt="Halyard" width={40} height={40} /></button>
         </div>
         <div className="scroll-y min-h-0 flex-1">
           <NavGroup label="Backlog" items={NAV.filter((n) => n.group === 'work')} route={route} collapsed={collapsed} />
           <NavGroup label="Operate" items={NAV.filter((n) => n.group === 'operate')} route={route} collapsed={collapsed} />
         </div>
         <div className="flex flex-col gap-1 border-t border-line-2 px-2 py-2">
+          <Button variant="quiet" className={cn('h-8 justify-start px-3 text-ink-2', centred)} onClick={() => setHelpOpen(true)} title="Help and keyboard shortcuts (?)">
+            <LuCircleHelp size={16} /><span className={label}>Help</span><kbd className={cn('ml-auto rounded border border-line px-1 font-mono text-[10.5px] text-ink-3', label)}>Ctrl K</kbd>
+          </Button>
           <ThemeSwitch className={centred} labelClass={label} />
           <Button variant="quiet" className={cn('h-8 justify-start px-3 text-ink-2', centred)} onClick={() => setCollapsed(!collapsed)} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             {collapsed ? <LuPanelLeftOpen size={16} /> : <LuPanelLeftClose size={16} />}<span className={label}>Collapse sidebar</span>
@@ -155,9 +216,11 @@ function Shell() {
       </nav>
       <div className="flex min-h-0 min-w-0 flex-col">
         <StatusStrip status={s} error={status.error} />
-        <main className="scroll-y min-h-0 min-w-0 flex-1">{page}</main>
+        <main className="scroll-y min-h-0 min-w-0 flex-1"><ErrorBoundary key={route} label={route}><Suspense fallback={<div className="px-6 py-5 text-ink-3" role="status">Loading…</div>}>{page}</Suspense></ErrorBoundary></main>
       </div>
       <StatusBar status={s} error={status.error} />
+      <Crew />
+      {dialogs}
       <ConfirmDialog open={confirmStop} title="End this Halyard session?" confirmLabel="End session" onConfirm={endSession} onCancel={() => setConfirmStop(false)}>
         The local engine stops and this page stops working. Snapshots, proposals and seed manifests stay on disk under <code>output/</code>.
       </ConfirmDialog>

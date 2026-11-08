@@ -11,6 +11,7 @@
 
 $script:HalyardLazaretteModule = $null
 $script:HalyardLazaretteRoot = $null
+$script:HalyardLazaretteUnlocked = $false
 
 function Get-HalyardLazaretteEntry {
     <# The loader file in a Lazarette install folder: lib\Lazarette.ps1. #>
@@ -81,6 +82,7 @@ function Import-HalyardLazaretteSession {
         Import-Module -ModuleInfo $module -Global -ErrorAction Stop -WarningAction SilentlyContinue
         $script:HalyardLazaretteModule = $module
         $script:HalyardLazaretteRoot = $LazaretteRoot
+        $script:HalyardLazaretteUnlocked = $false
         return (Test-HalyardLazaretteLibAvailable)
     } catch {
         Write-Warning ('Lazarette import failed: ' + $_.Exception.GetType().Name + '. Open Lazarette directly and review its logs.')
@@ -90,14 +92,21 @@ function Import-HalyardLazaretteSession {
 
 function Test-HalyardLazaretteVaultUnlocked {
     $test = Get-HalyardLazaretteCommand @('Test-LazaretteVaultUnlocked')
-    if (-not $test) { return $false }
+    if (-not $test) {
+        # Lock-less provider (Lazarette Lite): no vault state to test, so a
+        # successful unlock call in this process means the store is usable.
+        # Full Lazarette always defines this command, so its path is unchanged.
+        return [bool]$script:HalyardLazaretteUnlocked
+    }
     try { return [bool](& $test) } catch { return $false }
 }
 
 function Invoke-HalyardLazaretteUnlock {
     $unlock = Get-HalyardLazaretteCommand @('Unlock-LazaretteVaultInteractive')
     if (-not $unlock) { return $false }
-    return [bool](& $unlock)
+    $ok = [bool](& $unlock)
+    if ($ok) { $script:HalyardLazaretteUnlocked = $true }
+    return $ok
 }
 
 function Get-HalyardLazaretteSecret {
@@ -150,8 +159,12 @@ function Connect-HalyardLazarette {
     }
     try {
         if (-not (Test-HalyardLazaretteVaultUnlocked)) {
-            Write-Host ''
-            Write-Host 'Halyard: unlock Lazarette in this window (smart card PIN or passphrase, then the authenticator code).' -ForegroundColor Cyan
+            # The launcher runs hidden; the unlock is the one step that needs this console, so show it now (Start-Halyard hides it again).
+            try { [void][Halyard.Core.Facade]::SetConsoleVisible($true) } catch { }
+            if (Get-HalyardLazaretteCommand @('Test-LazaretteVaultUnlocked')) {
+                Write-Host ''
+                Write-Host 'Halyard: unlock Lazarette in this window (smart card PIN or passphrase, then the authenticator code).' -ForegroundColor Cyan
+            }
             if (-not (Invoke-HalyardLazaretteUnlock)) {
                 $result.Error = 'LAZARETTE_AUTH_CANCELLED'
                 Write-Warning 'Lazarette was not unlocked. Halyard will open without vault credentials.'

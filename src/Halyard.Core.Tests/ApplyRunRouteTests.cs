@@ -35,7 +35,7 @@ namespace Halyard.Core.Tests
             settings.Provider.SandboxRepository = "5678";
             settings.Provider.SourceRepository = "1234";
             settings.Provider.WriteDelayMs = 0;
-            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = 0, WebRoot = null, Transport = _gitlab.Http });
+            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = HostOptions.AnyPort, WebRoot = null, Transport = _gitlab.Http });
             _info = _host.Start();
             _client.DefaultRequestHeaders.Add("X-Halyard-Session", _info.SessionToken);
         }

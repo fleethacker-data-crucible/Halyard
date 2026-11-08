@@ -124,23 +124,29 @@ namespace Halyard.Core.Host
         public bool IsRunning { get { return _listener != null; } }
         public int ActiveConnections { get { return _active; } }
 
-        /// <summary>Binds 127.0.0.1:<paramref name="preferredPort"/>; falls back to an OS-assigned port when it is taken.</summary>
-        public int Start(int preferredPort)
+        /// <summary>
+        /// Binds 127.0.0.1 on the first free port from <paramref name="firstPort"/> to <paramref name="lastPort"/>. Port 0 asks the OS for any
+        /// free port (tests). When every port in the range is taken it throws with the range in the message: no fallback outside it.
+        /// </summary>
+        public int Start(int firstPort, int lastPort)
         {
             if (_listener != null) throw new InvalidOperationException("Server already started.");
-            TcpListener listener;
-            try
+            if (lastPort < firstPort) lastPort = firstPort;
+            TcpListener listener = null;
+            for (var port = firstPort; port <= lastPort && listener == null; port++)
             {
-                listener = new TcpListener(IPAddress.Loopback, preferredPort);
-                listener.Start(64);
+                var candidate = new TcpListener(IPAddress.Loopback, port);
+                try { candidate.Start(64); listener = candidate; }
+                catch (SocketException ex)
+                {
+                    if (ex.SocketErrorCode != SocketError.AddressAlreadyInUse) throw;
+                    _log.Warn("PORT_BUSY", "Port " + port + " is in use.");
+                }
             }
-            catch (SocketException ex)
-            {
-                if (ex.SocketErrorCode != SocketError.AddressAlreadyInUse) throw;
-                _log.Warn("PORT_FALLBACK", "Preferred port " + preferredPort + " is in use; selecting a free loopback port.");
-                listener = new TcpListener(IPAddress.Loopback, 0);
-                listener.Start(64);
-            }
+            if (listener == null)
+                throw new InvalidOperationException(firstPort == lastPort
+                    ? "Port " + firstPort + " is in use. Close what holds it, or set another HALYARD_PORT."
+                    : "Halyard's ports " + firstPort + "-" + lastPort + " are all in use. Close another Halyard, or set HALYARD_PORT.");
             _listener = listener;
             Port = ((IPEndPoint)listener.LocalEndpoint).Port;
             _cts = new CancellationTokenSource();

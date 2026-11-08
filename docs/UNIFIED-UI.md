@@ -16,7 +16,7 @@ Requirement words: **MUST** is required to call an app aligned. **SHOULD** is ex
 | --- | --- | --- | --- | --- | --- |
 | Scrimshaw | Scrimshaw | (new) | E-learning course authoring | New | 8775 |
 | Lazarette | Lazarette | ARC | Encrypted single-user vault | Svelte 5 + Tailwind 4 | 8765 |
-| Halyard | Halyard | (previous name) | Product-owner backlog assistant | React + Tailwind, .NET engine | 8773 |
+| Halyard | Halyard | (previous name) | Product-owner backlog assistant | React + Tailwind, .NET engine | 8806-8808 |
 | Halyard Ballast | Halyard-Ballast | (previous name) | Halyard's write-only sandbox repo | No UI | — |
 | Shellback | Shellback | Synapse | Workforce capability discovery | React 19 + Tailwind 4 | 8771 |
 | SnapShackle | SnapShackle | CutterMk, Lasso, SnipHero | Screenshot and annotation studio | Plain HTML/JS | 8768 |

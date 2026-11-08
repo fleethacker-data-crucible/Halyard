@@ -1,13 +1,15 @@
 {
   "name": "halyard-web",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Halyard browser UI. Built to static files; served by the Halyard host on 127.0.0.1. No runtime network access.",
   "type": "module",
   "scripts": {
     "build": "node build.mjs",
     "dev": "node build.mjs --watch",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "size": "node size-check.mjs",
+    "e2e": "playwright test -c e2e/playwright.config.ts",
     "test": "node --import tsx --test test/*.test.ts test/*.test.tsx"
   },
   "dependencies": {
@@ -26,6 +28,7 @@
     "zod": "3.25.76"
   },
   "devDependencies": {
+    "@playwright/test": "1.63.0",
     "@types/d3-hierarchy": "3.1.7",
     "@types/d3-scale": "4.0.9",
     "@types/d3-selection": "3.0.11",

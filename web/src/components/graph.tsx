@@ -3,7 +3,8 @@ import { select } from 'd3-selection';
 import { zoom, zoomIdentity, type D3ZoomEvent } from 'd3-zoom';
 import { useEffect, useMemo, useRef } from 'react';
 import { levelVar } from '../lib/levels';
-import type { HierarchyNode } from '../lib/schemas';
+import type { HierarchyNode } from '../lib/schemas';
+import { itemTitle } from '../lib/format';
 
 type GNode = HierarchyNode & { synthetic?: boolean };
 
@@ -55,7 +56,8 @@ export function HierarchyGraph({ roots, orphans, selectedKey, onSelect, height =
           })}
           {nodes.map((d) => {
             const selected = d.data.key === selectedKey;
-            const label = d.data.title.length > 26 ? d.data.title.slice(0, 25) + '…' : d.data.title;
+            const shown = itemTitle(d.data.title);
+            const label = shown.length > 26 ? shown.slice(0, 25) + '…' : shown;
             return (
               <g key={d.data.key} transform={`translate(${d.y},${d.x})`} onClick={() => onSelect(d.data)} className="cursor-pointer">
                 <rect x={0} y={-10} width={110} height={20} rx={4} fill="var(--surface)" stroke={selected ? 'var(--focus)' : 'var(--line)'} strokeWidth={selected ? 2 : 1} />

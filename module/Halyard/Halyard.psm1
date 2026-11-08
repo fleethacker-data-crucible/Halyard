@@ -6,6 +6,7 @@
 Set-StrictMode -Version 3.0
 
 . (Join-Path $PSScriptRoot 'Lazarette.ps1')
+. (Join-Path $PSScriptRoot 'Desktop.ps1')
 
 $script:HalyardCoreLoaded = $false
 
@@ -206,6 +207,7 @@ function Start-Halyard {
     $preferred = if ($Port -gt 0) { $Port } else { $settings.PreferredPort }
     $autoStop = $AutoStop -and $settings.AutoStop
     $hostObj = [Halyard.Core.Facade]::CreateHost($settings, $WebRoot, $preferred, $launcher, $autoStop)
+    $hostObj.LauncherPath = (Join-Path $Root 'scripts\Start-Halyard.ps1')
     $info = $hostObj.Start()
     Write-Host ''
     Write-Host ('Halyard is running at ' + $info.Url) -ForegroundColor Cyan
@@ -218,7 +220,17 @@ function Start-Halyard {
     }
     if ($autoStop) { Write-Host '  It stops by itself when the browser tab closes (--stay keeps it running). "End session" in the browser also stops it.' -ForegroundColor DarkGray }
     else { Write-Host '  Use "End session" in the browser or scripts\Stop-Halyard.ps1 to stop it. Closing this window also stops it.' -ForegroundColor DarkGray }
-    if ($NoBrowser) { Write-Host ('  Session link (open once): ' + $info.LaunchUrl) -ForegroundColor DarkGray } else { Start-Process $info.LaunchUrl }
+    if ($NoBrowser) { Write-Host ('  Session link (open once): ' + $info.LaunchUrl) -ForegroundColor DarkGray } else { [void](Open-HalyardWindow -Url $info.LaunchUrl) }
+    # The tray icon (Open, Quit) and the signal a second launch sets to bring this copy's window forward.
+    $trayState = New-HalyardTrayState
+    $trayState.Port = $info.Port
+    $trayState.OutputDir = $settings.OutputDirectory
+    $tray = $null
+    if ($env:HALYARD_TRAY -ne '0') { $tray = Start-HalyardTray -State $trayState -IconPath (Join-Path $Root 'assets\brand\tray.ico') }
+    $signal = $null
+    try { $signal = New-HalyardOpenSignal -Root $Root } catch { $signal = $null }
+    $shortcut = Initialize-HalyardShortcut -Root $Root
+    if ($shortcut -and $shortcut.Ok -and $tray) { $trayState.NoticeTitle = 'Halyard'; $trayState.NoticeText = 'A Halyard shortcut is on your desktop.'; $trayState.NoticeId = 'shortcut' }
     $vaultFailed = $envInfo.Lazarette -and -not $envInfo.Lazarette.Unlocked
     if (-not $KeepConsole -and -not $vaultFailed) {
         Start-Sleep -Milliseconds 800
@@ -227,9 +239,17 @@ function Start-Halyard {
         Write-Host 'Console kept open because Lazarette did not unlock.' -ForegroundColor Yellow
     }
     try {
-        # Poll so Ctrl+C in a visible console still works.
-        while (-not $hostObj.WaitForStop(500)) { }
+        # Poll so Ctrl+C in a visible console still works; act on the tray and on a second launch between polls.
+        while (-not $hostObj.WaitForStop(500)) {
+            $open = $false
+            if ($trayState.OpenRequested) { $trayState.OpenRequested = $false; $open = $true }
+            if ($signal) { try { if ($signal.WaitOne(0)) { $open = $true } } catch { } }
+            if ($open -and -not (Show-HalyardBrowserWindow)) { [void](Open-HalyardWindow -Url $info.LaunchUrl) }
+            if ($trayState.QuitRequested) { $trayState.QuitRequested = $false; $hostObj.Log.Info('SESSION_STOP_REQUESTED', 'Quit from the tray icon.'); $hostObj.Stop() }
+        }
     } finally {
+        Stop-HalyardTray $tray
+        if ($signal) { $signal.Dispose() }
         $hostObj.Dispose()
         [void][Halyard.Core.Facade]::SetConsoleVisible($true)
     }
@@ -398,5 +418,5 @@ function Get-HalyardCommand {
     }
 }
 
-Export-ModuleMember -Function Get-HalyardCommand, Send-HalyardReportMessage, Get-HalyardRoot, Import-HalyardCore, Get-HalyardCoreSource, Get-HalyardCoreLoadInfo, Initialize-HalyardEnvironment, Connect-HalyardLazarette, Start-Halyard, Test-HalyardConnection, New-HalyardSyntheticCatalog, Invoke-HalyardSeed, Invoke-HalyardTeardown, Get-HalyardWorkItem
+Export-ModuleMember -Function Send-HalyardOpenSignal, Show-HalyardMessage, Open-HalyardWindow, New-HalyardShortcut, Get-HalyardCommand, Send-HalyardReportMessage, Get-HalyardRoot, Import-HalyardCore, Get-HalyardCoreSource, Get-HalyardCoreLoadInfo, Initialize-HalyardEnvironment, Connect-HalyardLazarette, Start-Halyard, Test-HalyardConnection, New-HalyardSyntheticCatalog, Invoke-HalyardSeed, Invoke-HalyardTeardown, Get-HalyardWorkItem
 

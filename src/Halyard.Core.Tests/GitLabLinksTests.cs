@@ -75,7 +75,7 @@ namespace Halyard.Core.Tests
             settings.Provider.SandboxRepository = kind == ProviderKind.GitLab ? "5678" : "o/sandbox";
             settings.Provider.SourceRepository = kind == ProviderKind.GitLab ? "1234" : "o/source";
             settings.Provider.GitLabVersion = version;
-            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = 0, WebRoot = null, Transport = _http });
+            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = HostOptions.AnyPort, WebRoot = null, Transport = _http });
             _info = _host.Start();
             _client.DefaultRequestHeaders.Add("X-Halyard-Session", _info.SessionToken);
         }

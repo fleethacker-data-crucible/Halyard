@@ -6,7 +6,7 @@ import { ReadAloud } from '../components/voice';
 import { CapacityMeters, StatusOverTime, ThemeBars, VelocityChart } from '../components/delivery-charts';
 import { Button, Empty, Mono, Notice, Page, Pill, Section, Stat, cn, useToast } from '../components/ui';
 import { describeError, getText, post } from '../lib/api';
-import { downloadText, relativeTime, shortDate } from '../lib/format';
+import { downloadText, relativeTime, shortDate, itemTitle } from '../lib/format';
 import { Leadership, type Status } from '../lib/schemas';
 import { useResource } from '../lib/useResource';
 import { Skeleton } from './overview';
@@ -85,7 +85,7 @@ export function LeadershipPage({ status }: { status: Status | undefined }) {
                 const st = STATUS[f.status];
                 return (
                   <tr key={f.key} className="cursor-pointer" onClick={() => navigate('hierarchy', { item: f.key })}>
-                    <td><div className="font-medium">{f.title}</div><div className="text-[11.5px] text-ink-3">{f.storiesDone}/{f.stories} stories · {f.pointsDone}/{f.points} pts{f.blocked ? ` · ${f.blocked} blocked` : ''}</div></td>
+                    <td><div className="font-medium">{itemTitle(f.title)}</div><div className="text-[11.5px] text-ink-3">{f.storiesDone}/{f.stories} stories · {f.pointsDone}/{f.points} pts{f.blocked ? ` · ${f.blocked} blocked` : ''}</div></td>
                     <td className="text-ink-2">{f.epic ?? '—'}</td>
                     <td><div className="flex items-center gap-2"><span className="h-2 w-32 overflow-hidden rounded-full bg-surface-2"><span className="block h-full rounded-full" style={{ width: `${f.percent}%`, background: st.color }} /></span><span className="num text-ink">{f.percent}%</span></div></td>
                     <td><Pill tone={st.tone}>{st.label}</Pill><div className="text-[11px] text-ink-3">{f.reason}</div></td>
@@ -122,7 +122,7 @@ export function LeadershipPage({ status }: { status: Status | undefined }) {
               {d.blockers.map((b) => (
                 <tr key={b.key} className="cursor-pointer" onClick={() => navigate('hierarchy', { item: b.key })}>
                   <td className="mono text-ink-3">#{b.number}{b.url ? <a href={b.url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="ml-1 inline-flex align-middle"><LuExternalLink size={11} /></a> : null}</td>
-                  <td><div className="font-medium">{b.title}</div>{b.reason ? <div className="text-[11.5px] text-ink-3">{b.reason}</div> : null}</td>
+                  <td><div className="font-medium">{itemTitle(b.title)}</div>{b.reason ? <div className="text-[11.5px] text-ink-3">{b.reason}</div> : null}</td>
                   <td><Pill tone={b.type === 'ops' ? 'warn' : 'neutral'}>{b.type.toUpperCase()}</Pill></td>
                   <td className={cn('num', b.escalated ? 'font-semibold text-err' : 'text-ink')}>{b.ageBusinessDays}d</td>
                   <td className="text-ink-2">{b.owner ?? '—'}</td>

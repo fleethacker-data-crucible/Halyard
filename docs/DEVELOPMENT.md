@@ -36,8 +36,17 @@ dotnet test                              # core tests (compile the same .cs file
 build\Test-HalyardAddType.ps1            # compile with Windows PowerShell 5.1 Add-Type, exactly as on the workstation
 cd web; npm install; npm run build       # UI only → web\dist
 cd web; npm test; npm run typecheck
+cd web; npm run size                     # the size budget (web\size-budget.json): first load, all JavaScript, CSS
+cd web; npm run e2e                      # Playwright in the installed Edge against a real engine and the fake GitHub
 Invoke-Pester tests\pester
+Invoke-ScriptAnalyzer -Path module,scripts,build,tests -Recurse -Settings .\PSScriptAnalyzerSettings.psd1
 ```
+
+The UI is built as ES modules with code splitting: the shell loads first and each page is its own chunk
+(`React.lazy` in `web/src/app.tsx`). `npm run e2e` starts `web/e2e/Start-UiHost.ps1` (fake GitHub, engine, seeded
+backlog), runs `web/e2e/*.spec.ts` and fails a test on any page error, CSP violation or unexpected console error;
+screenshots in both themes land in `web/e2e/.output/results/`. The version lives in the root `VERSION` file; the engine,
+the project file and `web/package.json` must match it, and `CHANGELOG.md` must have its section (a test checks).
 
 Run from source without bundling: build the UI, then `.\Launch-Halyard.bat --console`. The module compiles
 `src\Halyard.Core\**\*.cs` in memory (the engine needs no build step) and serves the UI from `web\dist`.
@@ -54,7 +63,7 @@ node tests/fakes/fake-github.mjs 8790 &
 #   HALYARD_WRITE_DELAY_MS=0
 #   HALYARD_FAIRLEAD_URL=http://127.0.0.1:8790/v1/chat/completions   (model calls also need a Fairlead key; tests/e2e/Run-E2E.ps1 shows how the e2e run fakes one)
 .\Launch-Halyard.bat --console --no-browser
-node tests/e2e/sandbox-loop.mjs http://127.0.0.1:8773 <session token from the launch URL> 30 --fake http://127.0.0.1:8790
+node tests/e2e/sandbox-loop.mjs http://127.0.0.1:8806 <session token from the launch URL> 30 --fake http://127.0.0.1:8790
 ```
 
 The loop seeds with gaps, checks the audit raises every expected code, repairs metadata, drafts sections

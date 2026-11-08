@@ -5,7 +5,7 @@ import { DiffView } from '../components/diff';
 import { DictationPanel } from '../components/voice';
 import { Button, Checkbox, Empty, Input, LevelChip, Mono, Notice, Page, Pill, Progress, Section, Select, cn, useToast } from '../components/ui';
 import { describeError, post } from '../lib/api';
-import { humanizeCode, relativeTime } from '../lib/format';
+import { humanizeCode, relativeTime, itemTitle } from '../lib/format';
 import { resyncedBy, useJob } from '../lib/jobs';
 import { LEVELS, LEVEL_LABEL } from '../lib/levels';
 import { IntakeManifest, IntakePreview, IntakeSources, type IntakeDraft, type LevelToken, type Status } from '../lib/schemas';
@@ -99,7 +99,7 @@ export function IntakePage({ status }: { status: Status | undefined }) {
                 {items.map((i) => (
                   <tr key={i.key} className={cn(selected.has(i.key) && 'bg-surface-2', i.copiedAs && 'text-ink-3')}>
                     <td><input type="checkbox" checked={selected.has(i.key)} onChange={() => toggle(i.key)} disabled={!!i.copiedAs} aria-label={`Select #${i.number}`} /></td>
-                    <td><div className="font-medium">{i.title}</div><div className="mono text-[11.5px] text-ink-3">{i.repository} #{i.number}{i.url ? <a href={i.url} target="_blank" rel="noreferrer" className="ml-1 inline-flex align-middle"><LuExternalLink size={11} /></a> : null}{i.copiedAs ? <span className="ml-2 text-ok">copied → {i.copiedAs.split(':').pop()}</span> : null}{i.bodyLength === 0 ? <span className="ml-2 text-warn">no description</span> : null}</div></td>
+                    <td><div className="font-medium">{itemTitle(i.title)}</div><div className="mono text-[11.5px] text-ink-3">{i.repository} #{i.number}{i.url ? <a href={i.url} target="_blank" rel="noreferrer" className="ml-1 inline-flex align-middle"><LuExternalLink size={11} /></a> : null}{i.copiedAs ? <span className="ml-2 text-ok">copied → {i.copiedAs.split(':').pop()}</span> : null}{i.bodyLength === 0 ? <span className="ml-2 text-warn">no description</span> : null}</div></td>
                     <td><LevelChip type={i.guessedType} /></td>
                     <td className="text-[12px] text-ink-2">{i.guessReason}</td>
                     <td className="text-[11.5px] text-ink-3">{i.labels.slice(0, 4).join(', ')}</td>
@@ -144,7 +144,7 @@ function DraftRow({ d, open, onToggle }: { d: IntakeDraft; open: boolean; onTogg
     <>
       <tr className={cn('cursor-pointer', open && 'bg-surface-2', d.existingKey && 'text-ink-3')} onClick={onToggle}>
         <td className="text-ink-3">{open ? '▾' : '▸'}</td>
-        <td><div className="font-medium">{d.title}</div><div className="mono text-[11.5px] text-ink-3">{d.canonicalId} · from {d.sourceRepository} #{d.sourceNumber}{d.theme ? ` · ${d.theme}` : ''}{d.existingKey ? ` · already in the sandbox as ${d.existingKey.split(':').pop()}` : ''}</div></td>
+        <td><div className="font-medium">{itemTitle(d.title)}</div><div className="mono text-[11.5px] text-ink-3">{d.canonicalId} · from {d.sourceRepository} #{d.sourceNumber}{d.theme ? ` · ${d.theme}` : ''}{d.existingKey ? ` · already in the sandbox as ${d.existingKey.split(':').pop()}` : ''}</div></td>
         <td><LevelChip type={d.typeToken} /></td>
         <td><Pill tone={d.confidence === 'high' ? 'ok' : d.confidence === 'low' ? 'warn' : 'neutral'}>{d.confidence}</Pill></td>
         <td className="text-[12px] text-ink-2">{d.reason}</td>

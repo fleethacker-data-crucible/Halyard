@@ -1,0 +1,6 @@
+{
+  "comment": "Checked by size-check.mjs (npm run size) in CI. Raise a limit only on purpose, in the same change that needs it.",
+  "firstLoadKb": 420,
+  "totalJsKb": 720,
+  "cssKb": 64
+}

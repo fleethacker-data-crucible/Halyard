@@ -7,6 +7,10 @@
     PowerShellVersion = '5.1'
     CompatiblePSEditions = @('Desktop', 'Core')
     FunctionsToExport = @(
+        'Send-HalyardOpenSignal',
+        'Show-HalyardMessage',
+        'Open-HalyardWindow',
+        'New-HalyardShortcut',
         'Get-HalyardRoot',
         'Import-HalyardCore',
         'Get-HalyardCoreSource',

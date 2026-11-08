@@ -4,16 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; img-src 'self' data:; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; connect-src 'self'; font-src 'self'; base-uri 'none'; form-action 'none'">
 <title>Halyard</title>
 <link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48 256x256">
 <link rel="icon" type="image/png" href="brand/icon-256.png" sizes="256x256">
 <link rel="apple-touch-icon" href="brand/icon-192.png">
 <link rel="stylesheet" href="%APP_CSS%">
+<link rel="stylesheet" href="vendor/binnacle/binnacle.css">
 </head>
 <body>
 <div id="root"></div>
 <noscript>Halyard needs JavaScript enabled in this browser.</noscript>
-<script src="%APP_JS%"></script>
+<script src="vendor/binnacle/binnacle.js"></script>
+<script type="module" src="%APP_JS%"></script>
 </body>
 </html>

@@ -181,7 +181,7 @@ namespace Halyard.Core.Tests
             settings.Provider.Token = "t";
             settings.Provider.SourceRepository = "1234";
             settings.Provider.SandboxRepository = "5678";
-            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = 0, WebRoot = null, Transport = _prod.Http });
+            _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = HostOptions.AnyPort, WebRoot = null, Transport = _prod.Http });
             _info = _host.Start();
             _client.DefaultRequestHeaders.Add("X-Halyard-Session", _info.SessionToken);
         }
