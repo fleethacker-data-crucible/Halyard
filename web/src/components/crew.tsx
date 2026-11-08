@@ -28,7 +28,8 @@ export function Crew() {
   const [messages, setMessages] = useState<CrewMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
-  const [speak, setSpeak] = useLocalState('crew-speak', true);
+  // Spoken answers are off unless turned on here (as in Lazarette); a question asked by voice is always answered aloud.
+  const [speak, setSpeak] = useLocalState('crew-speak-answers', false);
   const [pending, setPending] = useState<string[]>([]);
   const [brief, setBrief] = useState<ScrumBrief | null>(null);
   const [briefError, setBriefError] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export function Crew() {
   }, []);
   useEffect(() => { if (open) void loadBrief(); }, [open, loadBrief]);
 
-  const send = useCallback(async (text: string) => {
+  const send = useCallback(async (text: string, spoken = false) => {
     const message = text.trim();
     if (!message || busy) return;
     speech.stop();
@@ -63,7 +64,7 @@ export function Crew() {
       const turn = await post<CrewTurn>('/api/agent/ask', { message, history: historyForEngine(before) });
       setMessages((m) => [...m, { role: 'assistant', text: turn.answer, turn }]);
       if (turn.batches.length) setPending((p) => Array.from(new Set([...p, ...turn.batches])));
-      if (speak) void speech.say(turn.answer);
+      if (speak || spoken) void speech.say(turn.answer);
     } catch (e) {
       setMessages((m) => [...m, { role: 'assistant', text: `I could not answer: ${describeError(e)}` }]);
     } finally {
@@ -80,7 +81,7 @@ export function Crew() {
     const before = draftRef.current.trim();
     const ok = await dictation.start({
       onText: (t) => setDraft(before ? `${before} ${t}` : t),
-      onDone: (t) => void sendRef.current(before ? `${before} ${t}` : t),
+      onDone: (t) => void sendRef.current(before ? `${before} ${t}` : t, true),
     });
     if (!ok) inputRef.current?.focus();
   }, []);

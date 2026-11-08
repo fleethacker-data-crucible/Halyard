@@ -1,10 +1,9 @@
 // Spoken answers. Each piece of text goes to POST /api/voice/speak on this origin; the engine sends it to Fairlead's
 // /v1/audio/speech, which routes to TalkForge on this computer, and returns WAV audio that plays from a blob: URL. One
-// piece is fetched ahead while the current one plays, and the real audio level drives the orb. When TalkForge cannot be
-// reached the browser's own installed (local) voice is used instead; a cloud voice never is.
+// piece is fetched ahead while the current one plays, and the real audio level drives the orb. TalkForge or nothing,
+// as in Lazarette: when it cannot be reached the answer stays text and the panel says why. No browser or cloud voice.
 import { sessionToken } from './api';
 import { speechPieces } from './crew';
-import { pickLocalVoice } from './voice';
 
 type Listener = () => void;
 
@@ -13,8 +12,6 @@ export class SpeechPlayer {
   /** Loudness of the audio now playing, 0 to about 0.3 (speech RMS). */
   level = 0;
   error = '';
-  /** talkforge once TalkForge spoke, local when the browser voice stood in. */
-  engine: 'talkforge' | 'local' | '' = '';
 
   private listeners = new Set<Listener>();
   private gen = 0;
@@ -25,7 +22,6 @@ export class SpeechPlayer {
   private samples: Float32Array<ArrayBuffer> | null = null;
   private frame = 0;
   private abort: AbortController | null = null;
-  private useLocal = false;
 
   subscribe(fn: Listener) { this.listeners.add(fn); return () => { this.listeners.delete(fn); }; }
   private emit() { for (const fn of this.listeners) fn(); }
@@ -35,7 +31,6 @@ export class SpeechPlayer {
     this.abort?.abort();
     this.abort = null;
     this.audio?.pause();
-    if (typeof window !== 'undefined') window.speechSynthesis?.cancel();
     if (this.url) URL.revokeObjectURL(this.url);
     this.url = '';
     cancelAnimationFrame(this.frame);
@@ -53,20 +48,19 @@ export class SpeechPlayer {
     this.speaking = true;
     this.error = '';
     this.emit();
-    if (this.useLocal) { this.sayLocal(pieces, gen); return; }
     this.abort = new AbortController();
     let next: Promise<Blob | null> = this.fetchPiece(pieces[0]!, this.abort.signal);
     for (let i = 0; i < pieces.length; i++) {
       const blob = await next;
       if (gen !== this.gen) return;
       if (!blob) {
-        // TalkForge is not reachable: say the rest with the browser's installed voice, and keep using it this session.
-        this.useLocal = true;
-        this.sayLocal(pieces.slice(i), gen);
+        // TalkForge is not reachable: the answer stays text; this.error says why.
+        this.speaking = false;
+        this.level = 0;
+        this.emit();
         return;
       }
       next = i + 1 < pieces.length ? this.fetchPiece(pieces[i + 1]!, this.abort.signal) : Promise.resolve(null);
-      this.engine = 'talkforge';
       await this.play(blob, gen);
       if (gen !== this.gen) return;
     }
@@ -74,9 +68,6 @@ export class SpeechPlayer {
     this.level = 0;
     this.emit();
   }
-
-  /** Tries TalkForge again (Settings, or after starting it). */
-  retryTalkForge() { this.useLocal = false; }
 
   private async fetchPiece(text: string, signal: AbortSignal): Promise<Blob | null> {
     try {
@@ -132,25 +123,7 @@ export class SpeechPlayer {
     this.emit();
     this.frame = requestAnimationFrame(() => this.meter(gen));
   }
-
-  private sayLocal(pieces: string[], gen: number) {
-    const synth = typeof window !== 'undefined' ? window.speechSynthesis : undefined;
-    const voice = synth ? pickLocalVoice(synth.getVoices(), navigator.language || 'en') : undefined;
-    if (!synth || !voice) {
-      this.error = this.error || 'TalkForge is not reachable and no voice is installed on this computer; the answer is shown as text.';
-      this.speaking = false; this.emit();
-      return;
-    }
-    this.engine = 'local';
-    pieces.forEach((text, i) => {
-      const u = new SpeechSynthesisUtterance(text);
-      u.voice = voice as SpeechSynthesisVoice;
-      u.lang = voice.lang;
-      u.onstart = () => { if (gen === this.gen) { this.level = 0.18; this.emit(); } };
-      if (i === pieces.length - 1) u.onend = u.onerror = () => { if (gen === this.gen) { this.speaking = false; this.level = 0; this.emit(); } };
-      synth.speak(u);
-    });
-  }
 }
+
 
 export const speech = new SpeechPlayer();

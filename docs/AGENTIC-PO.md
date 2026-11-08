@@ -64,7 +64,8 @@ GitHub or on a GitLab server such as web.git.mil.
 - **Spoken answers.** `POST /api/voice/speak` sends one sentence at a time to Fairlead's `/v1/audio/speech` with Halyard's
   own Fairlead key and `X-Fairlead-Privacy: local`; Fairlead routes it to TalkForge on this PC and Halyard returns the WAV.
   Unlike Lazarette, Halyard needs no TalkForge token: every model call already goes through Fairlead, so speech does too.
-  When TalkForge cannot be reached, the browser's installed local voice stands in (never a cloud voice).
+  Spoken answers are off by default (the speaker button in the panel turns them on); a question asked by voice is
+  answered aloud. When TalkForge cannot be reached the answer stays text and the panel says why: no browser or cloud voice.
 - **Voice input.** Whisper tiny.en runs in a worker in the page (`web/src/workers/stt.worker.ts`), with the model and runtime
   served read-only from TalkForge's assets at fixed `/stt/` paths (the same list Lazarette serves). Audio never leaves the tab.
   Without those files, the browser's recogniser is used only when it runs on this computer; otherwise typing.
