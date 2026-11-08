@@ -266,13 +266,16 @@ namespace Halyard.Core.Intelligence
             var found = new List<string>();
             if (string.IsNullOrWhiteSpace(body)) return found;
             foreach (Match m in Regex.Matches(body, "\"batchId\"\\s*:\\s*\"([^\"]+)\"")) found.Add(m.Groups[1].Value);
-            try
-            {
-                var o = JToken.Parse(body) as JObject;
-                if (o != null && o["proposals"] is JArray && ((JArray)o["proposals"]).Count > 0 && o["id"] != null && o["id"].Type == JTokenType.String) found.Add((string)o["id"]);
-            }
-            catch (JsonException) { }
+            var o = ParseObject(body);
+            if (o != null && o["proposals"] is JArray && ((JArray)o["proposals"]).Count > 0 && o["id"] != null && o["id"].Type == JTokenType.String) found.Add((string)o["id"]);
             return found.Distinct().ToList();
+        }
+
+        /// <summary>The body as a JSON object, or null when it is not one (an error page, plain text): then only batchId fields count.</summary>
+        private static JObject ParseObject(string body)
+        {
+            try { return JToken.Parse(body) as JObject; }
+            catch (JsonException) { return null; }
         }
 
         /// <summary>No model: answer from the scrum brief, picking the part the question is about.</summary>

@@ -200,7 +200,7 @@ namespace Halyard.Core.Host
             foreach (var file in Directory.GetFiles(Settings.WatchDirectory, "watch-*.json"))
             {
                 try { var w = JsonConvert.DeserializeObject<WatchReport>(File.ReadAllText(file)); if (w != null) list.Add(w); }
-                catch (JsonException) { }
+                catch (JsonException ex) { Log.Warn("WATCH_UNREADABLE", Path.GetFileName(file) + " is skipped: " + ex.Message); }
             }
             return list.OrderByDescending(w => w.At).Take(12).ToList();
         }
@@ -219,7 +219,7 @@ namespace Halyard.Core.Host
                 {
                     if (_talkForge == null)
                     {
-                        _talkForge = new TalkForge(FindTalkForge(), Settings.TalkForgePort, Options.Transport);
+                        _talkForge = new TalkForge(FindTalkForge(), Settings.TalkForgePort, Options.Transport) { Log = m => Log.Warn("TALKFORGE", m) };
                         _talkForge.ExternalToken = () => Environment.GetEnvironmentVariable("HALYARD_TALKFORGE_TOKEN");
                     }
                     return _talkForge;

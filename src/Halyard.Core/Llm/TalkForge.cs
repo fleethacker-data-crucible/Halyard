@@ -83,6 +83,15 @@ namespace Halyard.Core.Llm
         public string Folder { get { return _folder; } }
         public int Port { get { return _port; } }
         public string BaseUrl { get { return "http://127.0.0.1:" + _port; } }
+        /// <summary>Where shutdown problems are reported (the host's log). Never given the token or any text.</summary>
+        public Action<string> Log { get; set; }
+
+        private void Note(string message)
+        {
+            var log = Log;
+            if (log != null) log(message);
+        }
+
         /// <summary>A token for a TalkForge someone else started (HALYARD_TALKFORGE_TOKEN), read when needed.</summary>
         public Func<string> ExternalToken { get; set; }
 
@@ -250,12 +259,13 @@ namespace Halyard.Core.Llm
                         var call = new HttpCall("POST", BaseUrl + "/__fleethacker/shutdown") { JsonBody = "{}", Timeout = TimeSpan.FromSeconds(2) };
                         call.Headers["Authorization"] = "Bearer " + token;
                         call.Headers["X-FleetHacker-Shutdown"] = "1";
-                        try { _http.SendAsync(call, CancellationToken.None).Wait(2500); } catch (AggregateException) { }
-                        if (!p.WaitForExit(2000)) p.Kill();
+                        try { _http.SendAsync(call, CancellationToken.None).Wait(2500); }
+                        catch (AggregateException ex) { Note("TalkForge did not take the shutdown request (" + (ex.InnerException ?? ex).GetType().Name + "); stopping its process."); }
+                        if (!p.WaitForExit(2000)) { Note("TalkForge (PID " + p.Id + ") did not stop in time; ending it."); p.Kill(); }
                     }
                 }
-                catch (InvalidOperationException) { }                 // it exited between the checks
-                catch (System.ComponentModel.Win32Exception) { }      // it exited while being killed
+                catch (InvalidOperationException) { Note("TalkForge had already exited."); }
+                catch (System.ComponentModel.Win32Exception ex) { Note("TalkForge could not be ended: " + ex.Message); }
             }
         }
 
@@ -275,7 +285,7 @@ namespace Halyard.Core.Llm
             foreach (var d in dirs)
             {
                 try { var p = Path.Combine(d.Trim().Trim('"'), "node.exe"); if (File.Exists(p)) return p; }
-                catch (ArgumentException) { }
+                catch (ArgumentException) { continue; }   // a PATH entry with characters a path cannot hold: skip it
             }
             return null;
         }

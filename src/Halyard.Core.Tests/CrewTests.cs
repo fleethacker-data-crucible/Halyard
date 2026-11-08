@@ -47,7 +47,14 @@ namespace Halyard.Core.Tests
         {
             _host.Stop();
             _client.Dispose();
-            try { Directory.Delete(_root, true); } catch (IOException) { }
+            TryDelete(_root);
+        }
+
+        /// <summary>Removes a temp folder; false when Windows still holds a file in it (the temp folder is cleaned later).</summary>
+        private static bool TryDelete(string dir)
+        {
+            try { Directory.Delete(dir, true); return true; }
+            catch (IOException) { return false; }
         }
 
         private static List<WorkItem> Catalog(bool defects)
