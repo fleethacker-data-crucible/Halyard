@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
-import { LuActivity, LuArrowRightToLine, LuBoxes, LuCalendarRange, LuClipboardCheck, LuCompass, LuGitBranch, LuLayoutDashboard, LuMonitor, LuMoon, LuPanelLeftClose, LuPanelLeftOpen, LuPlug, LuPower, LuPresentation, LuSettings2, LuSparkles, LuSun, LuTestTubeDiagonal } from 'react-icons/lu';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { LuCircleHelp, LuActivity, LuArrowRightToLine, LuBoxes, LuCalendarRange, LuClipboardCheck, LuCompass, LuGitBranch, LuLayoutDashboard, LuMonitor, LuMoon, LuPanelLeftClose, LuPanelLeftOpen, LuPlug, LuPower, LuPresentation, LuSettings2, LuSparkles, LuSun, LuTestTubeDiagonal } from 'react-icons/lu';
 import { post, sessionToken, startHeartbeat } from './lib/api';
 import { ageLabel } from './lib/format';
 import { Status } from './lib/schemas';
@@ -9,7 +9,13 @@ import { useResource } from './lib/useResource';
 import { Button, ConfirmDialog, Emblem, Notice, Pill, ToastProvider, cn, useToast } from './components/ui';
 import { Crew } from './components/crew';
 import { Welcome } from './components/welcome';
-import { showWelcomeOnLaunch } from './lib/welcome';
+import { openCrew, showWelcomeOnLaunch } from './lib/welcome';
+import { CommandPalette, ErrorBoundary, HelpDialog } from './components/shell-dialogs';
+import { CREW_PROMPTS } from './lib/crew';
+import type { Command } from './lib/commands';
+import { GO_KEYS } from './lib/shortcuts';
+import { useShortcuts } from './lib/use-shortcuts';
+import { describeError } from './lib/api';
 import { ConnectionPage } from './pages/connection';
 import { DiagnosticsPage } from './pages/diagnostics';
 import { HierarchyPage } from './pages/hierarchy';
@@ -87,6 +93,36 @@ function Shell() {
   }, []);
 
   useEffect(() => startHeartbeat(), []);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
+  const go = useCallback((r: Route) => { setWelcome(false); navigate(r); }, []);
+  useShortcuts({ onPalette: () => setPaletteOpen(true), onHelp: () => setHelpOpen(true), onTalk: () => openCrew(undefined, true), onGo: go });
+
+  // The window title names the page: "Proposals · Halyard" (the launcher finds the window by it).
+  useEffect(() => {
+    const label = welcome ? null : NAV.find((n) => n.route === route)?.label;
+    document.title = label ? `${label} \u00b7 Halyard` : 'Halyard';
+  }, [route, welcome]);
+
+  const commands = useMemo<Command[]>(() => {
+    const goKey = (r: Route) => Object.entries(GO_KEYS).find(([, v]) => v === r)?.[0];
+    return [
+      { id: 'crew:talk', label: 'Talk to the crew', group: 'Crew', keys: ['.'], keywords: 'voice speak listen orb', run: () => openCrew(undefined, true) },
+      ...CREW_PROMPTS.map((p) => ({ id: `crew:${p}`, label: p, group: 'Crew' as const, keywords: 'crew scrum product owner', run: () => openCrew(p) })),
+      ...NAV.map((n) => { const k = goKey(n.route); return { id: `go:${n.route}`, label: n.label, group: 'Go to' as const, keys: k ? ['g', k] : undefined, run: () => go(n.route) }; }),
+      { id: 'backlog:sync', label: 'Synchronize the backlog', group: 'Backlog', keywords: 'sync pull refresh snapshot', run: () => { post('/api/sync', { repository: 'source' }).then(() => toast.push('info', 'Synchronizing. The snapshot updates when it finishes.')).catch((e) => toast.push('err', describeError(e))); } },
+      { id: 'view:welcome', label: 'Show the welcome page', group: 'View', keywords: 'home start', run: () => setWelcome(true) },
+      { id: 'view:sidebar', label: 'Collapse or expand the sidebar', group: 'View', run: () => setCollapsed((c) => !c) },
+      { id: 'view:help', label: 'Keyboard shortcuts and help', group: 'View', keys: ['?'], keywords: 'keys', run: () => setHelpOpen(true) },
+      { id: 'session:end', label: 'End session', group: 'Session', keywords: 'quit stop exit close', run: () => setConfirmStop(true) },
+    ];
+  }, [go, toast, setCollapsed]);
+  const dialogs = (
+    <>
+      <CommandPalette open={paletteOpen} commands={commands} onClose={() => setPaletteOpen(false)} />
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} onPalette={() => setPaletteOpen(true)} onWelcome={() => setWelcome(true)} version={status.data?.version} />
+    </>
+  );
 
   const endSession = useCallback(async () => {
     try {
@@ -123,8 +159,9 @@ function Shell() {
   if (welcome) {
     return (
       <div className="h-screen">
-        <Welcome status={s} skipNextTime={skipWelcome} onSkipNextTime={setSkipWelcome} onGo={(r) => { setWelcome(false); navigate(r); }} />
+        <Welcome status={s} skipNextTime={skipWelcome} onSkipNextTime={setSkipWelcome} onGo={go} />
         <Crew />
+        {dialogs}
       </div>
     );
   }
@@ -163,6 +200,9 @@ function Shell() {
           <NavGroup label="Operate" items={NAV.filter((n) => n.group === 'operate')} route={route} collapsed={collapsed} />
         </div>
         <div className="flex flex-col gap-1 border-t border-line-2 px-2 py-2">
+          <Button variant="quiet" className={cn('h-8 justify-start px-3 text-ink-2', centred)} onClick={() => setHelpOpen(true)} title="Help and keyboard shortcuts (?)">
+            <LuCircleHelp size={16} /><span className={label}>Help</span><kbd className={cn('ml-auto rounded border border-line px-1 font-mono text-[10.5px] text-ink-3', label)}>Ctrl K</kbd>
+          </Button>
           <ThemeSwitch className={centred} labelClass={label} />
           <Button variant="quiet" className={cn('h-8 justify-start px-3 text-ink-2', centred)} onClick={() => setCollapsed(!collapsed)} title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}>
             {collapsed ? <LuPanelLeftOpen size={16} /> : <LuPanelLeftClose size={16} />}<span className={label}>Collapse sidebar</span>
@@ -174,10 +214,11 @@ function Shell() {
       </nav>
       <div className="flex min-h-0 min-w-0 flex-col">
         <StatusStrip status={s} error={status.error} />
-        <main className="scroll-y min-h-0 min-w-0 flex-1">{page}</main>
+        <main className="scroll-y min-h-0 min-w-0 flex-1"><ErrorBoundary key={route} label={route}>{page}</ErrorBoundary></main>
       </div>
       <StatusBar status={s} error={status.error} />
       <Crew />
+      {dialogs}
       <ConfirmDialog open={confirmStop} title="End this Halyard session?" confirmLabel="End session" onConfirm={endSession} onCancel={() => setConfirmStop(false)}>
         The local engine stops and this page stops working. Snapshots, proposals and seed manifests stay on disk under <code>output/</code>.
       </ConfirmDialog>

@@ -23,15 +23,16 @@ export function showWelcomeOnLaunch(hash: string, skip: boolean): boolean {
   return !skip && hash.replace(/^#\/?/, '').length === 0;
 }
 
-let pendingCrew: { message?: string } | null = null;
+export type CrewRequest = { message?: string; talk?: boolean };
+let pendingCrew: CrewRequest | null = null;
 
 /**
  * Ask the crew panel to open, optionally with a message to send. A panel that is mounted hears the event; one that mounts
  * a moment later (leaving the welcome page swaps the layout) takes the request with takeCrewRequest.
  */
-export function openCrew(message?: string) {
-  pendingCrew = { message };
-  window.dispatchEvent(new CustomEvent('halyard:crew', { detail: { message } }));
+export function openCrew(message?: string, talk = false) {
+  pendingCrew = { message, talk };
+  window.dispatchEvent(new CustomEvent('halyard:crew', { detail: { message, talk } }));
 }
 
 /** Leave a crew request for the panel that mounts next, without telling the one mounted now (it is about to go). */
@@ -40,7 +41,7 @@ export function queueCrew(message?: string) {
 }
 
 /** The crew request not yet handled, once: the panel calls this when it opens or mounts. */
-export function takeCrewRequest(): { message?: string } | null {
+export function takeCrewRequest(): CrewRequest | null {
   const r = pendingCrew;
   pendingCrew = null;
   return r;

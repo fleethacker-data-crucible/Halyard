@@ -1,6 +1,6 @@
 // The crew: Halyard's agentic product owner and scrum master, reached through the Binnacle orb (vendor/binnacle, the same
 // orb Lazarette uses). Click the orb to talk (Whisper in the page, from TalkForge's files) or type in the panel; answers are
-// spoken through Fairlead and TalkForge. The crew reads and proposes; approving and applying stay on the Proposals page,
+// spoken through TalkForge, as in Lazarette. The crew reads and proposes; approving and applying stay on the Proposals page,
 // and the orb turns to "approval" while a batch it made is waiting.
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { LuMic, LuSend, LuSquare, LuVolume2, LuVolumeX, LuX } from 'react-icons/lu';
@@ -114,7 +114,8 @@ export function Crew() {
       const request = takeCrewRequest();
       if (!request) return;
       setOpen(true);
-      if (request.message) setTimeout(() => void sendRef.current(request.message!), 0);
+      if (request.talk) setTimeout(() => void talkRef.current(), 0);
+      else if (request.message) setTimeout(() => void sendRef.current(request.message!), 0);
     };
     onOpen();   // a request made just before this panel mounted
     window.addEventListener('halyard:crew', onOpen);
