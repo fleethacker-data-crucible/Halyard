@@ -291,6 +291,9 @@
   .my-1 {
     margin-block: var(--spacing);
   }
+  .my-auto {
+    margin-block: auto;
+  }
   .mt-0\.5 {
     margin-top: calc(var(--spacing) * 0.5);
   }
@@ -582,11 +585,17 @@
   .max-w-\[92\%\] {
     max-width: 92%;
   }
+  .max-w-\[760px\] {
+    max-width: 760px;
+  }
   .max-w-\[1400px\] {
     max-width: 1400px;
   }
   .max-w-\[calc\(100vw-2rem\)\] {
     max-width: calc(100vw - 2rem);
+  }
+  .max-w-full {
+    max-width: 100%;
   }
   .min-w-0 {
     min-width: 0px;
@@ -781,6 +790,9 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+  .overflow-auto {
+    overflow: auto;
+  }
   .overflow-hidden {
     overflow: hidden;
   }
@@ -948,6 +960,9 @@
   }
   .px-3 {
     padding-inline: calc(var(--spacing) * 3);
+  }
+  .px-3\.5 {
+    padding-inline: calc(var(--spacing) * 3.5);
   }
   .px-4 {
     padding-inline: calc(var(--spacing) * 4);
@@ -1266,6 +1281,9 @@
     border-top-width: 0px;
   }
   @media (hover: hover) {
+    .hover\:border-accent:hover {
+      border-color: var(--accent);
+    }
     .hover\:bg-err-bg:hover {
       background-color: var(--err-bg);
     }
@@ -1310,6 +1328,9 @@
   }
   .disabled\:opacity-50:disabled {
     opacity: 50%;
+  }
+  .disabled\:opacity-60:disabled {
+    opacity: 60%;
   }
   @media (width < 64rem) {
     .max-lg\:sr-only {
@@ -1877,6 +1898,15 @@ textarea.fl-input {
       transform: scaleX(1);
       opacity: 1;
     }
+  }
+}
+.welcome-emblem img {
+  width: clamp(160px, min(40vh, 60vw), 380px);
+  height: auto;
+}
+@media (max-height: 520px) {
+  .welcome-emblem img {
+    width: clamp(96px, 30vh, 160px);
   }
 }
 @property --tw-translate-x {

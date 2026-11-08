@@ -66,3 +66,12 @@ export function downloadText(filename: string, text: string, type = 'text/plain'
   a.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+
+/**
+ * A work item title as shown: the level prefix ("STORY :: ") and the trailing approval marker are dropped, because the
+ * level chip already says it. The stored title is unchanged. Same rule as the engine's Descriptions.ShortName.
+ */
+export function itemTitle(title: string | null | undefined): string {
+  if (!title) return '';
+  return title.replace(/^\s*(THEME|EPIC|FEATURE|STORY|TASK|BUG)\s*::\s*/i, '').replace(/\s*::\s*HUMAN APPROVAL REQUIRED\s*$/i, '').trim() || title.trim();
+}

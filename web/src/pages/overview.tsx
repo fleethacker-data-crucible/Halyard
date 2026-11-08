@@ -2,7 +2,7 @@ import { LuArrowRight } from 'react-icons/lu';
 import { navigate } from '../app';
 import { LevelBars, Coverage, Donut, HBars } from '../components/charts';
 import { Button, Empty, LevelChip, Page, Section, SeverityIcon, Stat, cn } from '../components/ui';
-import { humanizeCode, relativeTime } from '../lib/format';
+import { humanizeCode, relativeTime, itemTitle } from '../lib/format';
 import { Hierarchy, Review, type Status } from '../lib/schemas';
 import { useResource } from '../lib/useResource';
 import { remedies } from './review';
@@ -141,7 +141,7 @@ export function OverviewPage({ status }: { status: Status | undefined }) {
               {needsReview.map((i) => (
                 <tr key={i.key} className="cursor-pointer" onClick={() => navigate('hierarchy', { item: i.key })}>
                   <td><LevelChip type={i.type} /></td>
-                  <td><span className="font-medium">{i.title}</span> <span className="mono text-ink-3">#{i.number}</span></td>
+                  <td><span className="font-medium">{itemTitle(i.title)}</span> <span className="mono text-ink-3">#{i.number}</span></td>
                   <td className="text-ink-2">
                     <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
                       {i.findings.slice(0, 2).map((f) => <span key={f.code} className="inline-flex items-center gap-1"><SeverityIcon severity={f.severity} size={12} />{humanizeCode(f.code)}</span>)}

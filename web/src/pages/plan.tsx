@@ -3,7 +3,7 @@ import { LuCalendarRange, LuSparkles, LuUsers } from 'react-icons/lu';
 import { navigate } from '../app';
 import { Button, Checkbox, Empty, Field, Mono, Notice, Page, Pill, Section, Select, cn, useToast } from '../components/ui';
 import { describeError, post } from '../lib/api';
-import { shortDate } from '../lib/format';
+import { shortDate, itemTitle } from '../lib/format';
 import { PlanResult, TeamInfo, type PlannedStory, type Status } from '../lib/schemas';
 import { invalidate, useResource } from '../lib/useResource';
 import { ShellbackRefresh } from '../components/fleet-actions';
@@ -119,7 +119,7 @@ export function PlanPage({ status }: { status: Status | undefined }) {
               <p className="hairline px-4 py-2 text-[11.5px] text-ink-3">These are the skills to grow or hire for; Shellback growth plans are the place to take them.</p>
             </Section>
             <Section title={`Does not fit (${p.unplaced.length})`}>
-              {p.unplaced.length === 0 ? <p className="px-4 py-3 text-ok">Everything ready fits in the window.</p> : <ul className="flex flex-col gap-1 px-4 py-3 text-[12.5px]">{p.unplaced.map((u) => <li key={u.key}><span className="font-medium">{u.title}</span> <span className="num text-ink-3">{u.points} pts</span><div className="text-[11.5px] text-ink-3">{u.reason}</div></li>)}</ul>}
+              {p.unplaced.length === 0 ? <p className="px-4 py-3 text-ok">Everything ready fits in the window.</p> : <ul className="flex flex-col gap-1 px-4 py-3 text-[12.5px]">{p.unplaced.map((u) => <li key={u.key}><span className="font-medium">{itemTitle(u.title)}</span> <span className="num text-ink-3">{u.points} pts</span><div className="text-[11.5px] text-ink-3">{u.reason}</div></li>)}</ul>}
             </Section>
             <Section title={`Skipped (${p.skipReasons.length})`}>
               {p.skipReasons.length === 0 ? <p className="px-4 py-3 text-ink-3">Nothing skipped.</p> : <ul className="scroll-y max-h-64 flex flex-col gap-0.5 px-4 py-3 text-[12px] text-ink-2">{p.skipReasons.map((r, i) => <li key={i}>{r}</li>)}</ul>}
@@ -135,7 +135,7 @@ function StoryRow({ s }: { s: PlannedStory }) {
   return (
     <li className={cn('flex flex-col gap-0.5 px-4 py-2 text-[12.5px]', s.alreadyPlanned ? 'text-ink-3' : '')} title={s.reason}>
       <div className="flex items-center gap-2">
-        <button type="button" className={cn('min-w-0 flex-1 truncate text-left', !s.alreadyPlanned && 'font-medium text-ink hover:text-accent')} onClick={() => navigate('hierarchy', { item: s.key })}>{s.title}</button>
+        <button type="button" className={cn('min-w-0 flex-1 truncate text-left', !s.alreadyPlanned && 'font-medium text-ink hover:text-accent')} onClick={() => navigate('hierarchy', { item: s.key })}>{itemTitle(s.title)}</button>
         <span className="num shrink-0">{s.points}</span>
       </div>
       <div className="flex flex-wrap items-center gap-1.5 text-[11.5px]">

@@ -8,6 +8,8 @@ import { useTheme, type ThemePref } from './lib/theme';
 import { useResource } from './lib/useResource';
 import { Button, ConfirmDialog, Emblem, Notice, Pill, ToastProvider, cn, useToast } from './components/ui';
 import { Crew } from './components/crew';
+import { Welcome } from './components/welcome';
+import { showWelcomeOnLaunch } from './lib/welcome';
 import { ConnectionPage } from './pages/connection';
 import { DiagnosticsPage } from './pages/diagnostics';
 import { HierarchyPage } from './pages/hierarchy';
@@ -75,6 +77,14 @@ function Shell() {
   const [confirmStop, setConfirmStop] = useState(false);
   const [stopped, setStopped] = useState(false);
   const [collapsed, setCollapsed] = useLocalState('sidebar-collapsed', false);
+  const [skipWelcome, setSkipWelcome] = useLocalState('skip-welcome', false);
+  // The welcome page shows on launch (not on a deep link) and comes back from the emblem in the sidebar.
+  const [welcome, setWelcome] = useState(() => showWelcomeOnLaunch(window.location.hash, skipWelcome));
+  useEffect(() => {
+    const leave = () => setWelcome(false);
+    window.addEventListener('hashchange', leave);
+    return () => window.removeEventListener('hashchange', leave);
+  }, []);
 
   useEffect(() => startHeartbeat(), []);
 
@@ -110,6 +120,14 @@ function Shell() {
   }
 
   const s = status.data;
+  if (welcome) {
+    return (
+      <div className="h-screen">
+        <Welcome status={s} skipNextTime={skipWelcome} onSkipNextTime={setSkipWelcome} onGo={(r) => { setWelcome(false); navigate(r); }} />
+        <Crew />
+      </div>
+    );
+  }
   const page = (() => {
     switch (route) {
       case 'leadership': return <LeadershipPage status={s} />;
@@ -134,11 +152,11 @@ function Shell() {
       <nav className="flex min-h-0 flex-col border-r border-line-2 bg-sidebar" aria-label="Halyard">
         {/* Expanded: the full emblem with its wordmark. Collapsed rail: the emblem's circle only. */}
         <div className={cn('flex-col items-center px-3 pt-3 pb-2', collapsed ? 'hidden' : 'flex max-lg:hidden')}>
-          <Emblem size={168} />
+          <button type="button" onClick={() => setWelcome(true)} title="Welcome page" className="rounded-panel"><Emblem size={168} /></button>
           <div className="text-[12px] text-ink-3">Delivery intelligence</div>
         </div>
         <div className={cn('justify-center py-4', collapsed ? 'flex' : 'hidden max-lg:flex')}>
-          <img src="brand/icon-256.png" alt="Halyard" width={40} height={40} />
+          <button type="button" onClick={() => setWelcome(true)} title="Welcome page" className="rounded-panel"><img src="brand/icon-256.png" alt="Halyard" width={40} height={40} /></button>
         </div>
         <div className="scroll-y min-h-0 flex-1">
           <NavGroup label="Backlog" items={NAV.filter((n) => n.group === 'work')} route={route} collapsed={collapsed} />

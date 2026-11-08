@@ -9,6 +9,7 @@ import { CREW_PROMPTS, historyForEngine, orbCaption, orbState, type CrewMessage,
 import { dictation } from '../lib/dictation';
 import { speech } from '../lib/speech';
 import { useLocalState } from '../lib/storage';
+import { takeCrewRequest } from '../lib/welcome';
 import { Button, Pill, cn } from './ui';
 
 type BinnacleOrb = { setLook: (l: string) => void; setTheme: (t: string) => void; destroy: () => void };
@@ -102,6 +103,19 @@ export function Crew() {
     const level = state === 'listening' ? micLevel : state === 'speaking' ? speechLevel : 0;
     B.voice.set(state, level, orbCaption(state, pending.length) || undefined);
   }, [micState, micLevel, busy, speaking, speechLevel, pending.length]);
+
+  // The welcome page (and anything else) can open the panel, optionally with a message: lib/welcome.ts openCrew.
+  useEffect(() => {
+    const onOpen = () => {
+      const request = takeCrewRequest();
+      if (!request) return;
+      setOpen(true);
+      if (request.message) setTimeout(() => void sendRef.current(request.message!), 0);
+    };
+    onOpen();   // a request made just before this panel mounted
+    window.addEventListener('halyard:crew', onOpen);
+    return () => window.removeEventListener('halyard:crew', onOpen);
+  }, []);
 
   // A batch stops waiting once someone opens it on the Proposals page.
   useEffect(() => {
