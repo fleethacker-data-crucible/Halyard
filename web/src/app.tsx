@@ -1,11 +1,12 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { LuCircleHelp, LuActivity, LuArrowRightToLine, LuBoxes, LuCalendarRange, LuClipboardCheck, LuCompass, LuGitBranch, LuLayoutDashboard, LuMonitor, LuMoon, LuPanelLeftClose, LuPanelLeftOpen, LuPlug, LuPower, LuPresentation, LuSettings2, LuSparkles, LuSun, LuTestTubeDiagonal } from 'react-icons/lu';
 import { post, sessionToken, startHeartbeat } from './lib/api';
 import { ageLabel } from './lib/format';
 import { Status } from './lib/schemas';
 import { useLocalState } from './lib/storage';
-import { useTheme, type ThemePref } from './lib/theme';
+import { useThemeMode, type ThemeMode } from './lib/theme';
 import { useResource } from './lib/useResource';
+import { invalidateSnapshotViews } from './lib/jobs';
 import { Button, ConfirmDialog, Emblem, Notice, Pill, ToastProvider, cn, useToast } from './components/ui';
 import { Crew } from './components/crew';
 import { Welcome } from './components/welcome';
@@ -70,6 +71,19 @@ function useHashRoute() {
   return state;
 }
 
+/**
+ * When the engine's snapshot changes (a sync, or a seed/teardown/apply that resynchronized), every page derived
+ * from the old snapshot is refetched. Without this a page opened while a write job was still running kept the
+ * pre-write data, because the job's poller lives on the page that started it.
+ */
+function useSnapshotChangeRefresh(snapshotId: string | null) {
+  const seen = useRef<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (seen.current !== undefined && seen.current !== snapshotId) invalidateSnapshotViews();
+    seen.current = snapshotId;
+  }, [snapshotId]);
+}
+
 export function App() {
   return (
     <ToastProvider>
@@ -81,6 +95,7 @@ export function App() {
 function Shell() {
   const { route, params } = useHashRoute();
   const status = useResource('/api/status', Status, { pollMs: 5000 });
+  useSnapshotChangeRefresh(status.data?.snapshot?.id ?? null);
   const toast = useToast();
   const [confirmStop, setConfirmStop] = useState(false);
   const [stopped, setStopped] = useState(false);
@@ -252,14 +267,14 @@ function NavGroup({ label, items, route, collapsed }: { label: string; items: ty
   );
 }
 
-const THEMES: Array<{ value: ThemePref; label: string; icon: ReactNode }> = [
+const THEMES: Array<{ value: ThemeMode; label: string; icon: ReactNode }> = [
   { value: 'system', label: 'System theme', icon: <LuMonitor size={16} /> },
   { value: 'dark', label: 'Night watch', icon: <LuMoon size={16} /> },
   { value: 'light', label: 'Chart room', icon: <LuSun size={16} /> },
 ];
 
 function ThemeSwitch({ className, labelClass }: { className: string; labelClass: string }) {
-  const [pref, setPref] = useTheme();
+  const [pref, setPref] = useThemeMode();
   const i = Math.max(0, THEMES.findIndex((t) => t.value === pref));
   const current = THEMES[i]!;
   const next = THEMES[(i + 1) % THEMES.length]!;

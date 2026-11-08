@@ -5,7 +5,16 @@ import { Job } from './schemas';
 import { invalidate } from './useResource';
 
 /** Everything derived from the snapshot. A write job re-synchronizes inside itself and reports `resynced`. */
-const SNAPSHOT_VIEWS = ['/api/snapshot', '/api/status', '/api/review', '/api/hierarchy', '/api/item', '/api/leadership', '/api/intake', '/api/vision', '/api/team', '/api/sandbox'];
+export const SNAPSHOT_VIEWS = ['/api/snapshot', '/api/status', '/api/review', '/api/hierarchy', '/api/item', '/api/leadership', '/api/intake', '/api/vision', '/api/team', '/api/sandbox'];
+
+/**
+ * Drop every cached view built from an older snapshot. The shell calls this when /api/status reports a new
+ * snapshot id, so a write job that finished after its page was left (polling stops on unmount) still refreshes
+ * the other pages. `/api/status` itself is kept: it is the poll that noticed the change.
+ */
+export function invalidateSnapshotViews(): void {
+  for (const k of SNAPSHOT_VIEWS) if (k !== '/api/status') invalidate(k);
+}
 
 export function resyncedBy(job: Job): boolean {
   const r = job.result as { resynced?: unknown } | null | undefined;

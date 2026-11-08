@@ -30,6 +30,22 @@ must match it (`EngineSourceTests.VersionMatchesTheProjectFile`).
 - An error boundary per page, page titles in the window title, and work item titles shown without the `STORY ::` prefix the
   level chip already shows.
 
+### Hierarchy, appearance and the orb
+- **Hierarchy levels are easy to tell apart**: five distinct hues (brass Theme, violet Epic, blue Feature, green Story,
+  slate Task) instead of a ramp of blues, level chips tinted in their hue with the full word, Themes as banded headings,
+  Epics and Features in heavier type, indent guides, a legend with counts, and "Show to" a level (Themes ... Tasks).
+- **The graph** puts each level in its own column with a pinned heading, draws larger tinted cards, folds branches
+  (+n badges), draws the selected item's chain solid, and has zoom, fit and center buttons. It opens folded to Features.
+- **Fixed: Hierarchy kept showing deleted sandbox items.** A page opened while a seed, teardown or apply was still running
+  kept the old snapshot, because the job's poller lived on the page that started it. The shell now refetches every
+  snapshot view when the engine reports a new snapshot.
+- **Settings, Appearance**, as Lazarette and Semaphore have it: theme presets, Surprise me, export and import (theme files
+  move between the three apps), mode, accent, tint, glow, shape, density, type, motion, pattern, high contrast, and
+  Reduce motion. The old Night watch / Chart room choice carries over.
+- **The crew orb follows Lazarette and Semaphore**: 130 px, no menu on hover, look and colours chosen in Settings, click or
+  press-and-hold to talk, can be turned off (the Crew button stands in), caption on hover only. Settings, Voice adds voice
+  input on/off and "Send when I stop talking".
+
 ### Engineering
 - Code splitting: pages load on demand; the first load fell from 608 KB to about 375 KB. `npm run size` checks a budget in CI.
 - Playwright browser tests in Edge against a real engine and the fake GitHub (`npm run e2e`), with screenshots in both themes.

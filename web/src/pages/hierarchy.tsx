@@ -6,7 +6,7 @@ import { Tree, flatten } from '../components/tree';
 import { Button, Empty, Field, Input, Kbd, LevelChip, Mono, Notice, Page, Pill, Section, Select, SeverityIcon, cn, severityTone, useToast } from '../components/ui';
 import { describeError, post } from '../lib/api';
 import { humanizeCode, shortDate, itemTitle } from '../lib/format';
-import { LEVEL_LABEL, expectedParent } from '../lib/levels';
+import { LEVELS, LEVEL_LABEL, LEVEL_PLURAL, expectedParent, levelDepth, levelVar } from '../lib/levels';
 import { Batch, Hierarchy, ItemDetail, type HierarchyNode, type Status } from '../lib/schemas';
 import { useLocalState } from '../lib/storage';
 import { invalidate, useResource } from '../lib/useResource';
@@ -18,7 +18,17 @@ export function HierarchyPage({ params, status }: { params: URLSearchParams; sta
   const [view, setView] = useLocalState<'tree' | 'graph'>('hierarchy.view', 'tree');
   const [query, setQuery] = useState('');
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [expandSignal, setExpandSignal] = useState({ expanded: true, tick: 0 });
+  const [expandSignal, setExpandSignal] = useState<{ expanded: boolean; tick: number; toDepth?: number }>({ expanded: true, tick: 0 });
+  // How deep the tree and graph open: 0 Theme ... 4 Task. The graph starts folded below Features so it stays readable.
+  // Each view keeps its own depth: the graph opens at Features, where 100 items still fit on screen.
+  const [treeShowTo, setTreeShowTo] = useLocalState<number>('hierarchy.showTo', 4);
+  const [graphShowTo, setGraphShowTo] = useLocalState<number>('hierarchy.graphShowTo', 2);
+  const showTo = view === 'graph' ? graphShowTo : treeShowTo;
+  const pickDepth = (d: number) => {
+    if (view === 'graph') { setGraphShowTo(d); return; }
+    setTreeShowTo(d);
+    setExpandSignal({ expanded: true, tick: Date.now(), toDepth: d });
+  };
 
   const all = useMemo(() => (hierarchy.data ? flatten([...hierarchy.data.roots, ...hierarchy.data.orphans]) : []), [hierarchy.data]);
   const byKey = useMemo(() => new Map(all.map((n) => [n.key, n])), [all]);
@@ -32,6 +42,8 @@ export function HierarchyPage({ params, status }: { params: URLSearchParams; sta
     if (n) setSelectedKey(n.key);
   }, [itemParam, all, status?.config.sandboxRepository]);
   const multiRepo = (status?.snapshot?.repositories?.length ?? 1) > 1;
+  const counts = useMemo(() => { const c = new Map<string, number>(); for (const n of all) c.set(n.type, (c.get(n.type) ?? 0) + 1); return c; }, [all]);
+  const writing = (status?.jobs.running ?? 0) > 0;
 
   const selected = selectedKey ? byKey.get(selectedKey) ?? null : null;
 
@@ -62,13 +74,10 @@ export function HierarchyPage({ params, status }: { params: URLSearchParams; sta
       <div className="grid gap-5 xl:grid-cols-[minmax(0,7fr)_minmax(360px,5fr)]">
         <Section
           title={view === 'tree' ? 'Declared chain' : 'Graph'}
-          aside={view === 'tree' ? (
-            <>
-              <Button variant="quiet" size="sm" onClick={() => setExpandSignal({ expanded: true, tick: Date.now() })}>Expand all</Button>
-              <Button variant="quiet" size="sm" onClick={() => setExpandSignal({ expanded: false, tick: Date.now() })}>Collapse all</Button>
-            </>
-          ) : null}
+          aside={<ShowTo value={showTo} onChange={pickDepth} />}
         >
+          {h ? <LevelLegend counts={counts} /> : null}
+          {writing ? <Notice tone="info" className="mx-4 my-2">A job is running. If it writes to the sandbox, this view refreshes by itself when it finishes.</Notice> : null}
           {!h ? <Skeleton rows={8} /> : view === 'tree' ? (
             <div className="scroll-y max-h-[calc(100vh-260px)]">
               <Tree roots={h.roots} selectedKey={selectedKey} onSelect={(n) => setSelectedKey(n.key)} query={query} expandAllSignal={expandSignal} storageKey={status?.snapshot?.repository} showRepository={multiRepo} />
@@ -81,7 +90,7 @@ export function HierarchyPage({ params, status }: { params: URLSearchParams; sta
               <p className="px-4 py-2 text-[11.5px] text-ink-3"><Kbd>↑</Kbd> <Kbd>↓</Kbd> move · <Kbd>→</Kbd> <Kbd>←</Kbd> expand, collapse · <Kbd>Enter</Kbd> open · type to jump</p>
             </div>
           ) : (
-            <HierarchyGraph roots={h.roots} orphans={h.orphans} selectedKey={selectedKey} onSelect={(n) => setSelectedKey(n.key)} />
+            <HierarchyGraph roots={h.roots} orphans={h.orphans} selectedKey={selectedKey} onSelect={(n) => setSelectedKey(n.key)} showTo={showTo} />
           )}
         </Section>
         <Section title={selected ? 'Work item' : 'Select a work item'}>
@@ -246,6 +255,39 @@ function EditPanel({ node, all, onDone }: { node: HierarchyNode; all: HierarchyN
       {queued ? <Notice tone="ok">Queued in batch <Mono>{queued}</Mono>. <button type="button" className="underline" onClick={() => navigate('proposals', { batch: queued })}>Review and apply</button></Notice> : null}
       <div><Button size="sm" variant="quiet" onClick={onDone}>Close</Button></div>
     </div>
+  );
+}
+
+/** "Show to" segmented control: open every level down to the chosen one. */
+function ShowTo({ value, onChange }: { value: number; onChange: (d: number) => void }) {
+  return (
+    <div className="flex items-center gap-2 text-[12px] text-ink-2">
+      <span id="show-to-label">Show to</span>
+      <div role="radiogroup" aria-labelledby="show-to-label" className="flex rounded-ctl border border-line">
+        {LEVELS.map((l, i) => (
+          <button key={l} type="button" role="radio" aria-checked={value === i} onClick={() => onChange(i)}
+            className={cn('flex h-7 items-center gap-1.5 px-2 text-[12px]', i > 0 && 'border-l border-line', value === i ? 'bg-surface-2 font-medium text-ink' : 'text-ink-2 hover:text-ink')}>
+            <span className="inline-block h-2 w-2 rounded-[2px]" style={{ background: levelVar(l) }} aria-hidden />{LEVEL_PLURAL[l]}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The five levels in order with how many of each are in view: the key to the colours. */
+function LevelLegend({ counts }: { counts: Map<string, number> }) {
+  const extra = [...counts.keys()].filter((t) => levelDepth(t) > 4);
+  return (
+    <ol aria-label="Levels" className="flex flex-wrap items-center gap-x-1 gap-y-1 border-b border-line-2 px-4 py-2 text-[12px]">
+      {[...LEVELS, ...extra].map((l, i) => (
+        <li key={l} className="flex items-center gap-1">
+          {i > 0 && i < LEVELS.length ? <span className="px-0.5 text-ink-3" aria-hidden>→</span> : i >= LEVELS.length ? <span className="px-1 text-ink-3" aria-hidden>·</span> : null}
+          <LevelChip type={l} />
+          <span className="num text-ink-2">{counts.get(l) ?? 0}</span>
+        </li>
+      ))}
+    </ol>
   );
 }
 
