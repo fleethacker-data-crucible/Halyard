@@ -191,7 +191,7 @@ namespace Halyard.Core.Llm
                     UseShellExecute = false,
                     CreateNoWindow = true,
                 };
-                foreach (var name in new[] { "TALKFORGE_TOKEN_FILE", "TALKFORGE_LAZARETTE_ITEM" }) if (si.EnvironmentVariables.ContainsKey(name)) si.EnvironmentVariables.Remove(name);
+                foreach (var name in new[] { "TALKFORGE_TOKEN_FILE", "TALKFORGE_LAZARETTE_ITEM" }.Where(n => si.EnvironmentVariables.ContainsKey(n))) si.EnvironmentVariables.Remove(name);
                 si.EnvironmentVariables["TALKFORGE_TOKEN"] = _token;
                 try { _process = Process.Start(si); _startedAt = DateTimeOffset.UtcNow; }
                 catch (System.ComponentModel.Win32Exception ex) { _process = null; _token = null; return new TalkForgeState { State = "offline", Message = "TalkForge could not be started: " + ex.Message }; }
@@ -241,20 +241,22 @@ namespace Halyard.Core.Llm
             string token;
             lock (_gate) { p = _process; token = _token; _process = null; _token = null; }
             if (p == null) return;
-            try
+            using (p)
             {
-                if (!p.HasExited && token != null)
+                try
                 {
-                    var call = new HttpCall("POST", BaseUrl + "/__fleethacker/shutdown") { JsonBody = "{}", Timeout = TimeSpan.FromSeconds(2) };
-                    call.Headers["Authorization"] = "Bearer " + token;
-                    call.Headers["X-FleetHacker-Shutdown"] = "1";
-                    try { _http.SendAsync(call, CancellationToken.None).Wait(2500); } catch (AggregateException) { }
-                    if (!p.WaitForExit(2000)) p.Kill();
+                    if (!p.HasExited && token != null)
+                    {
+                        var call = new HttpCall("POST", BaseUrl + "/__fleethacker/shutdown") { JsonBody = "{}", Timeout = TimeSpan.FromSeconds(2) };
+                        call.Headers["Authorization"] = "Bearer " + token;
+                        call.Headers["X-FleetHacker-Shutdown"] = "1";
+                        try { _http.SendAsync(call, CancellationToken.None).Wait(2500); } catch (AggregateException) { }
+                        if (!p.WaitForExit(2000)) p.Kill();
+                    }
                 }
+                catch (InvalidOperationException) { }                 // it exited between the checks
+                catch (System.ComponentModel.Win32Exception) { }      // it exited while being killed
             }
-            catch (InvalidOperationException) { }
-            catch (System.ComponentModel.Win32Exception) { }
-            finally { p.Dispose(); }
         }
 
         private static string NewToken()

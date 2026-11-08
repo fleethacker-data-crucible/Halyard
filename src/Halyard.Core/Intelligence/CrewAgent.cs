@@ -164,11 +164,8 @@ namespace Halyard.Core.Intelligence
             var messages = new List<LlmMessage> { LlmMessage.System(SystemPrompt(_tools, brief, repository)) };
             if (history != null)
             {
-                foreach (var h in history.Skip(Math.Max(0, history.Count - MaxHistory)))
-                {
-                    if (string.IsNullOrWhiteSpace(h.Text)) continue;
+                foreach (var h in history.Skip(Math.Max(0, history.Count - MaxHistory)).Where(m => !string.IsNullOrWhiteSpace(m.Text)))
                     messages.Add(new LlmMessage(h.Role == "assistant" ? "assistant" : "user", h.Text));
-                }
             }
             messages.Add(LlmMessage.User(text));
 
@@ -222,6 +219,8 @@ namespace Halyard.Core.Intelligence
 
             CrewCallResult result;
             try { result = await _dispatch(info.Method, path, query, body).ConfigureAwait(false); }
+            // Deliberately broad: the router already maps the expected faults to HTTP errors, so anything reaching here is a bug in one
+            // command. The model is told that command failed and the crew turn goes on, instead of the whole answer being lost.
             catch (Exception ex)
             {
                 record.Outcome = "failed"; record.Note = ex.GetType().Name;
@@ -229,7 +228,7 @@ namespace Halyard.Core.Intelligence
             }
             record.Status = result.Status;
             record.Outcome = result.Status >= 200 && result.Status < 300 ? "ran" : "failed";
-            foreach (var b in BatchIds(result.Body)) if (!turn.Batches.Contains(b)) turn.Batches.Add(b);
+            foreach (var b in BatchIds(result.Body).Where(id => !turn.Batches.Contains(id)).ToList()) turn.Batches.Add(b);
             var bodyText = result.Body ?? string.Empty;
             if (bodyText.Length > MaxResultChars) bodyText = bodyText.Substring(0, MaxResultChars) + " ...(cut)";
             record.Note = record.Outcome == "ran" ? (bodyText.Length + " characters") : Short(bodyText);

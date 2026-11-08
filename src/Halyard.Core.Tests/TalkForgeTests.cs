@@ -123,11 +123,17 @@ namespace Halyard.Core.Tests
             {
                 var info = h.Start();
                 c.DefaultRequestHeaders.Add("X-Halyard-Session", info.SessionToken);
-                var offline = await c.PostAsync(info.Url + "api/voice/speak", new StringContent("{\"text\":\"Hello.\"}", Encoding.UTF8, "application/json"));
-                Assert.Equal(409, (int)offline.StatusCode);
-                Assert.Equal("VOICE_OFFLINE", (string)JObject.Parse(await offline.Content.ReadAsStringAsync())["code"]);
-                var unknown = await c.PostAsync(info.Url + "api/voice/speak", new StringContent("{\"text\":\"Hello.\",\"voice\":\"robot\"}", Encoding.UTF8, "application/json"));
-                Assert.Equal(400, (int)unknown.StatusCode);
+                using (var body = new StringContent("{\"text\":\"Hello.\"}", Encoding.UTF8, "application/json"))
+                {
+                    var offline = await c.PostAsync(info.Url + "api/voice/speak", body);
+                    Assert.Equal(409, (int)offline.StatusCode);
+                    Assert.Equal("VOICE_OFFLINE", (string)JObject.Parse(await offline.Content.ReadAsStringAsync())["code"]);
+                }
+                using (var body = new StringContent("{\"text\":\"Hello.\",\"voice\":\"robot\"}", Encoding.UTF8, "application/json"))
+                {
+                    var unknown = await c.PostAsync(info.Url + "api/voice/speak", body);
+                    Assert.Equal(400, (int)unknown.StatusCode);
+                }
                 var voices = JObject.Parse(await c.GetStringAsync(info.Url + "api/voice/voices"));
                 Assert.Equal(2, ((JArray)voices["voices"]!).Count);
                 var status = JObject.Parse(await c.GetStringAsync(info.Url + "api/voice/status"));

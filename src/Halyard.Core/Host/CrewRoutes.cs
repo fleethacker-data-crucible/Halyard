@@ -85,7 +85,8 @@ namespace Halyard.Core.Host
             var history = Json.Read<List<CrewMessage>>(body, "history") ?? new List<CrewMessage>();
             var label = Json.Read<string>(body, "label");
             ScrumBrief brief = null;
-            try { brief = BuildBrief(label); } catch (BadRequestException) { }
+            try { brief = BuildBrief(label); }
+            catch (BadRequestException) { brief = null; }   // no snapshot yet: the crew answers without the brief
             ILlmClient llm = Settings.Llm.IsConfigured() ? CreateLlm() : null;
             var crew = new CrewAgent(llm, DispatchAsync, CommandRegistry.All);
             var snap = Snapshots.Current;
