@@ -19,20 +19,20 @@ namespace Halyard.Core.Tests
     /// <summary>Spoken answers through TalkForge, the way Lazarette does it. Fakes only: no node, no TalkForge, no audio.</summary>
     public sealed class TalkForgeTests : IDisposable
     {
-        private readonly string _root = Path.Combine(Path.GetTempPath(), "halyard-tf-" + Guid.NewGuid().ToString("N"));
-        private string Folder { get { return Path.Combine(_root, "TalkForge"); } }
+        private readonly string _root = SafePath.Under(Path.GetTempPath(), "halyard-tf-" + Guid.NewGuid().ToString("N"));
+        private string Folder { get { return SafePath.Under(_root, "TalkForge"); } }
 
         public TalkForgeTests()
         {
-            var models = Path.Combine(Folder, "assets", "models");
+            var models = SafePath.Under(Folder, "assets", "models");
             Directory.CreateDirectory(models);
-            Directory.CreateDirectory(Path.Combine(Folder, "tools"));
-            File.WriteAllText(Path.Combine(Folder, "tools", "node-engine.mjs"), "export const DEFAULT_VOICE = 'en_US-libritts_r-medium';");
-            File.WriteAllText(Path.Combine(models, "en_GB-alba-medium.onnx"), "x");
-            File.WriteAllText(Path.Combine(models, "en_GB-alba-medium.onnx.json"), "{\"audio\":{\"quality\":\"medium\"},\"num_speakers\":1,\"language\":{\"name_english\":\"English\",\"country_english\":\"Great Britain\"}}");
-            File.WriteAllText(Path.Combine(models, "en_US-libritts_r-medium.onnx"), "x");
-            File.WriteAllText(Path.Combine(models, "en_US-libritts_r-medium.onnx.json"), "{\"audio\":{\"quality\":\"medium\"},\"num_speakers\":904}");
-            File.WriteAllText(Path.Combine(models, "no-config.onnx"), "x");
+            Directory.CreateDirectory(SafePath.Under(Folder, "tools"));
+            File.WriteAllText(SafePath.Under(Folder, "tools", "node-engine.mjs"), "export const DEFAULT_VOICE = 'en_US-libritts_r-medium';");
+            File.WriteAllText(SafePath.Under(models, "en_GB-alba-medium.onnx"), "x");
+            File.WriteAllText(SafePath.Under(models, "en_GB-alba-medium.onnx.json"), "{\"audio\":{\"quality\":\"medium\"},\"num_speakers\":1,\"language\":{\"name_english\":\"English\",\"country_english\":\"Great Britain\"}}");
+            File.WriteAllText(SafePath.Under(models, "en_US-libritts_r-medium.onnx"), "x");
+            File.WriteAllText(SafePath.Under(models, "en_US-libritts_r-medium.onnx.json"), "{\"audio\":{\"quality\":\"medium\"},\"num_speakers\":904}");
+            File.WriteAllText(SafePath.Under(models, "no-config.onnx"), "x");
         }
 
         public void Dispose() { TestDirs.TryDelete(_root); }
@@ -54,13 +54,13 @@ namespace Halyard.Core.Tests
             Assert.Equal(new[] { "en_US-libritts_r-medium", "en_GB-alba-medium" }, v.Voices.Select(x => x.Id).ToArray());
             Assert.Equal(904, v.Voices[0].Speakers);
             Assert.Equal("English, Great Britain", v.Voices[1].Language);
-            Assert.False(new TalkForge(Path.Combine(_root, "nope"), 0, new FakeTransport()).ListVoices().Found);
+            Assert.False(new TalkForge(SafePath.Under(_root, "nope"), 0, new FakeTransport()).ListVoices().Found);
         }
 
         [Fact]
         public async Task StateSaysMissingOfflineOrThatAnotherCopyHasNoToken()
         {
-            Assert.Equal("missing", (await new TalkForge(Path.Combine(_root, "nope"), 0, Heartbeat(false)).StateAsync(CancellationToken.None)).State);
+            Assert.Equal("missing", (await new TalkForge(SafePath.Under(_root, "nope"), 0, Heartbeat(false)).StateAsync(CancellationToken.None)).State);
             Assert.Equal("offline", (await new TalkForge(Folder, 0, Heartbeat(false)).StateAsync(CancellationToken.None)).State);
             var foreign = await new TalkForge(Folder, 25008, Heartbeat(true)).StateAsync(CancellationToken.None);
             Assert.Equal("offline", foreign.State);
@@ -116,7 +116,7 @@ namespace Halyard.Core.Tests
         [Fact]
         public async Task TheSpeakRouteSaysOfflineAndRefusesAnUnknownVoice()
         {
-            var settings = new HalyardSettings { RootDirectory = Path.Combine(_root, "halyard"), TalkForgePath = Folder };
+            var settings = new HalyardSettings { RootDirectory = SafePath.Under(_root, "halyard"), TalkForgePath = Folder };
             settings.Provider.Kind = ProviderKind.GitHub;
             using (var h = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = HostOptions.AnyPort, WebRoot = null, AutoStop = false, Transport = Heartbeat(false) }))
             using (var c = new HttpClient())

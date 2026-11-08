@@ -8,13 +8,15 @@ namespace Halyard.Core.Tests
     /// <summary>SafePath.Under: joins that cannot leave their root (Path.Combine drops earlier parts before a rooted one).</summary>
     public sealed class SafePathTests
     {
-        private static readonly string Root = Path.Combine(Path.GetTempPath(), "halyard-safepath");
+        // Built by hand (not with Path.Combine or SafePath) so the expected values do not depend on what is tested.
+        private static readonly string Root = Path.GetFullPath(Path.GetTempPath()).TrimEnd('\\') + @"\halyard-safepath";
 
         [Fact]
         public void JoinsRelativePartsUnderTheRoot()
         {
-            Assert.Equal(Path.Combine(Path.GetFullPath(Root), "assets", "stt", "a.js"), SafePath.Under(Root, "assets", @"stt\a.js"));
-            Assert.Equal(Path.GetFullPath(Root).TrimEnd('\\'), SafePath.Under(Root));
+            Assert.Equal(Root + @"\assets\stt\a.js", SafePath.Under(Root, "assets", @"stt\a.js"));
+            Assert.Equal(Root, SafePath.Under(Root));
+            Assert.Equal(Root + @"\b", SafePath.Under(Root, @"a\..\b"));
         }
 
         [Fact]
@@ -28,7 +30,7 @@ namespace Halyard.Core.Tests
         public void RefusesClimbingOutAndLookalikeSiblings()
         {
             Assert.Throws<ArgumentException>(() => SafePath.Under(Root, @"..\config\halyard.env"));
-            Assert.Throws<ArgumentException>(() => SafePath.Under(Root, "..", Path.GetFileName(Root) + "-evil", "x"));
+            Assert.Throws<ArgumentException>(() => SafePath.Under(Root, "..", "halyard-safepath-evil", "x"));
             Assert.Throws<ArgumentException>(() => SafePath.Under(Root, ""));
         }
     }

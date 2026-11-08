@@ -15,7 +15,7 @@ namespace Halyard.Core.Tests
     /// <summary>edge-ops PORTS.md: Halyard's own block with no random fallback, and the /__fleethacker id and shutdown endpoints.</summary>
     public sealed class PortAndFleetTests : IDisposable
     {
-        private readonly string _root = Path.Combine(Path.GetTempPath(), "halyard-port-" + Guid.NewGuid().ToString("N"));
+        private readonly string _root = SafePath.Under(Path.GetTempPath(), "halyard-port-" + Guid.NewGuid().ToString("N"));
 
         public PortAndFleetTests() { Directory.CreateDirectory(_root); }
 

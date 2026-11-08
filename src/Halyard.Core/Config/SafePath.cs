@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Text;
 
 namespace Halyard.Core.Config
 {
@@ -15,14 +16,14 @@ namespace Halyard.Core.Config
         {
             if (string.IsNullOrWhiteSpace(root)) throw new ArgumentException("A root folder is required.", "root");
             var full = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            var result = full;
+            var joined = new StringBuilder(full);
             foreach (var part in parts ?? new string[0])
             {
                 if (string.IsNullOrEmpty(part) || Path.IsPathRooted(part)) throw new ArgumentException("A path part must be relative and not empty: '" + part + "'.", "parts");
                 // The part is relative (checked above), so a plain separator join cannot drop the root; GetFullPath then resolves any "..".
-                result = result + Path.DirectorySeparatorChar + part;
+                joined.Append(Path.DirectorySeparatorChar).Append(part);
             }
-            result = Path.GetFullPath(result);
+            var result = Path.GetFullPath(joined.ToString());
             var inside = string.Equals(result, full, StringComparison.OrdinalIgnoreCase)
                 || result.StartsWith(full + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
             if (!inside) throw new ArgumentException("The path leaves its folder: " + string.Join("/", parts ?? new string[0]), "parts");

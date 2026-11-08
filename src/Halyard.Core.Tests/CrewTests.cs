@@ -23,7 +23,7 @@ namespace Halyard.Core.Tests
     /// <summary>The crew (agentic product owner and scrum master), the scrum brief, the weekly watch and the speech relay. Fakes only.</summary>
     public sealed class CrewTests : IDisposable
     {
-        private readonly string _root = Halyard.Core.Config.SafePath.Under(Path.GetTempPath(), "halyard-crew-" + Guid.NewGuid().ToString("N"));
+        private readonly string _root = SafePath.Under(Path.GetTempPath(), "halyard-crew-" + Guid.NewGuid().ToString("N"));
         private readonly HttpClient _client = new HttpClient();
         private readonly HalyardHost _host;
         private readonly HostInfo _info;
@@ -35,7 +35,7 @@ namespace Halyard.Core.Tests
             settings.Provider.Kind = ProviderKind.GitHub;
             settings.Provider.SandboxRepository = "fleethacker-data-crucible/Halyard-Ballast";
             settings.Provider.SourceRepository = "fleethacker-data-crucible/Halyard-Ballast";
-            settings.TalkForgePath = Path.Combine(_root, "no-talkforge");
+            settings.TalkForgePath = SafePath.Under(_root, "no-talkforge");
             // Not loopback, so model calls are never usable here, whatever key this machine has installed.
             settings.Llm.FairleadUrl = "http://fairlead.invalid/v1";
             _host = new HalyardHost(new HostOptions { Settings = settings, PreferredPort = HostOptions.AnyPort, WebRoot = null });
@@ -235,7 +235,7 @@ namespace Halyard.Core.Tests
             Assert.Contains("# Weekly watch", text);
             Assert.Contains("## Proposed for review", text);
             Assert.Contains(((JArray)json["goal"]!["steps"]!), s => (string)s["status"] == "proposed");
-            Assert.False(Directory.Exists(Path.Combine(_root, "output", "applied")), "a watch never applies");
+            Assert.False(Directory.Exists(SafePath.Under(_root, "output", "applied")), "a watch never applies");
             var list = JArray.Parse(await _client.GetStringAsync(_info.Url + "api/agent/watches"));
             Assert.Single(list);
         }
@@ -253,10 +253,10 @@ namespace Halyard.Core.Tests
         [Fact]
         public async Task SttServesOnlyListedFiles()
         {
-            var tf = Path.Combine(_root, "no-talkforge", "assets", "stt");
+            var tf = SafePath.Under(_root, "no-talkforge", "assets", "stt");
             Directory.CreateDirectory(tf);
-            File.WriteAllText(Path.Combine(tf, "transformers.min.js"), "export const x = 1;");
-            File.WriteAllText(Path.Combine(tf, "secret.txt"), "no");
+            File.WriteAllText(SafePath.Under(tf, "transformers.min.js"), "export const x = 1;");
+            File.WriteAllText(SafePath.Under(tf, "secret.txt"), "no");
             using (var http = new HttpClient())   // no session header: a worker fetches these files
             {
                 var ok = await http.GetAsync(_info.Url + "stt/transformers.min.js");
