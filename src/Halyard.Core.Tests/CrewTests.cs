@@ -242,18 +242,6 @@ namespace Halyard.Core.Tests
         // ---- voice ----
 
         [Fact]
-        public void SpeechGoesToFairleadsAudioRoute()
-        {
-            Assert.Equal("http://127.0.0.1:8776/v1/audio/speech", SpeechClient.SpeechUrl(null));
-            Assert.Equal("http://127.0.0.1:9000/v1/audio/speech", SpeechClient.SpeechUrl("http://127.0.0.1:9000/v1"));
-            var p = JObject.Parse(SpeechClient.Payload("Hello.", "speech", "en_US-libritts_r-medium", 5));
-            Assert.Equal("speech", (string)p["model"]);
-            Assert.Equal("wav", (string)p["response_format"]);
-            Assert.Equal(2.0, (double)p["speed"]!);
-            Assert.Equal("en_US-libritts_r-medium", (string)p["voice"]);
-        }
-
-        [Fact]
         public async Task VoiceStatusSaysWhatIsMissing()
         {
             var json = JObject.Parse(await _client.GetStringAsync(_info.Url + "api/voice/status"));

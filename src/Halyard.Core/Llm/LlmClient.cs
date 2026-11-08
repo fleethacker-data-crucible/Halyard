@@ -36,16 +36,8 @@ namespace Halyard.Core.Llm
         /// <summary>HALYARD_LLM_PRIVACY=local sends <c>X-Fairlead-Privacy: local</c> so the router only uses local engines.</summary>
         public string Privacy { get; set; }
 
-        /// <summary>HALYARD_VOICE_ROUTE: the Fairlead route that serves <c>/v1/audio/speech</c> (TalkForge behind Fairlead). Default <c>speech</c>.</summary>
-        public string SpeechRoute { get; set; }
-        /// <summary>HALYARD_VOICE: a TalkForge (Piper) voice id; empty uses TalkForge's default voice.</summary>
-        public string SpeechVoice { get; set; }
-        /// <summary>HALYARD_VOICE_SPEED: 0.5 to 2.0.</summary>
-        public double SpeechSpeed { get; set; }
-
         public LlmSettings()
         {
-            SpeechSpeed = 1.0;
             MaxTokens = 4000;
             Temperature = 0.2;
             TimeoutSeconds = 300;

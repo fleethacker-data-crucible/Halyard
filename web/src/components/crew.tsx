@@ -45,12 +45,14 @@ export function Crew() {
   const speaking = useExternal(speech, () => speech.speaking);
   const speechLevel = useExternal(speech, () => speech.level);
   const speechError = useExternal(speech, () => speech.error);
+  const voicePreparing = useExternal(speech, () => speech.preparing);
 
   const loadBrief = useCallback(async () => {
     try { setBrief(await get<ScrumBrief>('/api/scrum/brief')); setBriefError(null); }
     catch (e) { setBrief(null); setBriefError(describeError(e)); }
   }, []);
   useEffect(() => { if (open) void loadBrief(); }, [open, loadBrief]);
+  useEffect(() => { if (open && speak) speech.warmUp(); }, [open, speak]);
 
   const send = useCallback(async (text: string, spoken = false) => {
     const message = text.trim();
@@ -77,6 +79,7 @@ export function Crew() {
   const talk = useCallback(async () => {
     if (dictation.active) { dictation.stop(true); return; }
     speech.stop();
+    speech.warmUp();   // a question asked by voice is answered aloud: start TalkForge while the person talks
     setOpen(true);
     const before = draftRef.current.trim();
     const ok = await dictation.start({
@@ -100,10 +103,10 @@ export function Crew() {
   useEffect(() => {
     const B = window.Binnacle;
     if (!B) return;
-    const state = orbState({ listening: micState === 'listening', transcribing: micState === 'preparing' || micState === 'transcribing', busy, speaking, awaitingApproval: pending.length > 0 });
+    const state = orbState({ listening: micState === 'listening', transcribing: micState === 'preparing' || micState === 'transcribing' || voicePreparing, busy, speaking, awaitingApproval: pending.length > 0 });
     const level = state === 'listening' ? micLevel : state === 'speaking' ? speechLevel : 0;
-    B.voice.set(state, level, orbCaption(state, pending.length) || undefined);
-  }, [micState, micLevel, busy, speaking, speechLevel, pending.length]);
+    B.voice.set(state, level, (voicePreparing && !busy ? 'Getting the voice ready' : orbCaption(state, pending.length)) || undefined);
+  }, [micState, micLevel, busy, speaking, speechLevel, pending.length, voicePreparing]);
 
   // The welcome page (and anything else) can open the panel, optionally with a message: lib/welcome.ts openCrew.
   useEffect(() => {

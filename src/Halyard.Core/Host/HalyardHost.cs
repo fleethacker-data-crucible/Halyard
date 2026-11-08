@@ -230,6 +230,7 @@ namespace Halyard.Core.Host
 
         public void Stop()
         {
+            StopVoice();
             if (StopRequested) return;
             StopRequested = true;
             Log.Info("HOST_STOP", "Stop requested.");

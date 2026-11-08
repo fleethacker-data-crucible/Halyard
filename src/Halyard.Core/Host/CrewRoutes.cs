@@ -40,7 +40,7 @@ namespace Halyard.Core.Host
 
     /// <summary>
     /// The crew (agentic product owner and scrum master), its scrum brief, the weekly watch that a scheduled runner calls, and
-    /// the voice: spoken answers through Fairlead to TalkForge, and TalkForge's Whisper files for voice input in the page.
+    /// the voice: spoken answers through TalkForge (started when needed, as Lazarette does), and TalkForge's Whisper files for voice input in the page.
     /// </summary>
     public sealed partial class HalyardHost
     {
@@ -50,7 +50,9 @@ namespace Halyard.Core.Host
             Router.Post("/api/agent/ask", AskCrew);
             Router.Post("/api/agent/watch", async r => Json.Ok(await RunWatchAsync(Json.Body(r)).ConfigureAwait(false)));
             Router.Get("/api/agent/watches", r => Task.FromResult(Json.Ok(ReadWatches())));
-            Router.Get("/api/voice/status", r => Task.FromResult(Json.Ok(VoiceStatus())));
+            Router.Get("/api/voice/status", async r => Json.Ok(await VoiceStatusAsync().ConfigureAwait(false)));
+            Router.Post("/api/voice/start", async r => Json.Ok(await Voice.StartAsync(CancellationToken.None).ConfigureAwait(false)));
+            Router.Get("/api/voice/voices", r => Task.FromResult(Json.Ok(Voice.ListVoices())));
             Router.Post("/api/voice/speak", Speak);
         }
 
@@ -202,26 +204,53 @@ namespace Halyard.Core.Host
             return list.OrderByDescending(w => w.At).Take(12).ToList();
         }
 
-        // ---- voice ----
+        // ---- voice: TalkForge, the way Lazarette does it ----
 
-        private object VoiceStatus()
+        private TalkForge _talkForge;
+        private readonly object _talkForgeGate = new object();
+
+        /// <summary>The TalkForge this engine talks to (and starts when needed). Disposed, and its copy stopped, when the host stops.</summary>
+        public TalkForge Voice
         {
-            var speechProblem = Settings.Llm.MissingFor();
-            var stt = SttStatus();
-            return new
+            get
             {
-                speech = new { ready = speechProblem == null, route = new SpeechClient(Settings.Llm).Route, voice = Settings.Llm.SpeechVoice, message = speechProblem ?? "Spoken answers go through Fairlead to TalkForge on this PC." },
-                dictation = stt,
-            };
+                lock (_talkForgeGate)
+                {
+                    if (_talkForge == null)
+                    {
+                        _talkForge = new TalkForge(FindTalkForge(), Settings.TalkForgePort, Options.Transport);
+                        _talkForge.ExternalToken = () => Environment.GetEnvironmentVariable("HALYARD_TALKFORGE_TOKEN");
+                    }
+                    return _talkForge;
+                }
+            }
+        }
+
+        private void StopVoice()
+        {
+            TalkForge t;
+            lock (_talkForgeGate) { t = _talkForge; _talkForge = null; }
+            if (t != null) t.Dispose();
+        }
+
+        private async Task<object> VoiceStatusAsync()
+        {
+            var state = await Voice.StateAsync(CancellationToken.None).ConfigureAwait(false);
+            return new { speech = new { state = state.State, ready = state.State == "ready", message = state.Message, port = Voice.Port, voice = Settings.VoiceName }, dictation = SttStatus() };
         }
 
         private async Task<HttpResponse> Speak(HttpRequest r)
         {
-            var text = (Json.Read<string>(Json.Body(r), "text") ?? string.Empty).Trim();
-            if (text.Length == 0 || text.Length > SpeechClient.MaxChars) throw new BadRequestException("Send 1-" + SpeechClient.MaxChars + " characters of text.");
-            var missing = Settings.Llm.MissingFor();
-            if (missing != null) throw new ProviderNotReadyException("Spoken answers are not usable: " + missing);
-            var audio = await new SpeechClient(Settings.Llm, Options.Transport).SpeakAsync(text, CancellationToken.None).ConfigureAwait(false);
+            var body = Json.Body(r);
+            var text = (Json.Read<string>(body, "text") ?? string.Empty).Trim();
+            if (text.Length == 0 || text.Length > TalkForge.MaxChars) throw new BadRequestException("Send 1-" + TalkForge.MaxChars + " characters of text.");
+            var voice = Json.Read<string>(body, "voice");
+            if (string.IsNullOrWhiteSpace(voice)) voice = Settings.VoiceName;
+            if (!string.IsNullOrWhiteSpace(voice) && !Voice.ListVoices().Voices.Any(v => string.Equals(v.Id, voice.Trim(), StringComparison.Ordinal)))
+                throw new BadRequestException("The voice '" + voice + "' is not installed in TalkForge.");
+            byte[] audio;
+            try { audio = await Voice.SpeakAsync(text, voice, Settings.VoiceSpeed, CancellationToken.None).ConfigureAwait(false); }
+            catch (TalkForgeOfflineException ex) { return Json.Error(409, "VOICE_OFFLINE", ex.Message, r.RequestId); }
             var response = HttpResponse.Bytes(200, audio, "audio/wav");
             response.Headers["Cache-Control"] = "no-store";
             return response;

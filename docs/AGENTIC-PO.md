@@ -61,21 +61,25 @@ GitHub or on a GitLab server such as web.git.mil.
   it to talk; click again to stop and send. It shows `listening`, `thinking` while the crew works, `speaking` with the real
   audio level, and `approval` while a batch the crew made is waiting on the Proposals page. It is told a state, a level and a
   short caption, never the conversation.
-- **Spoken answers.** `POST /api/voice/speak` sends one sentence at a time to Fairlead's `/v1/audio/speech` with Halyard's
-  own Fairlead key and `X-Fairlead-Privacy: local`; Fairlead routes it to TalkForge on this PC and Halyard returns the WAV.
-  Unlike Lazarette, Halyard needs no TalkForge token: every model call already goes through Fairlead, so speech does too.
-  Spoken answers are off by default (the speaker button in the panel turns them on); a question asked by voice is
-  answered aloud. When TalkForge cannot be reached the answer stays text and the panel says why: no browser or cloud voice.
+- **Spoken answers, the Lazarette way.** `POST /api/voice/speak` sends one sentence at a time to TalkForge's loopback
+  `/v1/audio/speech` and returns the WAV (Piper neural voices). When TalkForge is not running the page asks the engine to
+  start it (`POST /api/voice/start`): Halyard runs `node tools\talkforge.mjs serve` on port 25008 (Lazarette uses 25009)
+  with a random token made for that run, kept only in memory and the child's environment, and a 30-minute idle timeout;
+  the copy is shut down when Halyard stops. The orb says "Getting the voice ready" meanwhile. Spoken answers are off by
+  default (Settings, Voice, or the speaker button); a question asked by voice is answered aloud. When TalkForge cannot
+  start the answer stays text and the panel says why: no browser or cloud voice. Settings, Voice picks an installed voice
+  (`GET /api/voice/voices`) and plays a test sentence.
 - **Voice input.** Whisper tiny.en runs in a worker in the page (`web/src/workers/stt.worker.ts`), with the model and runtime
   served read-only from TalkForge's assets at fixed `/stt/` paths (the same list Lazarette serves). Audio never leaves the tab.
   Without those files, the browser's recogniser is used only when it runs on this computer; otherwise typing.
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `HALYARD_VOICE_ROUTE` | `speech` | The Fairlead route whose target is TalkForge (`http://127.0.0.1:25009`, TalkForge token as the key) |
-| `HALYARD_VOICE` | TalkForge's default | A Piper voice id, for example `en_US-libritts_r-medium` |
+| `HALYARD_TALKFORGE_PATH` | `..\TalkForge`, then `%USERPROFILE%\Projects\TalkForge` | The TalkForge folder: voices, `tools\talkforge.mjs`, and the Whisper files (`populate-assets.ps1 -Only 'stt/*'`) |
+| `HALYARD_TALKFORGE_PORT` | `25008` | Port of Halyard's TalkForge copy (inside TalkForge's 25000-25009) |
+| `HALYARD_VOICE` | TalkForge's default | A Piper voice id when the page has not picked one |
 | `HALYARD_VOICE_SPEED` | `1.0` | 0.5 to 2.0 |
-| `HALYARD_TALKFORGE_PATH` | `..\TalkForge`, then `%USERPROFILE%\Projects\TalkForge` | Where the Whisper files are (`populate-assets.ps1 -Only 'stt/*'`) |
+| `HALYARD_TALKFORGE_TOKEN` | none | Only for a TalkForge you started yourself on that port |
 
 The page CSP gains `script-src 'self' 'wasm-unsafe-eval'` (Whisper's WASM), `worker-src 'self'` and `media-src 'self' blob:`.
 

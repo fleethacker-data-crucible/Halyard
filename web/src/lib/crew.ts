@@ -15,8 +15,15 @@ export type ScrumBrief = {
 };
 
 export type VoiceStatus = {
-  speech: { ready: boolean; route: string; voice?: string | null; message: string };
+  speech: { state: 'ready' | 'starting' | 'offline' | 'missing'; ready: boolean; message: string; port: number; voice?: string | null };
   dictation: { ready: boolean; missing: string[]; message: string };
+};
+
+export type TalkForgeVoices = {
+  found: boolean;
+  defaultVoice: string;
+  message: string;
+  voices: Array<{ id: string; quality: string; speakers: number; language: string; default: boolean }>;
 };
 
 /** Binnacle voice states (vendor/binnacle README). */

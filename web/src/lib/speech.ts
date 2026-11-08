@@ -1,9 +1,18 @@
-// Spoken answers. Each piece of text goes to POST /api/voice/speak on this origin; the engine sends it to Fairlead's
-// /v1/audio/speech, which routes to TalkForge on this computer, and returns WAV audio that plays from a blob: URL. One
-// piece is fetched ahead while the current one plays, and the real audio level drives the orb. TalkForge or nothing,
-// as in Lazarette: when it cannot be reached the answer stays text and the panel says why. No browser or cloud voice.
-import { sessionToken } from './api';
-import { speechPieces } from './crew';
+// Spoken answers, the way Lazarette does them. Each piece of text goes to POST /api/voice/speak on this origin; the engine
+// relays it to TalkForge on this computer (Piper neural voices) and returns WAV audio that plays from a blob: URL. When
+// TalkForge is not running the engine starts it ("Getting the voice ready") and the piece is tried once more. One piece is
+// fetched ahead while the current one plays, and the real audio level drives the orb. TalkForge or nothing: when it
+// cannot start the answer stays text and the panel says why. No browser or cloud voice.
+import { get, post, sessionToken } from './api';
+import { speechPieces, type VoiceStatus } from './crew';
+import { readLocal } from './storage';
+
+/** The voice chosen in Settings (a TalkForge voice id), or '' for TalkForge's default. */
+export const VOICE_KEY = 'crew-voice';
+const START_WAIT_MS = 45_000;
+
+type StartState = { state: string; message: string };
+class Offline extends Error {}
 
 type Listener = () => void;
 
@@ -12,7 +21,10 @@ export class SpeechPlayer {
   /** Loudness of the audio now playing, 0 to about 0.3 (speech RMS). */
   level = 0;
   error = '';
+  /** True while TalkForge is being started; the orb says "Getting the voice ready". */
+  preparing = false;
 
+  private readying: Promise<boolean> | null = null;
   private listeners = new Set<Listener>();
   private gen = 0;
   private audio: HTMLAudioElement | null = null;
@@ -69,20 +81,62 @@ export class SpeechPlayer {
     this.emit();
   }
 
+  /** Starts TalkForge in the background so the first answer speaks sooner. Safe to call often: one start at a time. */
+  warmUp() { void this.ensureReady(); }
+
+  ensureReady(): Promise<boolean> {
+    this.readying ??= this.ready().finally(() => { this.readying = null; this.preparing = false; this.emit(); });
+    return this.readying;
+  }
+
+  private async ready(): Promise<boolean> {
+    try {
+      const status = await get<VoiceStatus>('/api/voice/status');
+      if (status.speech.state === 'ready') return true;
+      if (status.speech.state === 'missing') { this.error = status.speech.message; return false; }
+      let s: StartState = status.speech.state === 'starting' ? status.speech : await post<StartState>('/api/voice/start', {});
+      const until = Date.now() + START_WAIT_MS;
+      while (s.state === 'starting' && Date.now() < until) {
+        if (!this.preparing) { this.preparing = true; this.emit(); }
+        await new Promise((r) => setTimeout(r, 600));
+        s = (await get<VoiceStatus>('/api/voice/status')).speech;
+      }
+      if (s.state === 'ready') { this.error = ''; return true; }
+      this.error = s.message || 'TalkForge is not running.';
+      return false;
+    } catch (e) {
+      this.error = e instanceof Error ? e.message : String(e);
+      return false;
+    }
+  }
+
   private async fetchPiece(text: string, signal: AbortSignal): Promise<Blob | null> {
     try {
+      return await this.request(text, signal);
+    } catch (e) {
+      // TalkForge not running: start it, then try this piece once more.
+      if (e instanceof Offline && !signal.aborted && (await this.ensureReady()) && !signal.aborted) {
+        try { return await this.request(text, signal); } catch (e2) { e = e2; }
+      }
+      if (!signal.aborted && !this.error) this.error = e instanceof Error ? e.message : String(e);
+      return null;
+    }
+  }
+
+  private async request(text: string, signal: AbortSignal): Promise<Blob> {
+    {
       const headers = new Headers({ 'Content-Type': 'application/json', Accept: 'audio/wav' });
       const token = sessionToken();
       if (token) headers.set('X-Halyard-Session', token);
-      const r = await fetch('/api/voice/speak', { method: 'POST', headers, body: JSON.stringify({ text }), signal, cache: 'no-store' });
+      const voice = readLocal<string>(VOICE_KEY, '');
+      const r = await fetch('/api/voice/speak', { method: 'POST', headers, body: JSON.stringify(voice ? { text, voice } : { text }), signal, cache: 'no-store' });
+      if (r.status === 409) throw new Offline('TalkForge is not running.');
       if (!r.ok) {
-        try { this.error = ((await r.json()) as { error?: string }).error ?? `Speech failed with HTTP ${r.status}`; } catch { this.error = `Speech failed with HTTP ${r.status}`; }
-        return null;
+        let message = `Speech failed with HTTP ${r.status}`;
+        try { message = ((await r.json()) as { error?: string }).error ?? message; } catch { /* not json */ }
+        throw new Error(message);
       }
       return await r.blob();
-    } catch (e) {
-      if (!signal.aborted) this.error = e instanceof Error ? e.message : String(e);
-      return null;
     }
   }
 

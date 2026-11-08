@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { LuKeyRound, LuSave, LuSparkles } from 'react-icons/lu';
 import { Button, Checkbox, Field, Input, Mono, Notice, Page, Pill, Section, useToast } from '../components/ui';
+import { VoiceSettings } from '../components/voice-settings';
 import { describeError, post } from '../lib/api';
 import { type Status } from '../lib/schemas';
 import { invalidate } from '../lib/useResource';
@@ -65,6 +66,7 @@ export function SettingsPage({ status, refreshStatus }: { status: Status | undef
             <ModelForm config={c} saving={saving} onApply={apply} onTest={() => testLlm()} testing={llmBusy} />
             {llmResult ? <Notice tone={llmResult.ok ? 'ok' : 'err'} className="mx-4 mb-3">{llmResult.ok ? <>Reply from <Mono>{llmResult.model}</Mono>: <Mono>{llmResult.text}</Mono></> : <>{llmResult.code}: {llmResult.error}</>}</Notice> : null}
           </Section>
+          <VoiceSettings />
         </div>
         <div className="flex flex-col gap-5">
           <Section title="Repositories">
