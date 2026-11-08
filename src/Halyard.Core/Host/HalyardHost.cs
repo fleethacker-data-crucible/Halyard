@@ -424,6 +424,9 @@ namespace Halyard.Core.Host
                 catch (InvalidOperationException ex) { return Json.Error(409, "CONFLICT", ex.Message, request.RequestId); }
             }
 
+            var stt = ServeStt(request);
+            if (stt != null) return stt;
+
             var webRoot = Options.WebRoot ?? Settings.WebRootDirectory;
             if (!string.IsNullOrEmpty(webRoot))
             {

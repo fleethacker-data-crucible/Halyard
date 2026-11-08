@@ -67,6 +67,9 @@ namespace Halyard.Core.Config
         public string IntakesDirectory { get { return Path.Combine(OutputDirectory, "intakes"); } }
         /// <summary>HALYARD_REPORT_WEBHOOK: an https Teams/Slack incoming webhook for the leadership summary. Holds a secret URL; never shown or logged.</summary>
         public string ReportWebhookUrl { get; set; }
+        /// <summary>HALYARD_TALKFORGE_PATH: the TalkForge folder whose speech-to-text files voice input uses. Empty: a TalkForge folder next to Halyard, then %USERPROFILE%\Projects\TalkForge.</summary>
+        public string TalkForgePath { get; set; }
+        public string WatchDirectory { get { return Path.Combine(OutputDirectory, "watch"); } }
         public string ProposalsDirectory { get { return Path.Combine(OutputDirectory, "proposals"); } }
         /// <summary>One file per apply run, with the body each written item had before (for rollback).</summary>
         public string ApplyJournalDirectory { get { return Path.Combine(OutputDirectory, "applied"); } }
@@ -161,6 +164,11 @@ namespace Halyard.Core.Config
             s.Llm.Route = app("FAIRLEAD_MODEL");
             s.Llm.Privacy = app("LLM_PRIVACY");
             s.Llm.TranscriptDirectory = app("LLM_TRANSCRIPTS") == "0" ? null : s.TranscriptsDirectory;
+            s.Llm.SpeechRoute = app("VOICE_ROUTE");
+            s.Llm.SpeechVoice = app("VOICE");
+            double speed;
+            if (double.TryParse(app("VOICE_SPEED"), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out speed)) s.Llm.SpeechSpeed = Math.Min(2.0, Math.Max(0.5, speed));
+            s.TalkForgePath = app("TALKFORGE_PATH");
             return s;
         }
 

@@ -7,6 +7,7 @@ import { useLocalState } from './lib/storage';
 import { useTheme, type ThemePref } from './lib/theme';
 import { useResource } from './lib/useResource';
 import { Button, ConfirmDialog, Emblem, Notice, Pill, ToastProvider, cn, useToast } from './components/ui';
+import { Crew } from './components/crew';
 import { ConnectionPage } from './pages/connection';
 import { DiagnosticsPage } from './pages/diagnostics';
 import { HierarchyPage } from './pages/hierarchy';
@@ -158,6 +159,7 @@ function Shell() {
         <main className="scroll-y min-h-0 min-w-0 flex-1">{page}</main>
       </div>
       <StatusBar status={s} error={status.error} />
+      <Crew />
       <ConfirmDialog open={confirmStop} title="End this Halyard session?" confirmLabel="End session" onConfirm={endSession} onCancel={() => setConfirmStop(false)}>
         The local engine stops and this page stops working. Snapshots, proposals and seed manifests stay on disk under <code>output/</code>.
       </ConfirmDialog>

@@ -45,6 +45,14 @@ Also on `main`: Fairlead as the default model endpoint, command registry with `c
 PacketRat/Eight Bells (`fleet-handoff` v1, no exporter on their side yet), read-aloud and dictation with local speech only, accessible tab and dialog names,
 `docs/CLI.md`, `docs/HANDOFF.md`, `docs/SEMAPHORE-EXPORT.md`, `docs/DEMO-WALKTHROUGH.md`.
 
+## The crew (agentic product owner and scrum master)
+
+Built on `feat/agentic-po-scrum`, tested against fakes: the crew (`agent ask`, the command registry as its tools, writes
+refused), the scrum brief (`scrum brief`: burn, standup, risks, ceremonies, retro prompts, next best actions), the weekly
+watch (`agent watch`, called by the local Dogwatch runner across GitHub orgs and GitLab groups), and voice through the
+Binnacle orb with TalkForge speech via Fairlead and Whisper input in the page. Review, design and what is left:
+[docs/AGENTIC-PO.md](docs/AGENTIC-PO.md). Live check still needed: a Fairlead route to TalkForge, the Whisper files, a real model.
+
 ## Next
 
 | # | Item | Notes |

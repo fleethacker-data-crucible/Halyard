@@ -91,6 +91,17 @@ async function run() {
     logLevel: 'warning',
   });
   const js = result.outputFiles[0].text;
+  // The speech-to-text worker is its own module file: it imports TalkForge's transformers.js from /stt/ at run time.
+  await build({
+    entryPoints: [path.join(srcDir, 'workers', 'stt.worker.ts')],
+    bundle: true,
+    minify: !watch,
+    format: 'esm',
+    target: ['es2020', 'edge120', 'chrome120'],
+    outfile: path.join(outDir, 'assets', 'stt.worker.js'),
+    legalComments: 'none',
+    logLevel: 'warning',
+  });
   const css = await buildCss(files);
   const hash = createHash('sha256').update(js).update(css).digest('hex').slice(0, 10);
   await writeFile(path.join(outDir, 'assets', `app.${hash}.js`), js);
