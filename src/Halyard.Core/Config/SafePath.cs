@@ -19,7 +19,8 @@ namespace Halyard.Core.Config
             foreach (var part in parts ?? new string[0])
             {
                 if (string.IsNullOrEmpty(part) || Path.IsPathRooted(part)) throw new ArgumentException("A path part must be relative and not empty: '" + part + "'.", "parts");
-                result = Path.Combine(result, part);
+                // The part is relative (checked above), so a plain separator join cannot drop the root; GetFullPath then resolves any "..".
+                result = result + Path.DirectorySeparatorChar + part;
             }
             result = Path.GetFullPath(result);
             var inside = string.Equals(result, full, StringComparison.OrdinalIgnoreCase)

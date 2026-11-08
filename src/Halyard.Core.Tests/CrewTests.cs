@@ -23,7 +23,7 @@ namespace Halyard.Core.Tests
     /// <summary>The crew (agentic product owner and scrum master), the scrum brief, the weekly watch and the speech relay. Fakes only.</summary>
     public sealed class CrewTests : IDisposable
     {
-        private readonly string _root = Path.Combine(Path.GetTempPath(), "halyard-crew-" + Guid.NewGuid().ToString("N"));
+        private readonly string _root = Halyard.Core.Config.SafePath.Under(Path.GetTempPath(), "halyard-crew-" + Guid.NewGuid().ToString("N"));
         private readonly HttpClient _client = new HttpClient();
         private readonly HalyardHost _host;
         private readonly HostInfo _info;

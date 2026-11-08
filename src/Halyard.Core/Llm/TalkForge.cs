@@ -7,6 +7,7 @@ using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using Halyard.Core.Config;
 using Halyard.Core.Providers;
 using Halyard.Core.Serialization;
 
@@ -101,13 +102,13 @@ namespace Halyard.Core.Llm
             var result = new TalkForgeVoices();
             if (string.IsNullOrEmpty(_folder) || !Directory.Exists(_folder)) { result.Message = "TalkForge was not found, so its voices cannot be listed. Set HALYARD_TALKFORGE_PATH."; return result; }
             result.Found = true;
-            var engine = Path.Combine(_folder, "tools", "node-engine.mjs");
+            var engine = SafePath.Under(_folder, "tools", "node-engine.mjs");
             if (File.Exists(engine))
             {
                 var m = Regex.Match(File.ReadAllText(engine), @"DEFAULT_VOICE\s*=\s*'([A-Za-z0-9._\-]{1,80})'");
                 if (m.Success) result.DefaultVoice = m.Groups[1].Value;
             }
-            var models = Path.Combine(_folder, "assets", "models");
+            var models = SafePath.Under(_folder, "assets", "models");
             if (Directory.Exists(models))
             {
                 foreach (var f in Directory.GetFiles(models, "*.onnx").OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
@@ -184,7 +185,7 @@ namespace Halyard.Core.Llm
             var now = await StateAsync(cancellation).ConfigureAwait(false);
             if (now.State != "offline" || await HeartbeatAsync(cancellation).ConfigureAwait(false)) return now;
             if (string.IsNullOrEmpty(_folder)) return new TalkForgeState { State = "missing", Message = "TalkForge was not found." };
-            var script = Path.Combine(_folder, "tools", "talkforge.mjs");
+            var script = SafePath.Under(_folder, "tools", "talkforge.mjs");
             if (!File.Exists(script)) return new TalkForgeState { State = "missing", Message = "TalkForge's tools\\talkforge.mjs was not found in " + _folder + "." };
             var node = FindNode();
             if (node == null) return new TalkForgeState { State = "offline", Message = "TalkForge needs Node.js 18 or newer, and node was not found." };
@@ -281,11 +282,12 @@ namespace Halyard.Core.Llm
         {
             var dirs = (Environment.GetEnvironmentVariable("PATH") ?? string.Empty).Split(';').Where(d => d.Trim().Length > 0).ToList();
             var pf = Environment.GetEnvironmentVariable("ProgramFiles");
-            if (!string.IsNullOrEmpty(pf)) dirs.Add(Path.Combine(pf, "nodejs"));
+            if (!string.IsNullOrEmpty(pf)) dirs.Add(SafePath.Under(pf, "nodejs"));
             foreach (var d in dirs)
             {
-                try { var p = Path.Combine(d.Trim().Trim('"'), "node.exe"); if (File.Exists(p)) return p; }
+                try { var p = SafePath.Under(d.Trim().Trim('"'), "node.exe"); if (File.Exists(p)) return p; }
                 catch (ArgumentException) { continue; }   // a PATH entry with characters a path cannot hold: skip it
+                catch (NotSupportedException) { continue; }   // .NET Framework: a malformed entry such as C::b
             }
             return null;
         }
