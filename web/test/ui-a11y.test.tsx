@@ -5,6 +5,12 @@ import { ConfirmDialog, Tabs, nextTabIndex, tabIds, tabPanelProps } from '../src
 
 const items = [{ value: 'a', label: 'Alpha', count: 3 }, { value: 'b', label: 'Beta' }, { value: 'c', label: 'Gamma' }];
 
+// Literal for a RegExp source. The character class includes backslash, so an id cannot
+// close the escape the way a colon-only prefix (`\:`) did.
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 test('tabs expose a labelled tablist, one tab stop and a panel for each tab', () => {
   const html = renderToStaticMarkup(<Tabs idPrefix="t" label="Things" value="b" onChange={() => {}} items={items} />);
   assert.match(html, /role="tablist"[^>]*aria-label="Things"|aria-label="Things"[^>]*role="tablist"/);
@@ -46,8 +52,16 @@ test('a confirmation dialog is named by its title and described by its body', ()
   const labelled = html.match(/aria-labelledby="([^"]+)"/)?.[1];
   const described = html.match(/aria-describedby="([^"]+)"/)?.[1];
   assert.ok(labelled && described && labelled !== described);
-  assert.match(html, new RegExp(`<h2 id="${labelled!.replace(/[:]/g, '\\$&')}">Delete the run\\?</h2>`));
-  assert.match(html, new RegExp(`<div id="${described!.replace(/[:]/g, '\\$&')}"[^>]*>This cannot be undone\\.</div>`));
+  assert.match(html, new RegExp(`<h2 id="${escapeRegExp(labelled!)}">Delete the run\\?</h2>`));
+  assert.match(html, new RegExp(`<div id="${escapeRegExp(described!)}"[^>]*>This cannot be undone\\.</div>`));
+});
+
+test('dialog id patterns treat backslash and other regex metacharacters as literals', () => {
+  const id = String.raw`a\b.+(c)|[d]`;
+  assert.equal(escapeRegExp(id), String.raw`a\\b\.\+\(c\)\|\[d\]`);
+  const html = `<h2 id="${id}">Delete the run?</h2><div id="${id}">This cannot be undone.</div>`;
+  assert.match(html, new RegExp(`<h2 id="${escapeRegExp(id)}">Delete the run\\?</h2>`));
+  assert.match(html, new RegExp(`<div id="${escapeRegExp(id)}"[^>]*>This cannot be undone\\.</div>`));
 });
 
 test('two dialogs on one page get different ids', () => {
