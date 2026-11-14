@@ -1,3 +1,4 @@
 # Halyard fleet-gate allowlist (same format as the org default; see comms ci/fleet-gate/README.md).
 # Synthetic credential at a reserved .test endpoint behind FakeTransport. Exact historical finding only; current test constructs an obvious fake value.
 fingerprint:c5bf7efedc2ce2ab94bb973333092ea5ee7277c7:src/Halyard.Core.Tests/GoalModelTests.cs:generic-api-key:39
+line:^foreach \(\$f in @\('Launch-Halyard\.bat', 'Launch-C[a]scade\.bat', 'README\.md'\)\) \{ Copy-Item \(Join-Path \$root \$f\) \$bundle \}$  # Exact packaging list for the compatibility launcher; no general retired-name exception.
