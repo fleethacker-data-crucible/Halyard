@@ -17,7 +17,7 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     # Pinned to TAICHI-RAPTOR-fleet-headless (the only runner labelled fleet-backup): win11vm-powershell took jobs and
     # dropped them after 10 minutes (2026-11-08). Remove the label to use any Windows runner again.
-    runs-on: [self-hosted, Windows, X64, fleet-backup]
+    runs-on: [self-hosted, Windows, X64]
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v4
