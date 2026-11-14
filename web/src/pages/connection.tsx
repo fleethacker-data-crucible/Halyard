@@ -61,7 +61,7 @@ export function ConnectionPage({ status, refreshStatus }: { status: Status | und
               <dt className="text-ink-2">Token</dt><dd>{status?.config.hasProviderToken ? <Pill tone="ok">loaded in memory</Pill> : <Pill tone="warn">missing</Pill>}</dd>
               <dt className="text-ink-2">Write policy</dt><dd className="text-ink-2">{status?.policy.description}</dd>
             </dl>
-            {!status?.config.hasProviderToken ? <Notice tone="warn">{status?.config.provider === 'gitlab' ? 'Unlock the Lazarette vault from the launcher, or set GITLAB_TOKEN in config/halyard.env for local development.' : 'Set GITHUB_TOKEN in config/halyard.env, or run "gh auth login" before launching; the launcher reads the gh token.'}</Notice> : null}
+            {!status?.config.hasProviderToken ? <Notice tone="warn">{status?.config.provider === 'gitlab' ? 'Unlock the Lazarette vault from the launcher, or set GITLAB_TOKEN in config/halyard.env for local development.' : <>Apply a GitHub token in <a href="#/settings" className="underline">Settings</a>. It stays in memory for this session. A token already in config/halyard.env, or one the launcher read from gh before startup, still works.</>}</Notice> : null}
             <div className="flex items-center gap-3">
               <Button variant="primary" onClick={runTest} busy={testing} disabled={!status?.config.hasProviderToken}><LuPlug size={14} />Test connection</Button>
               {status?.provider.identity ? <span className="text-ink-2">Last confirmed as <span className="text-ink">{status.provider.identity.login}</span></span> : status?.provider.error ? <span className="text-err">{status.provider.error}</span> : null}

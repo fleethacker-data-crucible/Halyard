@@ -37,9 +37,9 @@ HALYARD_SOURCE_REPO=fleethacker-data-crucible/Halyard-Ballast
 HALYARD_SANDBOX_REPO=fleethacker-data-crucible/Halyard-Ballast
 ```
 
-Token: `GITHUB_TOKEN=` in `halyard.env`. On a personal machine with the GitHub CLI installed, `gh auth login`
+Token: paste it under Settings, GitHub token (held in process memory for that session only; the browser does not write it to `halyard.env`), or set `GITHUB_TOKEN=` in `halyard.env`. On a personal machine with the GitHub CLI installed, `gh auth login`
 once also works (the launcher reads `gh auth token` when `gh` is present and no token is set); the workstation
-has no `gh`, so use `GITHUB_TOKEN` (or Lazarette) there.
+has no `gh`, so use Settings or `GITHUB_TOKEN` (or Lazarette) there.
 The token needs `repo` scope; deleting issues needs admin rights on the repository.
 
 **Several source repositories** (the usual case at work: issues spread over many projects)

@@ -6,6 +6,8 @@ import { DictationPanel, ReadAloud } from '../src/components/voice';
 import { GoalPanel, PromotePanel, ShellbackRefresh, WebhookPanel } from '../src/components/fleet-actions';
 import { SprintReviewPanel } from '../src/components/sprint-review';
 import { ApplyHistory } from '../src/components/apply-history';
+import { SettingsPage } from '../src/pages/settings';
+import type { Status } from '../src/lib/schemas';
 
 // The new screens render their first, data-less state without a browser: panels that need data stay out of the way, buttons are named.
 const toastRegion = /<div class="pointer-events-none[^>]*aria-live="polite"><\/div>/;
@@ -40,6 +42,32 @@ test('the dictation panel always offers typing and a two-step copy', () => {
   assert.match(html, /Preview drafts/);
   assert.doesNotMatch(html, /Copy \d+ into the sandbox/);
   assert.doesNotMatch(html, />Dictate</); // no browser here, so no microphone button is offered
+});
+
+function status(provider: 'github' | 'gitlab', hasProviderToken: boolean): Status {
+  return {
+    version: '1.2.0', startedAt: '2026-11-14T00:00:00Z', uptimeSeconds: 1, port: 8806,
+    config: {
+      provider, baseUrl: 'https://api.github.com', sourceRepository: 'org/source', sourceRepositories: ['org/source'],
+      sandboxRepository: 'org/sandbox', hasProviderToken, writeMode: 'sandbox', allowProduction: false, labelFilter: null,
+      preferredPort: 8806, maxSyncItems: 2000, protectedRepositories: [], llmModel: 'auto', llmUrl: 'http://127.0.0.1:8776/v1/chat/completions',
+      llmKeyTarget: 'Fairlead/Halyard', hasLlmToken: false, llmMissing: null, envFile: 'config/halyard.env', envFileExists: false,
+      rootDirectory: 'C:\\Halyard', outputDirectory: 'C:\\Halyard\\output',
+    },
+    policy: { mode: 'sandbox', sandbox: ['org/sandbox'], production: null, protected: [], allowProduction: false, deleteRequiresAnyLabel: [], description: 'sandbox' },
+    provider: { kind: provider, configured: false, identity: null, error: null, capabilities: null },
+    snapshot: null, jobs: { running: 0 }, launcher: {}, webRoot: null, proposals: 0,
+  };
+}
+
+test('Settings offers a GitHub token field only for GitHub, as a password that is not shown back', () => {
+  const github = wrap(<SettingsPage status={status('github', false)} refreshStatus={async () => {}} />);
+  assert.match(github, /GitHub token/);
+  assert.match(github, /type="password"/);
+  assert.match(github, /gh auth login is not required/);
+  assert.match(github, /Apply token/);
+  const gitlab = wrap(<SettingsPage status={status('gitlab', false)} refreshStatus={async () => {}} />);
+  assert.doesNotMatch(gitlab, /Apply token/);
 });
 
 test('panels that wait for data render nothing until it arrives', () => {
