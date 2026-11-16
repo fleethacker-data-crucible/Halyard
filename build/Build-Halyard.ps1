@@ -127,7 +127,7 @@ Copy-Item (Join-Path $root 'fixtures') (Join-Path $bundle 'fixtures') -Recurse
 Copy-Item (Join-Path $root 'docs') (Join-Path $bundle 'docs') -Recurse
 New-Item -ItemType Directory -Path (Join-Path $bundle 'assets\brand') -Force | Out-Null
 Copy-Item (Join-Path $root 'assets\brand\mark-64.png') (Join-Path $bundle 'assets\brand')   # the mark in the emailed report
-foreach ($f in @('Launch-Halyard.bat', 'README.md')) { Copy-Item (Join-Path $root $f) $bundle }
+foreach ($f in @('Launch-Halyard.bat', 'Launch-Cascade.bat', 'README.md')) { Copy-Item (Join-Path $root $f) $bundle }
 
 $version = (Select-Xml -Path (Join-Path $root 'src\Halyard.Core\Halyard.Core.csproj') -XPath '//Version').Node.InnerText
 $commit = ''

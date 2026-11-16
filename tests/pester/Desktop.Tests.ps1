@@ -97,6 +97,16 @@ Describe 'Launcher' {
         $bat | Should -Match 'start "" powershell\.exe [^\r\n]*-WindowStyle Hidden[^\r\n]*Start-Halyard\.ps1'
         $bat | Should -Match 'find /i "--console"'
     }
+    It 'forwards the previous launcher name to Launch-Halyard.bat, including its arguments' {
+        $shims = @(Get-ChildItem -LiteralPath $script:Root -Filter 'Launch-*.bat' |
+            Where-Object { $_.Name -ne 'Launch-Halyard.bat' })
+        $shims.Count | Should -Be 1
+        $bat = Get-Content -LiteralPath $shims[0].FullName -Raw
+        $bat | Should -Match 'call "%~dp0Launch-Halyard\.bat" %\*'
+        $build = Get-Content -LiteralPath (Join-Path $script:Root 'build\Build-Halyard.ps1') -Raw
+        $quoted = "'" + [regex]::Escape($shims[0].Name) + "'"
+        $build | Should -Match $quoted
+    }
     It 'never prompts in a console it may not show' {
         $start = Get-Content -LiteralPath (Join-Path $script:Root 'scripts\Start-Halyard.ps1') -Raw
         $start | Should -Not -Match 'Read-Host'
