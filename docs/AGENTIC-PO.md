@@ -53,7 +53,7 @@ repository, where proposals cannot be made, the goal step is skipped with the re
 Nothing reaches a repository: applying stays a person's job. `GET /api/agent/watches` lists recent watches.
 
 [Dogwatch](../../Dogwatch) (local repository next to Halyard) calls this weekly for every active repository it finds on
-GitHub or on a self-hosted GitLab server such as the Navy GitLab instance (see internal docs).
+GitHub or on a self-hosted GitLab server (see internal docs).
 
 ### Voice: TalkForge and the Binnacle orb, as Lazarette does it
 
