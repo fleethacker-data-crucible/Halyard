@@ -195,8 +195,16 @@ namespace Halyard.Core.Host
                     throw new BadRequestException(locked + " can only be set in config/halyard.env (then relaunch). The browser cannot change where Halyard reads, writes or sends tokens.");
             }
             if (body["labelFilter"] != null) { var lf = Json.Read<string>(body, "labelFilter"); Settings.LabelFilter = string.IsNullOrWhiteSpace(lf) ? null : lf.Trim(); changed.Add("labelFilter"); }
+            // A GitHub token typed in Settings replaces the in-memory provider token for this process only.
+            // It is never written to config/halyard.env, never logged, and never returned. The Fairlead key stays out of the browser.
+            if (body["githubToken"] != null)
+            {
+                if (p.Kind != ProviderKind.GitHub) throw new BadRequestException("A GitHub token can be applied only when the provider is GitHub.");
+                p.Token = SessionSecret(Json.Read<string>(body, "githubToken"));
+                changed.Add("githubToken");
+            }
             // The model route (auto, fast, smart, ...) may be picked here. It only names a Fairlead route; the address and
-            // the key are not settable from the browser. "remember" writes it into the git-ignored env file on this machine.
+            // the Fairlead key are not settable from the browser. "remember" writes the route into the git-ignored env file on this machine.
             var persist = new Dictionary<string, string>();
             if (body["llmModel"] != null)
             {
@@ -221,6 +229,16 @@ namespace Halyard.Core.Host
                 Log.Info("CONFIG_UPDATED", string.Join(", ", changed));
             }
             return Task.FromResult(Json.Ok(new { changed, remembered, config = Settings.ToPublicDictionary(), policy = PolicyPayload() }));
+        }
+
+        /// <summary>A secret the browser may set for this process only: printable ASCII, no spaces, 8 to 255 characters. The value is not logged.</summary>
+        private static string SessionSecret(string value)
+        {
+            var token = (value ?? string.Empty).Trim();
+            if (token.Length < 8 || token.Length > 255) throw new BadRequestException("Enter the token from GitHub (8 to 255 characters). It is kept in memory for this session only.");
+            foreach (var ch in token)
+                if (ch < 0x21 || ch > 0x7E) throw new BadRequestException("The token has a character that is not allowed.");
+            return token;
         }
 
         // ---- provider ----

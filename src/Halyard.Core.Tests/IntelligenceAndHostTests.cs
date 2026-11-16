@@ -656,6 +656,42 @@ namespace Halyard.Core.Tests
         }
 
         [Fact]
+        public async Task AGitHubTokenFromSettingsStaysInMemoryAndOutOfTheEnvFile()
+        {
+            const string token = "ghp_settings_token_0123456789abcd";
+            Assert.False(_host.Settings.Provider.HasToken);
+            HttpResponseMessage r;
+            using (var content = new StringContent("{\"githubToken\":\"" + token + "\",\"remember\":true}"))
+                r = await _client.PostAsync(_info.Url + "api/config", content);
+            Assert.Equal(200, (int)r.StatusCode);
+            var body = JObject.Parse(await r.Content.ReadAsStringAsync());
+            Assert.True((bool)body["config"]!["hasProviderToken"]!);
+            Assert.False((bool)body["remembered"]!);
+            Assert.DoesNotContain(token, body.ToString());
+            Assert.Equal(token, _host.Settings.Provider.Token);
+            if (File.Exists(_host.Settings.EnvFilePath)) Assert.DoesNotContain(token, File.ReadAllText(_host.Settings.EnvFilePath));
+
+            HttpResponseMessage bad;
+            using (var content = new StringContent("{\"githubToken\":\"short\"}"))
+                bad = await _client.PostAsync(_info.Url + "api/config", content);
+            Assert.Equal(400, (int)bad.StatusCode);
+            Assert.Equal(token, _host.Settings.Provider.Token);
+
+            HttpResponseMessage spaced;
+            using (var content = new StringContent("{\"githubToken\":\"ghp_has a space 0123456789\"}"))
+                spaced = await _client.PostAsync(_info.Url + "api/config", content);
+            Assert.Equal(400, (int)spaced.StatusCode);
+
+            _host.Settings.Provider.Kind = ProviderKind.GitLab;
+            HttpResponseMessage gitlab;
+            using (var content = new StringContent("{\"githubToken\":\"ghp_other_token_0123456789abcd\"}"))
+                gitlab = await _client.PostAsync(_info.Url + "api/config", content);
+            Assert.Equal(400, (int)gitlab.StatusCode);
+            Assert.Equal(token, _host.Settings.Provider.Token);
+            _host.Settings.Provider.Kind = ProviderKind.GitHub;
+        }
+
+        [Fact]
         public async Task ManualProposalAndPreviewRoundTrip()
         {
             var snap = JObject.Parse(await _client.GetStringAsync(_info.Url + "api/snapshot"));

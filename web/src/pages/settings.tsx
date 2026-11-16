@@ -62,7 +62,7 @@ export function SettingsPage({ status, refreshStatus }: { status: Status | undef
   };
 
   return (
-    <Page title="Settings" lede="Appearance and voice are yours and stay in this browser. Session settings for the local engine: the model route and label filter can change here; repositories, write mode, provider tokens and the Fairlead address come only from the launcher and config/halyard.env. Model calls use the key Fairlead installs for Halyard.">
+    <Page title="Settings" lede="Appearance and voice are yours and stay in this browser. Session settings for the local engine: the model route, the label filter and a GitHub token can change here. The GitHub token stays in memory for this session and is not written to config/halyard.env. Repositories, write mode and the Fairlead address come only from the launcher and that file. Model calls use the key Fairlead installs for Halyard.">
       <div className="grid gap-5 xl:grid-cols-2">
         <div className="flex flex-col gap-5">
           <Section title="Model calls (Fairlead)" aside={c?.hasLlmToken ? <Pill tone="ok">ready</Pill> : <Pill tone="warn">not ready</Pill>}>
@@ -82,7 +82,8 @@ export function SettingsPage({ status, refreshStatus }: { status: Status | undef
                 <dt className="text-ink-2">Sandbox (write)</dt><dd><Mono>{c?.sandboxRepository || '(not set)'}</Mono></dd>
                 {c && c.protectedRepositories.length > 0 ? <><dt className="text-ink-2">Protected</dt><dd><Mono>{c.protectedRepositories.join(', ')}</Mono></dd></> : null}
               </dl>
-              <Notice tone="info">Where Halyard reads, writes and sends tokens is set only in <Mono>config/halyard.env</Mono> (<Mono>HALYARD_PROVIDER</Mono>, <Mono>HALYARD_SOURCE_REPO</Mono>, <Mono>HALYARD_SANDBOX_REPO</Mono>, API URLs). Edit it and relaunch. The browser cannot change these.</Notice>
+              <Notice tone="info">Where Halyard reads and writes is set only in <Mono>config/halyard.env</Mono> (<Mono>HALYARD_PROVIDER</Mono>, <Mono>HALYARD_SOURCE_REPO</Mono>, <Mono>HALYARD_SANDBOX_REPO</Mono>, API URLs). Edit those and relaunch. The browser cannot change them.</Notice>
+              {c?.provider === 'github' ? <GitHubTokenForm hasToken={!!c.hasProviderToken} onApply={apply} saving={saving} /> : null}
               <Field label="Default label filter" hint="Exact label; narrows review and hierarchy views. Leave empty for everything."><Input value={labelFilter} onChange={(e) => setLabelFilter(e.target.value)} placeholder="e.g. team::example" /></Field>
               <div className="flex items-center gap-3">
                 <Button variant="primary" onClick={() => void apply({ labelFilter }, 'Label filter applied for this session.')} busy={saving}><LuSave size={14} />Apply</Button>
@@ -100,6 +101,22 @@ export function SettingsPage({ status, refreshStatus }: { status: Status | undef
         </div>
       </div>
     </Page>
+  );
+}
+
+function GitHubTokenForm({ hasToken, onApply, saving }: { hasToken: boolean; onApply: (body: Record<string, unknown>, okText: string) => Promise<boolean>; saving: boolean }) {
+  const [token, setToken] = useState('');
+  const applyToken = async () => {
+    const ok = await onApply({ githubToken: token }, 'GitHub token applied for this session. It stays in memory and is not saved to disk.');
+    if (ok) setToken('');
+  };
+  return (
+    <Field label="GitHub token" hint="Used for this session only. Nothing is written to config/halyard.env, and the token is not shown again. gh auth login is not required.">
+      <div className="flex flex-col gap-2">
+        <Input type="password" autoComplete="off" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value)} placeholder={hasToken ? 'Replace the token in memory' : 'Paste a GitHub token'} />
+        <div><Button variant="primary" onClick={() => void applyToken()} busy={saving} disabled={token.trim().length < 8}><LuKeyRound size={14} />Apply token</Button></div>
+      </div>
+    </Field>
   );
 }
 

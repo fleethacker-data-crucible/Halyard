@@ -18,9 +18,9 @@ export function VoiceSettings() {
   const [speakAnswers, setSpeakAnswers] = useLocalState('crew-speak-answers', false);
   const [voiceInput, setVoiceInput] = useLocalState('crew-voice-input', true);
   const [autoSend, setAutoSend] = useLocalState('crew-auto-send', true);
-  const speaking = useSyncExternalStore((f) => speech.subscribe(f), () => speech.speaking);
-  const preparing = useSyncExternalStore((f) => speech.subscribe(f), () => speech.preparing);
-  const speechError = useSyncExternalStore((f) => speech.subscribe(f), () => speech.error);
+  const speaking = useSyncExternalStore((f) => speech.subscribe(f), () => speech.speaking, () => speech.speaking);
+  const preparing = useSyncExternalStore((f) => speech.subscribe(f), () => speech.preparing, () => speech.preparing);
+  const speechError = useSyncExternalStore((f) => speech.subscribe(f), () => speech.error, () => speech.error);
 
   const load = async () => {
     try {

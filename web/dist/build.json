@@ -1,10 +1,10 @@
 {
-  "hash": "36c49e1b6e",
-  "entry": "app.QWZNTSJD.js",
+  "hash": "6bed1b3861",
+  "entry": "app.AKXDKFUS.js",
   "entryBytes": 397635,
-  "totalBytes": 663806,
+  "totalBytes": 664975,
   "cssBytes": 57072,
   "chunks": 23,
-  "builtAt": "2026-11-08T23:19:24.689Z",
+  "builtAt": "2026-11-14T21:23:02.971Z",
   "watch": false
 }
