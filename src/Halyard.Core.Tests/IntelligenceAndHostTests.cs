@@ -660,7 +660,9 @@ namespace Halyard.Core.Tests
         {
             const string token = "ghp_settings_token_0123456789abcd";
             Assert.False(_host.Settings.Provider.HasToken);
-            var r = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"githubToken\":\"" + token + "\",\"remember\":true}"));
+            HttpResponseMessage r;
+            using (var content = new StringContent("{\"githubToken\":\"" + token + "\",\"remember\":true}"))
+                r = await _client.PostAsync(_info.Url + "api/config", content);
             Assert.Equal(200, (int)r.StatusCode);
             var body = JObject.Parse(await r.Content.ReadAsStringAsync());
             Assert.True((bool)body["config"]!["hasProviderToken"]!);
@@ -669,15 +671,21 @@ namespace Halyard.Core.Tests
             Assert.Equal(token, _host.Settings.Provider.Token);
             if (File.Exists(_host.Settings.EnvFilePath)) Assert.DoesNotContain(token, File.ReadAllText(_host.Settings.EnvFilePath));
 
-            var bad = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"githubToken\":\"short\"}"));
+            HttpResponseMessage bad;
+            using (var content = new StringContent("{\"githubToken\":\"short\"}"))
+                bad = await _client.PostAsync(_info.Url + "api/config", content);
             Assert.Equal(400, (int)bad.StatusCode);
             Assert.Equal(token, _host.Settings.Provider.Token);
 
-            var spaced = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"githubToken\":\"ghp_has a space 0123456789\"}"));
+            HttpResponseMessage spaced;
+            using (var content = new StringContent("{\"githubToken\":\"ghp_has a space 0123456789\"}"))
+                spaced = await _client.PostAsync(_info.Url + "api/config", content);
             Assert.Equal(400, (int)spaced.StatusCode);
 
             _host.Settings.Provider.Kind = ProviderKind.GitLab;
-            var gitlab = await _client.PostAsync(_info.Url + "api/config", new StringContent("{\"githubToken\":\"ghp_other_token_0123456789abcd\"}"));
+            HttpResponseMessage gitlab;
+            using (var content = new StringContent("{\"githubToken\":\"ghp_other_token_0123456789abcd\"}"))
+                gitlab = await _client.PostAsync(_info.Url + "api/config", content);
             Assert.Equal(400, (int)gitlab.StatusCode);
             Assert.Equal(token, _host.Settings.Provider.Token);
             _host.Settings.Provider.Kind = ProviderKind.GitHub;
